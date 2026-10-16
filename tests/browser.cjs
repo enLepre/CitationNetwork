@@ -307,7 +307,8 @@ async function labelStats(page) {
     assert(await page.locator('#appearance-toggle').isVisible());
     assert.equal((await page.locator('#theme-toggle').textContent()).trim(), '◐');
     assert(await page.locator('#notebook-menu').evaluate(el => getComputedStyle(el).borderTopWidth === '0px'));
-    await page.screenshot({ path: path.join(output, 'after-mobile-menu.png') });
+    assert(await page.locator('#notebook-menu').evaluate(el => el.getBoundingClientRect().bottom <= document.getElementById('view-search').getBoundingClientRect().top));
+    await page.waitForTimeout(250); await page.screenshot({ path: path.join(output, 'after-mobile-menu.png') });
     await page.keyboard.press('Escape');
     await page.screenshot({ path: path.join(output, 'after-mobile.png') });
     await navigate(page, 'graph'); await frames(page);
