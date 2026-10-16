@@ -2,11 +2,11 @@
 <html lang="en"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Explore the references, citing papers and shared foundations around a paper. A research tool by Enrico Lepre.">
+<meta name="description" content="Explore the references, citing papers and shared foundations around a paper.">
 <meta name="theme-color" content="#f5f2ec">
 <title>Citation Network — citation knowledge graph</title>
 <link rel="stylesheet" href="assets/fonts.css">
-<link rel="stylesheet" href="assets/styles.css?v=notebook-1">
+<link rel="stylesheet" href="assets/styles.css?v=standalone-1">
 
 </head>
 <body>
@@ -15,12 +15,11 @@
   <header class="topbar">
     <div class="site-menu">
       <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="notebook-menu"><span aria-hidden="true"></span></button>
-      <nav id="notebook-menu" class="notebook-menu" aria-label="Enrico Lepre’s notebook" hidden>
-        <a class="menu-brand" href="https://enlepre.github.io/Personal-Blog/" target="_blank" rel="noopener noreferrer">Enrico Lepre</a>
-        <a href="https://enlepre.github.io/Personal-Blog/research.html" target="_blank" rel="noopener noreferrer">Research</a>
-        <a href="https://enlepre.github.io/Personal-Blog/publications.html" target="_blank" rel="noopener noreferrer">Publications</a>
-        <a href="https://enlepre.github.io/Personal-Blog/notes.html" target="_blank" rel="noopener noreferrer">Notes</a>
-        <a href="https://enlepre.github.io/Personal-Blog/about.html" target="_blank" rel="noopener noreferrer">About</a>
+      <nav id="notebook-menu" class="notebook-menu" aria-label="Citation Network navigation" hidden>
+        <span class="menu-brand">Citation Network</span>
+        <button class="menu-view" type="button" data-view="search">Search</button>
+        <button class="menu-view" type="button" data-view="graph">Graph</button>
+        <button class="menu-view" type="button" data-view="list">List</button>
         <button id="theme-toggle" type="button" aria-pressed="false">Dark paper <span aria-hidden="true">◐</span></button>
       </nav>
     </div>
@@ -44,7 +43,6 @@
   <!-- ============ Screen 1 — Search ============ -->
   <section class="view" id="view-search">
     <div class="search-wrap">
-      <span class="eyebrow">A research tool by Enrico Lepre</span>
       <h1>Citation Network</h1>
       <p class="lede">A wider landscape of connected papers.</p>
       <p class="search-intro">Start with a title or DOI to explore the work a paper draws on, and the research that follows it.</p>
@@ -55,16 +53,6 @@
         <button id="big-go">Explore <span aria-hidden="true">→</span></button>
       </div>
 
-      <div class="examples">
-        <span class="eyebrow">A few starting points</span>
-        <div class="example-grid" id="example-grid"></div>
-      </div>
-
-      <div class="howto">
-        <div class="step"><div class="n">01</div><h3>Seed</h3><p>Pick any paper as the center of its citation neighborhood.</p></div>
-        <div class="step"><div class="n">02</div><h3>Branch</h3><p>References fan one way, citing papers the other — sized by influence.</p></div>
-        <div class="step"><div class="n">03</div><h3>Connect</h3><p>Cross-citations reveal the clusters and lineages between them.</p></div>
-      </div>
     </div>
   </section>
 
@@ -198,7 +186,6 @@
       </table>
     </div>
   </section>
-  <footer class="notebook-footer"><a href="https://enlepre.github.io/Personal-Blog/" target="_blank" rel="noopener noreferrer">Enrico Lepre · personal academic notebook</a><span>Literature, mapped by citation</span></footer>
 </div>
 
 
@@ -230,8 +217,8 @@
 <script src="assets/layout.js" defer></script>
 <script src="assets/sample.js" defer></script>
 <script src="assets/openalex.js" defer></script>
-<script src="assets/graph.js?v=notebook-1" defer></script>
-<script src="assets/tweaks.js?v=notebook-1" defer></script>
-<script src="assets/app.js?v=notebook-1" defer></script>
+<script src="assets/graph.js?v=standalone-1" defer></script>
+<script src="assets/tweaks.js?v=standalone-1" defer></script>
+<script src="assets/app.js?v=standalone-1" defer></script>
 </body>
 </html>
