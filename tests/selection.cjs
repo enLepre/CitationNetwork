@@ -27,10 +27,11 @@ async function fixture(page) {
       await page.route('**/' + file + '*', route => route.fulfill({ contentType: types[path.extname(file)], body }));
     }
   }
-  await page.goto('http://127.0.0.1:' + server.address().port);
+  await page.goto('http://127.0.0.1:' + server.address().port + '/graph.html');
   await page.evaluate(async () => {
-    document.getElementById('view-search').hidden = true;
-    document.getElementById('view-graph').hidden = false;
+    document.getElementById('graph-info').style.display = 'none';
+    document.getElementById('view-graph').style.gridTemplateColumns = '1fr';
+    document.getElementById('loader').hidden = true;
     window.selectedPapers = [];
     window.CG = new CitationGraph(document.getElementById('graph-canvas'), { onSelect: n => selectedPapers.push(n?.id || null) });
     const roles = ['seed', 'cite', 'ref', 'linked'];

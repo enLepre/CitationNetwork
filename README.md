@@ -2,7 +2,7 @@
 
 Explore references, citing papers and shared foundations around a paper using OpenAlex.
 
-The deployed site is static. `index.html`, `assets/` and their relative paths can be served directly on GitHub Pages, including from a repository subdirectory. No server API key or build service is required. Use an HTTP server locally, rather than opening `index.html` as a file.
+The deployed site is static. `index.html`, `graph.html`, `list.html`, and `assets/` and their relative paths can be served directly on GitHub Pages, including from a repository subdirectory. No server API key or build service is required. Use an HTTP server locally, rather than opening `index.html` as a file.
 
 ## Development
 
@@ -14,7 +14,7 @@ pnpm build
 pnpm start
 ```
 
-`assets/layout.js` is the checked-in bundle of `scripts/layout-entry.js` and d3-force. Rebuild it after changing the layout algorithm. The rest of the JavaScript and CSS is edited directly. Font faces are separate files: browsers load only the subsets and typefaces used on screen.
+`assets/layout.js` is the checked-in bundle of `scripts/layout-entry.js` and d3-force. Rebuild it after changing the layout algorithm. The rest of the JavaScript and CSS is edited directly. All pages use the system Georgia font; no web font download is required.
 
 ## Verification
 
@@ -47,6 +47,8 @@ The OpenAlex API can still be slow or rate limited. Bulk lookups use limited con
 
 The local layout bundle contains d3-force, d3-quadtree, d3-dispatch and d3-timer. See `THIRD_PARTY_LICENSES.txt` for their ISC notices. Font license notices are in `assets/fonts/LICENSES.txt`.
 
-## Notebook appearance
+## Pages and navigation
 
-The interface uses an academic notebook style: Georgia, warm paper, muted ink, fine rules, an expanding diamond menu with a title and navigation controls and a sun/moon theme switch. Search contains only its title, explanatory text and input; graph headings and filters sit above the drawing; paper details use article typography. Appearance settings persist locally. Georgia needs no font download; optional typefaces load only when selected. Motion follows the browser’s reduced-motion preference.
+Home (`index.html`) is always the centered Search page and never builds a network from a stored paper or query string. Selecting a result opens `graph.html?seed=…&density=…`. Graph puts paper information and controls in a two-thirds left column and the network on the right. List (`list.html`) opens paper summaries beside the table, without loading the graph renderer or worker. Each document contains only its own content. Normal links provide browser Back/Forward behavior; the menu preserves the selected seed and density for Graph/List while its title always links to Home.
+
+A shared graph URL explicitly points to `graph.html`. OpenAlex response caches remain in session storage so switching between Graph and List avoids repeating the same requests. The separate pages share the Georgia notebook style, expanding diamond menu and sun/moon theme toggle. The menu contains no secondary search or appearance panel; Share is an icon-only upload action.
