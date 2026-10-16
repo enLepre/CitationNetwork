@@ -37,7 +37,7 @@
   const button = document.createElement('button');
   button.id = 'appearance-toggle'; button.className = 'share-btn'; button.textContent = 'Appearance';
   button.setAttribute('aria-controls', panel.id); button.setAttribute('aria-expanded', 'false');
-  document.querySelector('.menu-tools').insertBefore(button, document.getElementById('theme-toggle'));
+  document.querySelector('.menu-tools').appendChild(button);
   const menuButton = document.getElementById('menu-toggle');
   const menu = document.getElementById('notebook-menu');
   const theme = document.getElementById('theme-toggle');
@@ -61,6 +61,7 @@
     ['ink', 'ink-soft', 'ink-faint', 'line', 'line-soft'].forEach((name, i) => style.setProperty('--' + name, ink[i]));
     style.setProperty('--serif', '"' + settings.serif + '", Georgia, serif');
     style.colorScheme = dark ? 'dark' : 'light';
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
     document.querySelector('meta[name="theme-color"]').content = tones[settings.paper][0];
     theme.setAttribute('aria-pressed', String(dark));
     theme.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
@@ -72,7 +73,7 @@
     }
   }
   function menuOpen(open, restore = false) {
-    menu.hidden = !open; menuButton.setAttribute('aria-expanded', String(open));
+    menu.inert = !open; menu.setAttribute('aria-hidden', String(!open)); menuButton.setAttribute('aria-expanded', String(open));
     menuButton.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
     menuButton.parentElement.classList.toggle('is-open', open);
     if (restore) menuButton.focus();
@@ -82,21 +83,21 @@
     if (open) { menuOpen(false); panel.querySelector('select').focus(); }
     else if (restore) menuButton.focus();
   }
-  menuButton.addEventListener('click', () => { setOpen(false, false); menuOpen(menu.hidden); });
-  menu.querySelectorAll('[data-view]').forEach(link => link.addEventListener('click', () => menuOpen(false, true)));
+  menuButton.addEventListener('click', () => { setOpen(false, false); menuOpen(menu.inert); });
+  menu.querySelectorAll('[data-view], .menu-brand').forEach(link => link.addEventListener('click', () => menuOpen(false, true)));
   document.getElementById('mini-input').addEventListener('focus', () => menuOpen(false));
   document.getElementById('share-btn').addEventListener('click', () => menuOpen(false, true));
   theme.addEventListener('click', () => { settings.paper = settings.paper === 'dark' ? 'warm' : 'dark'; syncInputs(); apply(); persist(); });
   button.addEventListener('click', () => setOpen(panel.hidden));
   document.getElementById('appearance-close').addEventListener('click', () => setOpen(false));
   document.addEventListener('click', event => {
-    if (!menu.hidden && !menuButton.parentElement.contains(event.target)) menuOpen(false);
+    if (!menu.inert && !menuButton.parentElement.contains(event.target)) menuOpen(false);
     if (!panel.hidden && !panel.contains(event.target) && !button.contains(event.target)) setOpen(false, false);
   });
   document.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
     if (!panel.hidden) setOpen(false);
-    if (!menu.hidden) menuOpen(false, true);
+    if (!menu.inert) menuOpen(false, true);
   });
   panel.addEventListener('input', event => {
     const input = event.target; if (!input.name) return;
