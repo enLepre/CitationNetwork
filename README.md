@@ -49,4 +49,4 @@ The local layout bundle contains d3-force, d3-quadtree, d3-dispatch and d3-timer
 
 ## Notebook appearance
 
-The interface uses an academic notebook style: Georgia, warm paper, muted ink, fine rules, a diamond menu for Search, Graph and List and an optional dark paper theme. Search contains only its title, explanatory text and input; graph headings and filters sit above the drawing; paper details use article typography. Appearance settings persist locally. Georgia needs no font download; optional typefaces load only when selected. Motion follows the browser’s reduced-motion preference.
+The interface uses an academic notebook style: Georgia, warm paper, muted ink, fine rules, a borderless diamond menu for navigation and controls and a symbol-only dark paper switch. Search contains only its title, explanatory text and input; graph headings and filters sit above the drawing; paper details use article typography. Appearance settings persist locally. Georgia needs no font download; optional typefaces load only when selected. Motion follows the browser’s reduced-motion preference.

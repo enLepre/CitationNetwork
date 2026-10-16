@@ -25,13 +25,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .mono { font-variant-numeric: tabular-nums; }
 .eyebrow { display: block; font-size: 13px; color: var(--ink-faint); font-weight: 400; letter-spacing: .035em; }
 #app { height: 100%; height: 100dvh; display: flex; flex-direction: column; }
-.topbar { flex: 0 0 auto; min-height: 78px; display: flex; align-items: center; gap: 22px; padding: 12px clamp(20px, 3vw, 48px); border-bottom: 1px solid var(--line); background: var(--bg); position: relative; z-index: 30; }
+.topbar { flex: 0 0 auto; min-height: 78px; display: flex; align-items: center; gap: 22px; padding: 12px clamp(20px, 3vw, 48px); background: var(--bg); position: relative; z-index: 30; }
 .brand { border: 0; padding: 8px 0; background: transparent; font-size: 21px; font-weight: 400; letter-spacing: -.025em; white-space: nowrap; }
-.topnav { display: flex; gap: 22px; margin-left: 12px; }
-.topnav button { border: 0; padding: 7px 0; background: transparent; font-size: 16px; color: var(--ink-faint); border-bottom: 1px solid transparent; }
-.topnav button:hover { color: var(--ink); }
-.topnav button.active { color: var(--ink); border-bottom-color: var(--ink); font-style: italic; }
-.spacer { flex: 1; }
 .mini-search { display: flex; align-items: center; gap: 9px; width: 215px; border-bottom: 1px solid var(--line); padding: 7px 0; }
 .mini-search input { width: 100%; min-width: 0; background: none; border: 0; outline: none; font-size: 15px; }
 .mini-search:focus-within { border-color: var(--ink); }
@@ -42,16 +37,19 @@ input::placeholder { color: var(--ink-faint); opacity: 1; }
 .share-btn.copied { color: var(--linked); font-style: italic; }
 .site-menu { position: relative; flex: 0 0 40px; height: 40px; }
 .menu-toggle { position: relative; z-index: 2; width: 40px; height: 40px; border: 0; background: transparent; padding: 10px; }
+.menu-toggle:focus-visible { outline: none; }
+.menu-toggle:focus-visible span { border-width: 2px; }
 .menu-toggle span { display: block; width: 15px; height: 15px; border: 1px solid var(--ink); transform: rotate(45deg); transition: transform .25s ease; }
 .site-menu:has(.menu-toggle:hover) span, .site-menu:focus-within .menu-toggle span, .site-menu.is-open .menu-toggle span { transform: rotate(0); }
-.site-menu::before { content: ''; position: absolute; top: 9px; left: 9px; width: 16px; height: 16px; border: 1px solid transparent; background: transparent; pointer-events: none; transition: width .25s ease, height .25s ease, background .15s ease; }
-.site-menu.is-open::before { width: min(312px, calc(100vw - 48px)); height: 280px; border-color: var(--line); background: var(--bg); }
-.notebook-menu { position: absolute; top: 10px; left: 10px; z-index: 1; width: min(310px, calc(100vw - 50px)); height: 278px; padding: 46px 26px 22px; display: flex; flex-direction: column; gap: 0; animation: ink-appear .2s ease; }
+.notebook-menu { position: absolute; top: 0; left: 0; z-index: 1; width: min(260px, calc(100vw - 32px)); max-height: calc(100dvh - 36px); overflow-y: auto; padding: 48px 20px 24px; display: flex; flex-direction: column; gap: 4px; background: var(--bg); }
 .notebook-menu .menu-view { padding: 8px 0; font-size: 17px; border: 0; background: none; text-align: left; }
-.notebook-menu .menu-view:hover, .notebook-menu .menu-view.active { text-decoration: underline; text-underline-offset: .2em; }
+.notebook-menu .menu-view:hover { color: var(--ink-faint); }
 .notebook-menu .menu-view.active { font-style: italic; }
-.notebook-menu .menu-brand { font-size: 23px; padding-top: 0; margin-bottom: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-#theme-toggle { display: flex; justify-content: space-between; width: 100%; border: 0; border-top: 1px solid var(--line); padding: 12px 0 0; margin-top: 8px; background: transparent; color: var(--ink-faint); font-size: 15px; }
+.menu-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin-top: 16px; }
+.menu-tools .mini-search { flex-basis: 100%; width: 100%; border: 0; margin-bottom: 8px; }
+.menu-tools .share-btn { border: 0; }
+#theme-toggle { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 0; background: none; color: var(--ink-soft); font-size: 19px; }
+#theme-toggle:hover { color: var(--ink); }
 .view { flex: 1; min-height: 0; position: relative; }
 .view:not([hidden]) { animation: ink-appear .18s ease-out; }
 @keyframes ink-appear { from { opacity: .35; } to { opacity: 1; } }
@@ -194,17 +192,13 @@ td.num { font-size: 16px; font-variant-numeric: tabular-nums; }
 .appearance-panel select { max-width: 160px; background: var(--bg); padding: 5px 0; border: 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .appearance-panel input[type=range] { width: 128px; accent-color: var(--ink-soft); }
 .appearance-panel input[type=checkbox] { accent-color: var(--ink-soft); }
-@media (max-width: 1100px) { .topbar { gap: 18px; } .mini-search { width: 170px; } .topnav { gap: 16px; margin-left: 0; } .brand { font-size: 19px; } }
-@media (max-width: 900px) { .mini-search { display: none; } }
 @media (max-width: 760px) {
   :root { --detail-width: min(420px, 100vw); }
-  .topbar { display: grid; grid-template-columns: 40px 1fr auto; gap: 4px 14px; min-height: 90px; padding: 10px 16px; }
-  .site-menu { grid-column: 1; grid-row: 1; }
-  .brand { grid-column: 2; grid-row: 1; font-size: 19px; text-align: left; }
-  #appearance-toggle { grid-column: 3; grid-row: 1; font-size: 14px; }
-  .topbar .topnav { grid-column: 1 / 3; grid-row: 2; gap: 24px; }
-  #share-btn { grid-column: 3; grid-row: 2; justify-self: end; font-size: 14px; }
-  .topbar .spacer { display: none; }
+  .topbar { display: grid; grid-template-columns: 40px 1fr; align-items: center; min-height: 68px; gap: 0 14px; padding: 10px 16px; }
+  .site-menu { display: contents; }
+  .menu-toggle { grid-column: 1; grid-row: 1; }
+  .notebook-menu { position: static; grid-column: 1 / -1; grid-row: 2; width: 100%; max-height: 55dvh; padding: 12px 20px 20px; }
+  .brand { grid-column: 2; grid-row: 1; font-size: 19px; text-align: left; justify-self: start; }
   .search-wrap { width: calc(100% - 40px); padding: 36px 0 48px; }
   .search-wrap h1 { font-size: clamp(42px, 10vw, 64px); }
   .search-wrap .lede { font-size: 23px; }

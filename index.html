@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f5f2ec">
 <title>Citation Network — citation knowledge graph</title>
 <link rel="stylesheet" href="assets/fonts.css">
-<link rel="stylesheet" href="assets/styles.css?v=standalone-1">
+<link rel="stylesheet" href="assets/styles.css?v=minimal-menu-1">
 
 </head>
 <body>
@@ -16,28 +16,23 @@
     <div class="site-menu">
       <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="notebook-menu"><span aria-hidden="true"></span></button>
       <nav id="notebook-menu" class="notebook-menu" aria-label="Citation Network navigation" hidden>
-        <span class="menu-brand">Citation Network</span>
         <button class="menu-view" type="button" data-view="search">Search</button>
         <button class="menu-view" type="button" data-view="graph">Graph</button>
         <button class="menu-view" type="button" data-view="list">List</button>
-        <button id="theme-toggle" type="button" aria-pressed="false">Dark paper <span aria-hidden="true">◐</span></button>
+        <div class="menu-tools">
+          <label class="mini-search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            <input id="mini-input" type="text" aria-label="Find another paper" placeholder="Find another paper…">
+          </label>
+          <button id="share-btn" class="share-btn" title="Copy a link that reopens this exact graph">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"></line><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line></svg>
+            <span class="label">Share</span>
+          </button>
+          <button id="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode" aria-pressed="false"><span aria-hidden="true">◐</span></button>
+        </div>
       </nav>
     </div>
     <button class="brand" type="button" aria-label="Citation Network search">Citation Network</button>
-    <nav class="topnav" aria-label="Citation Network views">
-      <button data-view="search">Search</button>
-      <button data-view="graph">Graph</button>
-      <button data-view="list">List</button>
-    </nav>
-    <div class="spacer"></div>
-    <label class="mini-search">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
-      <input id="mini-input" type="text" aria-label="Find another paper" placeholder="Find another paper…">
-    </label>
-    <button id="share-btn" class="share-btn" title="Copy a link that reopens this exact graph">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"></line><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line></svg>
-      <span class="label">Share</span>
-    </button>
   </header>
 
   <!-- ============ Screen 1 — Search ============ -->
@@ -217,8 +212,8 @@
 <script src="assets/layout.js" defer></script>
 <script src="assets/sample.js" defer></script>
 <script src="assets/openalex.js" defer></script>
-<script src="assets/graph.js?v=standalone-1" defer></script>
-<script src="assets/tweaks.js?v=standalone-1" defer></script>
-<script src="assets/app.js?v=standalone-1" defer></script>
+<script src="assets/graph.js?v=minimal-menu-1" defer></script>
+<script src="assets/tweaks.js?v=minimal-menu-1" defer></script>
+<script src="assets/app.js?v=minimal-menu-1" defer></script>
 </body>
 </html>
