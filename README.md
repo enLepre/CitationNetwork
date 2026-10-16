@@ -30,6 +30,8 @@ Set `RUN_LIVE=1` to additionally check a real OpenAlex network and abstract. Thi
 
 Coverage includes lightweight searches, record and response caching, cancellation, retry handling, progressive enrichment, stable positions, zoom, filtering, keyboard selection, dragging, appearance, export, reload, density changes, mobile layout and the fallback for browsers without workers.
 
+The selection regression suite also checks clicks with small pointer movements on every paper type, small-node targets at low zoom, clickable labels, drag offsets, pointer cancellation, touch taps and the corresponding details panel. To confirm the original failure, run `SELECTION_BASELINE=1 node tests/selection.cjs` against the pre-fix graph; it should fail at the citing-paper jitter check.
+
 ## Performance and readability
 
 - Render on changes, with at most one scheduled frame. The graph does no SVG work while idle or hidden.

@@ -23,8 +23,12 @@
 
       this.vp = el("g", { class: "vp" });          // viewport (pan/zoom)
       this.edgeLayer = el("g", { class: "edges" });
+      // Expanded targets sit behind the visible circles, so a nearby target
+      // never steals a click directly on another paper.
+      this.hitLayer = el('g', { class: 'node-hit-layer' });
       this.nodeLayer = el("g", { class: "nodes" });
       this.vp.appendChild(this.edgeLayer);
+      this.vp.appendChild(this.hitLayer);
       this.vp.appendChild(this.nodeLayer);
       this.svg.appendChild(this.vp);
 
@@ -32,6 +36,7 @@
       this.scale = 1; this.tx = 0; this.ty = 0;
       this.hovered = null; this.selected = null;
       this.dragNode = null; this.dragMoved = false; this.panning = false;
+      this._pointerId = null;
       this.showRefs = true; this.showCites = true; this.showLinked = true; this.showLabels = true; this.linkOpacity = 1;
       this._nodeScale = 1;
 
@@ -66,6 +71,7 @@
       this.cancelLayout();
       const seq = this._layoutSeq;
       this.seedId = seedId;
+      this._endPointer(null, true);
       this.hovered = null; this.dragNode = null;
       const cx = this.W / 2, cy = this.H / 2;
 
@@ -76,7 +82,7 @@
       });
 
       // wipe DOM
-      this.edgeLayer.textContent = ""; this.nodeLayer.textContent = "";
+      this.edgeLayer.textContent = ""; this.hitLayer.textContent = ''; this.nodeLayer.textContent = "";
 
       // count in-graph cross-citations (how many graph papers cite each paper)
       // — this drives node size, so hubs stand out strongly from leaves.
@@ -129,7 +135,10 @@
 
       // build node groups
       this.nodes.forEach(n => {
-        const g = el("g", { class: "gnode", "data-id": n.id });
+        const g = el("g", { class: "gnode", "data-id": n.id, 'data-paper-id': n.id });
+        n.hitEl = el('circle', { class: 'node-hit-target', 'data-paper-id': n.id,
+          fill: 'transparent', 'pointer-events': 'all', 'aria-hidden': 'true' });
+        this.hitLayer.appendChild(n.hitEl);
         const c = el("circle", { r: n.rad });
         const halo = el("circle", { class: "halo", r: n.rad });
         const t = el("text", { class: "glabel", "text-anchor": "middle" });
@@ -146,6 +155,7 @@
         const title = el('title'); title.textContent = n.title; g.appendChild(title);
         g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.focusNode(n.id); } });
         this._wireNode(n);
+        this._wireNode(n, n.hitEl);
         this.nodeLayer.appendChild(g);
       });
 
@@ -269,11 +279,20 @@
     }
 
     /* ---------- interaction ---------- */
-    _wireNode(n) {
-      const g = n.gEl;
+    _wireNode(n, g = n.gEl) {
       g.addEventListener("pointerdown", e => {
+        if (e.button !== 0 || !e.isPrimary || this._pointerId != null) return;
+        // Native SVG focus can scroll the graph before pointerup. Focus it
+        // explicitly without scrolling, and keep normal keyboard navigation.
+        e.preventDefault();
         e.stopPropagation();
+        n.gEl.focus({ preventScroll: true });
         this.dragNode = n; this.dragMoved = false;
+        const r = this.svg.getBoundingClientRect();
+        this._dragStart = { sx: e.clientX - r.left, sy: e.clientY - r.top, x: n.x, y: n.y };
+        this._pointerId = e.pointerId;
+        this._dragThreshold = e.pointerType === 'touch' ? 8 : 4;
+        this.onHover(null);
         this.svg.setPointerCapture(e.pointerId);
       });
       g.addEventListener("pointerenter", e => {
@@ -287,8 +306,9 @@
         const r = this.svg.getBoundingClientRect();
         this.onHover(n, e.clientX - r.left, e.clientY - r.top);
       });
-      g.addEventListener("pointerleave", () => {
+      g.addEventListener("pointerleave", e => {
         if (this.dragNode || this.panning) return;
+        if (e.relatedTarget?.closest?.('[data-paper-id]')?.dataset.paperId === n.id) return;
         if (this.hovered === n) { this.hovered = null; this._invalidate(); this.onHover(null); }
       });
     }
@@ -298,45 +318,56 @@
       const pos = e => { const r = svg.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
 
       svg.addEventListener("pointerdown", e => {
-        if (this.dragNode) return; // node handled it
+        if (e.button !== 0 || !e.isPrimary || this._pointerId != null) return;
+        e.preventDefault();
         this.panning = true; this.dragMoved = false;
+        this._pointerId = e.pointerId;
+        this._dragThreshold = e.pointerType === 'touch' ? 8 : 4;
         const [sx, sy] = pos(e);
         this._panStart = [sx, sy, this.tx, this.ty];
         svg.classList.add("grabbing");
         svg.setPointerCapture(e.pointerId);
       });
       svg.addEventListener("pointermove", e => {
+        if (e.pointerId !== this._pointerId) return;
         const [sx, sy] = pos(e);
         if (this.dragNode) {
-          const [wx, wy] = this._toWorld(sx, sy);
-          this.dragNode.x = wx; this.dragNode.y = wy; this.dragNode.vx = 0; this.dragNode.vy = 0;
+          const start = this._dragStart;
+          if (!this.dragMoved && Math.hypot(sx - start.sx, sy - start.sy) < this._dragThreshold) return;
+          this.dragNode.x = start.x + (sx - start.sx) / this.scale;
+          this.dragNode.y = start.y + (sy - start.sy) / this.scale;
+          this.dragNode.vx = 0; this.dragNode.vy = 0;
           this.dragNode.movedDuringLayout = true;
           this.dragMoved = true;
           this._invalidate({ positions: true, labels: true });
         } else if (this.panning) {
           const [s0x, s0y, t0x, t0y] = this._panStart;
+          if (!this.dragMoved && Math.hypot(sx - s0x, sy - s0y) < this._dragThreshold) return;
           this.tx = t0x + (sx - s0x); this.ty = t0y + (sy - s0y);
           if (Math.abs(sx - s0x) + Math.abs(sy - s0y) > 3) this.dragMoved = true;
           this._applyTransform();
         }
       });
-      const up = e => {
-        if (this.dragNode) {
-          if (!this.dragMoved) this.select(this.dragNode.id);
-          this.dragNode = null;
-        } else if (this.panning) {
-          this.panning = false; svg.classList.remove("grabbing");
-          if (!this.dragMoved) this.select(null);
-        }
-      };
-      svg.addEventListener("pointerup", up);
-      svg.addEventListener("pointercancel", up);
+      svg.addEventListener("pointerup", e => this._endPointer(e));
+      svg.addEventListener("pointercancel", e => this._endPointer(e, true));
+      svg.addEventListener('lostpointercapture', e => this._endPointer(e, true));
 
       svg.addEventListener("wheel", e => {
         e.preventDefault();
         const [sx, sy] = pos(e);
         this.zoomBy(e.deltaY < 0 ? 1.12 : 0.89, sx, sy);
       }, { passive: false });
+    }
+
+    _endPointer(event, cancelled = false) {
+      if (this._pointerId == null || (event && event.pointerId !== this._pointerId)) return;
+      const id = this._pointerId, node = this.dragNode, moved = this.dragMoved;
+      this._pointerId = null; this.dragNode = null; this.panning = false;
+      this.dragMoved = false;
+      this._dragStart = null;
+      this.svg.classList.remove('grabbing');
+      if (this.svg.hasPointerCapture(id)) this.svg.releasePointerCapture(id);
+      if (!cancelled && !moved) this.select(node ? node.id : null);
     }
 
     /* ---------- render ---------- */
@@ -364,6 +395,8 @@
       this.nodes.forEach(n => {
         if (n.gEl.style.display === "none") return;
         n.gEl.setAttribute("transform", `translate(${n.x} ${n.y})`);
+        n.hitEl.setAttribute('transform', `translate(${n.x} ${n.y})`);
+        n.hitEl.setAttribute('r', Math.max(n.rad, 10 * inv));
         // counter-scale stroke + label so they stay constant in screen px
         n.cEl.setAttribute("stroke-width", 2 * inv);
         const labelFs = (n.role === "seed" ? 14 : 12) * inv;
@@ -400,6 +433,7 @@
       this.nodes.forEach(n => {
         const vis = this._visible(n);
         n.gEl.style.display = vis ? "" : "none";
+        n.hitEl.style.display = vis ? '' : 'none';
         if (!vis) return;
         const lit = isLit(n.id);
         const col = this._color(n.role, pal);
