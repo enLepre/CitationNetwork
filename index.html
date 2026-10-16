@@ -2,19 +2,30 @@
 <html lang="en"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Explore the references, citing papers and shared foundations around a paper. A research tool by Enrico Lepre.">
+<meta name="theme-color" content="#f5f2ec">
 <title>Citation Network — citation knowledge graph</title>
 <link rel="stylesheet" href="assets/fonts.css">
-<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/styles.css?v=notebook-1">
 
 </head>
 <body>
 <div id="app">
   <!-- ============ Top bar ============ -->
   <header class="topbar">
-    <div class="brand">
-      <span class="dot"></span>Citation Network<span class="tag">beta</span>
+    <div class="site-menu">
+      <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="notebook-menu"><span aria-hidden="true"></span></button>
+      <nav id="notebook-menu" class="notebook-menu" aria-label="Enrico Lepre’s notebook" hidden>
+        <a class="menu-brand" href="https://enlepre.github.io/Personal-Blog/" target="_blank" rel="noopener noreferrer">Enrico Lepre</a>
+        <a href="https://enlepre.github.io/Personal-Blog/research.html" target="_blank" rel="noopener noreferrer">Research</a>
+        <a href="https://enlepre.github.io/Personal-Blog/publications.html" target="_blank" rel="noopener noreferrer">Publications</a>
+        <a href="https://enlepre.github.io/Personal-Blog/notes.html" target="_blank" rel="noopener noreferrer">Notes</a>
+        <a href="https://enlepre.github.io/Personal-Blog/about.html" target="_blank" rel="noopener noreferrer">About</a>
+        <button id="theme-toggle" type="button" aria-pressed="false">Dark paper <span aria-hidden="true">◐</span></button>
+      </nav>
     </div>
-    <nav class="topnav">
+    <button class="brand" type="button" aria-label="Citation Network search">Citation Network</button>
+    <nav class="topnav" aria-label="Citation Network views">
       <button data-view="search">Search</button>
       <button data-view="graph">Graph</button>
       <button data-view="list">List</button>
@@ -22,7 +33,7 @@
     <div class="spacer"></div>
     <label class="mini-search">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
-      <input id="mini-input" type="text" placeholder="Title, DOI, or author…">
+      <input id="mini-input" type="text" aria-label="Find another paper" placeholder="Find another paper…">
     </label>
     <button id="share-btn" class="share-btn" title="Copy a link that reopens this exact graph">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"></line><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line></svg>
@@ -33,18 +44,19 @@
   <!-- ============ Screen 1 — Search ============ -->
   <section class="view" id="view-search">
     <div class="search-wrap">
-      <span class="eyebrow">Literature, mapped by citation</span>
-      <h1>Start with one paper.<br>See the <em>whole conversation.</em></h1>
-      <p class="lede">Enter a reference and Citation Network builds the graph of the work it stands on and the work that builds on it — with cross-citations drawn between them.</p>
+      <span class="eyebrow">A research tool by Enrico Lepre</span>
+      <h1>Citation Network</h1>
+      <p class="lede">A wider landscape of connected papers.</p>
+      <p class="search-intro">Start with a title or DOI to explore the work a paper draws on, and the research that follows it.</p>
 
       <div class="bigsearch">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
-        <input id="big-input" type="text" placeholder="e.g. a paper title, author, or 10.1038/s41929-022-00794-3">
-        <button id="big-go">Map it →</button>
+        <input id="big-input" type="text" aria-label="Paper title, author, or DOI" placeholder="Paper title, author, or DOI…">
+        <button id="big-go">Explore <span aria-hidden="true">→</span></button>
       </div>
 
       <div class="examples">
-        <span class="eyebrow">Or open a worked example</span>
+        <span class="eyebrow">A few starting points</span>
         <div class="example-grid" id="example-grid"></div>
       </div>
 
@@ -59,7 +71,6 @@
   <!-- ============ Screen 2 — Graph ============ -->
   <section class="view" id="view-graph" hidden="">
     <div class="graph-stage">
-      <svg id="graph-canvas" xmlns="http://www.w3.org/2000/svg"></svg>
 
       <div class="seed-banner">
         <div class="meta">
@@ -83,6 +94,8 @@
         <button class="chiptoggle" id="toggle-linked" aria-pressed="true"><span class="swatch linked"></span>Co-cited</button>
       </div>
 
+      <div class="graph-viewport">
+      <svg id="graph-canvas" xmlns="http://www.w3.org/2000/svg"></svg>
       <div class="controls">
         <div class="group">
           <button id="zoom-in" title="Zoom in">+</button>
@@ -117,6 +130,7 @@
             <button class="btn" id="loader-sample">Explore sample graph</button>
           </div>
         </div>
+      </div>
       </div>
     </div>
 
@@ -184,9 +198,10 @@
       </table>
     </div>
   </section>
+  <footer class="notebook-footer"><a href="https://enlepre.github.io/Personal-Blog/" target="_blank" rel="noopener noreferrer">Enrico Lepre · personal academic notebook</a><span>Literature, mapped by citation</span></footer>
 </div>
 
-<!-- thumbnail for offline bundling -->
+
 
 
 <!-- ============ Search picker modal ============ -->
@@ -215,8 +230,8 @@
 <script src="assets/layout.js" defer></script>
 <script src="assets/sample.js" defer></script>
 <script src="assets/openalex.js" defer></script>
-<script src="assets/graph.js" defer></script>
-<script src="assets/tweaks.js" defer></script>
-<script src="assets/app.js" defer></script>
+<script src="assets/graph.js?v=notebook-1" defer></script>
+<script src="assets/tweaks.js?v=notebook-1" defer></script>
+<script src="assets/app.js?v=notebook-1" defer></script>
 </body>
 </html>

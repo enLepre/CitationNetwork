@@ -38,7 +38,7 @@ The selection regression suite also checks clicks with small pointer movements o
 - Calculate the layout with Barnes–Hut repulsion and collision detection in a worker. If workers are unavailable, use short batches that yield to the UI thread.
 - Show the direct graph first. Optional co-cited papers load afterward; existing node positions remain fixed.
 - Fetch lightweight search records, retrieve references when a paper is selected, and cache responses for 15 minutes in memory and session storage. Failed requests are not cached. Obsolete searches and graph loads are cancelled.
-- Keep graph labels at 12 screen pixels (14 for the seed), suppress overlapping labels and labels obscured by other nodes, and refresh them when zoom changes. Full titles remain available through hover, keyboard selection and the details panel.
+- Keep graph labels at 13 screen pixels (15 for the seed), suppress overlapping labels and labels obscured by other nodes, and refresh them when zoom changes. Full titles remain available through hover, keyboard selection and the details panel.
 - Native appearance controls replace the React development builds and runtime Babel compiler.
 
 The OpenAlex API can still be slow or rate limited. Bulk lookups use limited concurrency; transient 429/503 responses are retried with a bounded delay. Optional enrichment failures retain the usable direct graph.
@@ -46,3 +46,7 @@ The OpenAlex API can still be slow or rate limited. Bulk lookups use limited con
 ## Third-party software
 
 The local layout bundle contains d3-force, d3-quadtree, d3-dispatch and d3-timer. See `THIRD_PARTY_LICENSES.txt` for their ISC notices. Font license notices are in `assets/fonts/LICENSES.txt`.
+
+## Notebook appearance
+
+The interface matches Enrico Lepre’s personal academic notebook: Georgia, warm paper, muted ink, fine rules, a diamond navigation menu and an optional dark paper theme. Search examples use simple rows; graph headings and filters sit above the drawing; paper details use article typography. Appearance settings persist locally. Georgia needs no font download; optional typefaces load only when selected. Motion follows the browser’s reduced-motion preference.

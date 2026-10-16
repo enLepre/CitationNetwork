@@ -24,7 +24,7 @@ async function fixture(page) {
   if (process.env.SELECTION_BASELINE === '1') {
     for (const file of ['assets/graph.js', 'assets/styles.css']) {
       const body = execFileSync('git', ['show', 'e6273312c0195597cf0f049e535d18591c7a1963:' + file], { cwd: root });
-      await page.route('**/' + file, route => route.fulfill({ contentType: types[path.extname(file)], body }));
+      await page.route('**/' + file + '*', route => route.fulfill({ contentType: types[path.extname(file)], body }));
     }
   }
   await page.goto('http://127.0.0.1:' + server.address().port);
