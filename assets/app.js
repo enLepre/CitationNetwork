@@ -3,14 +3,6 @@
    Router · search picker · graph loading · detail · list
    ============================================================ */
 (function () {
-  /* ---- curated launch examples (resolved live by query) ---- */
-  const EXAMPLES = [
-    { title: "Thermochemical aerobic oxidation catalysis in water can be analysed as two coupled electrochemical half-reactions", desc: "aerobic oxidation · coupled half-reactions", query: "Thermochemical aerobic oxidation catalysis in water can be analysed as two coupled electrochemical half-reactions" },
-    { title: "Catalytic Properties of High Nitrogen Content Carbonaceous Materials", desc: "N-doped carbon · heterogeneous catalysis", query: "Catalytic Properties of High Nitrogen Content Carbonaceous Materials" },
-    { title: "Electrostatic catalysis of a Diels–Alder reaction", desc: "oriented electric fields · physical organic", query: "Electrostatic catalysis of a Diels-Alder reaction" },
-    { title: "Restructuring of titanium oxide overlayers over nickel nanoparticles during catalysis", desc: "SMSI · in situ surface science", query: "Restructuring of titanium oxide overlayers over nickel nanoparticles during catalysis" }
-  ];
-
   const roleLabel = { seed: "Seed paper", ref: "Reference", cite: "Citing paper", linked: "Co-cited" };
   const fmt = n => (typeof n !== "number") ? n :
     n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "") + "k" : "" + n;
@@ -38,14 +30,14 @@
     }
     document.body.dataset.view = view;
     Object.entries(views).forEach(([k, el]) => (el.hidden = k !== view));
-    document.querySelectorAll(".topnav button").forEach(b => { b.classList.toggle("active", b.dataset.view === view); if (b.dataset.view === view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+    document.querySelectorAll("button[data-view]").forEach(b => { b.classList.toggle("active", b.dataset.view === view); if (b.dataset.view === view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
     document.querySelector(".mini-search").style.visibility = view === "search" ? "hidden" : "visible";
     refreshShareBtn(view);
     if (graph) { graph.setActive(view === "graph"); if (view === "graph") requestAnimationFrame(() => graph.fit()); }
     if (view === "list") renderList();
   }
   window.__show = show;
-  document.querySelectorAll(".topnav button").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
+  document.querySelectorAll("button[data-view]").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
   document.querySelector(".brand").addEventListener("click", () => show("search"));
 
   /* ---------------- graph init ---------------- */
@@ -177,9 +169,6 @@
     }
     return startLoad(options => OpenAlex.byId(id, options), 'Opening shared graph…');
   }
-  function loadExample(query) {
-    return startLoad(options => OpenAlex.resolveTop(query, options), 'Finding paper…');
-  }
   function updateStatus(net) {
     $('status-counts').textContent = net.refShown + ' references · top ' + net.citingShown + ' of ' + fmt(net.citingTotal) + ' citing'
       + (net.linkedShown ? ' · ' + net.linkedShown + ' co-cited' : '');
@@ -305,15 +294,6 @@
 
   /* ---------------- search screen ---------------- */
   function buildSearch() {
-    $("example-grid").innerHTML = EXAMPLES.map((e, i) => `
-      <button type="button" class="example-card" data-i="${i}">
-        <span class="example-diamond" aria-hidden="true"></span>
-        <span class="example-copy"><span class="t">${esc(e.title)}</span>
-        <span class="m">${esc(e.desc)}</span></span><span class="example-arrow" aria-hidden="true">↗</span>
-      </button>`).join("");
-    $("example-grid").querySelectorAll(".example-card").forEach(c =>
-      c.addEventListener("click", () => loadExample(EXAMPLES[+c.dataset.i].query)));
-
     const go = () => openPicker($("big-input").value);
     $("big-go").addEventListener("click", go);
     $("big-input").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
@@ -439,10 +419,9 @@
     const exp = $("export-bib");
     if (exp) exp.disabled = !CURRENT.seedId || !CURRENT.papers.length;
     if (!CURRENT.seedId) { tb.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--ink-faint);font-family:var(--mono);font-size:13px">No graph loaded yet — search a paper first.</td></tr>`; $("list-seed").textContent = ""; return; }
-    const seed = CURRENT.byId[CURRENT.seedId];
     const m = CURRENT.meta;
     $("list-seed").textContent =
-      `Neighborhood of “${seed.title}” · ${CURRENT.papers.length} papers · ${CURRENT.edges.length} links · top ${m.citingShown} of ${fmt(m.citingTotal)} citing`;
+      `${CURRENT.papers.length} papers · ${CURRENT.edges.length} links · top ${m.citingShown} of ${fmt(m.citingTotal)} citing`;
 
     const linkCount = p => (CURRENT.neighbors[p.id] || []).length;
     const base = (a, b) => {

@@ -81,6 +81,7 @@
     else if (restore) button.focus();
   }
   menuButton.addEventListener('click', () => { setOpen(false, false); menuOpen(menu.hidden); });
+  menu.querySelectorAll('[data-view]').forEach(link => link.addEventListener('click', () => menuOpen(false, true)));
   theme.addEventListener('click', () => { settings.paper = settings.paper === 'dark' ? 'warm' : 'dark'; syncInputs(); apply(); persist(); });
   button.addEventListener('click', () => setOpen(panel.hidden));
   document.getElementById('appearance-close').addEventListener('click', () => setOpen(false));
