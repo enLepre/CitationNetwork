@@ -4,7 +4,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/d99aed59-f9ce-48a2-8387-2d7c31f5fc37.woff2") format('woff2');
+  src: url("fonts/d99aed59-f9ce-48a2-8387-2d7c31f5fc37.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -13,7 +13,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/696ee5c7-b95d-457a-9968-fa6dc54ba996.woff2") format('woff2');
+  src: url("fonts/696ee5c7-b95d-457a-9968-fa6dc54ba996.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -22,7 +22,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/fba4d2f0-1c11-468a-af35-7480fd6e9fd0.woff2") format('woff2');
+  src: url("fonts/fba4d2f0-1c11-468a-af35-7480fd6e9fd0.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* vietnamese */
@@ -31,7 +31,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/ffbad774-a828-42fa-8bc2-90156782a922.woff2") format('woff2');
+  src: url("fonts/ffbad774-a828-42fa-8bc2-90156782a922.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -40,7 +40,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/8cdb818f-04a7-45d8-a287-dd4fca6d223d.woff2") format('woff2');
+  src: url("fonts/8cdb818f-04a7-45d8-a287-dd4fca6d223d.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -49,7 +49,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/9fcd6b55-5fc5-4f25-8a26-3b3c7794a46f.woff2") format('woff2');
+  src: url("fonts/9fcd6b55-5fc5-4f25-8a26-3b3c7794a46f.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* vietnamese */
@@ -58,7 +58,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/ffbad774-a828-42fa-8bc2-90156782a922.woff2") format('woff2');
+  src: url("fonts/ffbad774-a828-42fa-8bc2-90156782a922.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -67,7 +67,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/8cdb818f-04a7-45d8-a287-dd4fca6d223d.woff2") format('woff2');
+  src: url("fonts/8cdb818f-04a7-45d8-a287-dd4fca6d223d.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -76,7 +76,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/9fcd6b55-5fc5-4f25-8a26-3b3c7794a46f.woff2") format('woff2');
+  src: url("fonts/9fcd6b55-5fc5-4f25-8a26-3b3c7794a46f.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* vietnamese */
@@ -85,7 +85,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/ffbad774-a828-42fa-8bc2-90156782a922.woff2") format('woff2');
+  src: url("fonts/ffbad774-a828-42fa-8bc2-90156782a922.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -94,7 +94,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/8cdb818f-04a7-45d8-a287-dd4fca6d223d.woff2") format('woff2');
+  src: url("fonts/8cdb818f-04a7-45d8-a287-dd4fca6d223d.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -103,7 +103,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/9fcd6b55-5fc5-4f25-8a26-3b3c7794a46f.woff2") format('woff2');
+  src: url("fonts/9fcd6b55-5fc5-4f25-8a26-3b3c7794a46f.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* cyrillic-ext */
@@ -112,7 +112,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/9a4f79b9-abff-4bfd-b591-42e796459e35.woff2") format('woff2');
+  src: url("fonts/9a4f79b9-abff-4bfd-b591-42e796459e35.woff2") format('woff2');
   unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 /* cyrillic */
@@ -121,7 +121,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/24c30fa3-1493-43b6-96c0-6c5fb3733aae.woff2") format('woff2');
+  src: url("fonts/24c30fa3-1493-43b6-96c0-6c5fb3733aae.woff2") format('woff2');
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 /* greek */
@@ -130,7 +130,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/502bbd8e-ea2a-48c4-b1e6-598e80398416.woff2") format('woff2');
+  src: url("fonts/502bbd8e-ea2a-48c4-b1e6-598e80398416.woff2") format('woff2');
   unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
 }
 /* vietnamese */
@@ -139,7 +139,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/2dbf2ee9-acfd-44b7-8bca-3b390ccb230b.woff2") format('woff2');
+  src: url("fonts/2dbf2ee9-acfd-44b7-8bca-3b390ccb230b.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -148,7 +148,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/d5ae15e2-d10e-443c-8f80-6bbe6f9bd4d9.woff2") format('woff2');
+  src: url("fonts/d5ae15e2-d10e-443c-8f80-6bbe6f9bd4d9.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -157,7 +157,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/2ad8fca4-fbd3-4f30-b31f-7c7c3bb6a7a2.woff2") format('woff2');
+  src: url("fonts/2ad8fca4-fbd3-4f30-b31f-7c7c3bb6a7a2.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* cyrillic-ext */
@@ -166,7 +166,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/27b3e2f2-e506-459a-8bfa-ded3e4e6024c.woff2") format('woff2');
+  src: url("fonts/27b3e2f2-e506-459a-8bfa-ded3e4e6024c.woff2") format('woff2');
   unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 /* cyrillic */
@@ -175,7 +175,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/e6617a16-70d3-438e-95d2-124f6152b2b3.woff2") format('woff2');
+  src: url("fonts/e6617a16-70d3-438e-95d2-124f6152b2b3.woff2") format('woff2');
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 /* greek */
@@ -184,7 +184,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/5d2de562-87e2-44b1-8cb8-1ae7580203e2.woff2") format('woff2');
+  src: url("fonts/5d2de562-87e2-44b1-8cb8-1ae7580203e2.woff2") format('woff2');
   unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
 }
 /* vietnamese */
@@ -193,7 +193,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/9ecb9f9e-5de5-4fb7-9c54-d02a012e53be.woff2") format('woff2');
+  src: url("fonts/9ecb9f9e-5de5-4fb7-9c54-d02a012e53be.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -202,7 +202,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/1d1af0c5-e738-4b1c-b15b-8b0967501458.woff2") format('woff2');
+  src: url("fonts/1d1af0c5-e738-4b1c-b15b-8b0967501458.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -211,7 +211,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/cca7d93b-9fc9-4fe7-b135-86df6d99695e.woff2") format('woff2');
+  src: url("fonts/cca7d93b-9fc9-4fe7-b135-86df6d99695e.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* cyrillic-ext */
@@ -220,7 +220,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/27b3e2f2-e506-459a-8bfa-ded3e4e6024c.woff2") format('woff2');
+  src: url("fonts/27b3e2f2-e506-459a-8bfa-ded3e4e6024c.woff2") format('woff2');
   unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 /* cyrillic */
@@ -229,7 +229,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/e6617a16-70d3-438e-95d2-124f6152b2b3.woff2") format('woff2');
+  src: url("fonts/e6617a16-70d3-438e-95d2-124f6152b2b3.woff2") format('woff2');
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 /* greek */
@@ -238,7 +238,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/5d2de562-87e2-44b1-8cb8-1ae7580203e2.woff2") format('woff2');
+  src: url("fonts/5d2de562-87e2-44b1-8cb8-1ae7580203e2.woff2") format('woff2');
   unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
 }
 /* vietnamese */
@@ -247,7 +247,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/9ecb9f9e-5de5-4fb7-9c54-d02a012e53be.woff2") format('woff2');
+  src: url("fonts/9ecb9f9e-5de5-4fb7-9c54-d02a012e53be.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -256,7 +256,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/1d1af0c5-e738-4b1c-b15b-8b0967501458.woff2") format('woff2');
+  src: url("fonts/1d1af0c5-e738-4b1c-b15b-8b0967501458.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -265,7 +265,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/cca7d93b-9fc9-4fe7-b135-86df6d99695e.woff2") format('woff2');
+  src: url("fonts/cca7d93b-9fc9-4fe7-b135-86df6d99695e.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* cyrillic-ext */
@@ -274,7 +274,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/27b3e2f2-e506-459a-8bfa-ded3e4e6024c.woff2") format('woff2');
+  src: url("fonts/27b3e2f2-e506-459a-8bfa-ded3e4e6024c.woff2") format('woff2');
   unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 /* cyrillic */
@@ -283,7 +283,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/e6617a16-70d3-438e-95d2-124f6152b2b3.woff2") format('woff2');
+  src: url("fonts/e6617a16-70d3-438e-95d2-124f6152b2b3.woff2") format('woff2');
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 /* greek */
@@ -292,7 +292,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/5d2de562-87e2-44b1-8cb8-1ae7580203e2.woff2") format('woff2');
+  src: url("fonts/5d2de562-87e2-44b1-8cb8-1ae7580203e2.woff2") format('woff2');
   unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
 }
 /* vietnamese */
@@ -301,7 +301,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/9ecb9f9e-5de5-4fb7-9c54-d02a012e53be.woff2") format('woff2');
+  src: url("fonts/9ecb9f9e-5de5-4fb7-9c54-d02a012e53be.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -310,7 +310,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/1d1af0c5-e738-4b1c-b15b-8b0967501458.woff2") format('woff2');
+  src: url("fonts/1d1af0c5-e738-4b1c-b15b-8b0967501458.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -319,7 +319,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/cca7d93b-9fc9-4fe7-b135-86df6d99695e.woff2") format('woff2');
+  src: url("fonts/cca7d93b-9fc9-4fe7-b135-86df6d99695e.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* cyrillic-ext */
@@ -328,7 +328,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/27b3e2f2-e506-459a-8bfa-ded3e4e6024c.woff2") format('woff2');
+  src: url("fonts/27b3e2f2-e506-459a-8bfa-ded3e4e6024c.woff2") format('woff2');
   unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 /* cyrillic */
@@ -337,7 +337,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/e6617a16-70d3-438e-95d2-124f6152b2b3.woff2") format('woff2');
+  src: url("fonts/e6617a16-70d3-438e-95d2-124f6152b2b3.woff2") format('woff2');
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 /* greek */
@@ -346,7 +346,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/5d2de562-87e2-44b1-8cb8-1ae7580203e2.woff2") format('woff2');
+  src: url("fonts/5d2de562-87e2-44b1-8cb8-1ae7580203e2.woff2") format('woff2');
   unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
 }
 /* vietnamese */
@@ -355,7 +355,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/9ecb9f9e-5de5-4fb7-9c54-d02a012e53be.woff2") format('woff2');
+  src: url("fonts/9ecb9f9e-5de5-4fb7-9c54-d02a012e53be.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -364,7 +364,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/1d1af0c5-e738-4b1c-b15b-8b0967501458.woff2") format('woff2');
+  src: url("fonts/1d1af0c5-e738-4b1c-b15b-8b0967501458.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -373,7 +373,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/cca7d93b-9fc9-4fe7-b135-86df6d99695e.woff2") format('woff2');
+  src: url("fonts/cca7d93b-9fc9-4fe7-b135-86df6d99695e.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* cyrillic-ext */
@@ -382,7 +382,7 @@
   font-style: italic;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/43b4a062-d1d8-4026-9c57-4ab99ec9ade0.woff2") format('woff2');
+  src: url("fonts/43b4a062-d1d8-4026-9c57-4ab99ec9ade0.woff2") format('woff2');
   unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 /* cyrillic */
@@ -391,7 +391,7 @@
   font-style: italic;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/509bc601-72ae-49ad-b03a-1118f434845f.woff2") format('woff2');
+  src: url("fonts/509bc601-72ae-49ad-b03a-1118f434845f.woff2") format('woff2');
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 /* vietnamese */
@@ -400,7 +400,7 @@
   font-style: italic;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/1a431458-1386-4007-b21b-d8558cd3865d.woff2") format('woff2');
+  src: url("fonts/1a431458-1386-4007-b21b-d8558cd3865d.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -409,7 +409,7 @@
   font-style: italic;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/cbcb0acc-546f-4a3c-b42f-a9164be3eac7.woff2") format('woff2');
+  src: url("fonts/cbcb0acc-546f-4a3c-b42f-a9164be3eac7.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -418,7 +418,7 @@
   font-style: italic;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/a0f042cf-9685-4bd7-844e-465a294d4ec0.woff2") format('woff2');
+  src: url("fonts/a0f042cf-9685-4bd7-844e-465a294d4ec0.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* cyrillic-ext */
@@ -427,7 +427,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/5591eba7-d78c-4590-b44d-2a26f1089369.woff2") format('woff2');
+  src: url("fonts/5591eba7-d78c-4590-b44d-2a26f1089369.woff2") format('woff2');
   unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 /* cyrillic */
@@ -436,7 +436,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/c45601de-6f33-4551-b962-790308b05039.woff2") format('woff2');
+  src: url("fonts/c45601de-6f33-4551-b962-790308b05039.woff2") format('woff2');
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 /* vietnamese */
@@ -445,7 +445,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/61fd0778-33eb-4fec-991d-1917254393a0.woff2") format('woff2');
+  src: url("fonts/61fd0778-33eb-4fec-991d-1917254393a0.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -454,7 +454,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/f5c40ecc-5c68-4f3a-8a98-fdc0c7d08cc0.woff2") format('woff2');
+  src: url("fonts/f5c40ecc-5c68-4f3a-8a98-fdc0c7d08cc0.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -463,7 +463,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/6ce168d5-8438-4b95-bf50-3db2ed863f93.woff2") format('woff2');
+  src: url("fonts/6ce168d5-8438-4b95-bf50-3db2ed863f93.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* cyrillic-ext */
@@ -472,7 +472,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/7ad261f1-1ee3-401d-836a-f10f64435c15.woff2") format('woff2');
+  src: url("fonts/7ad261f1-1ee3-401d-836a-f10f64435c15.woff2") format('woff2');
   unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 /* cyrillic */
@@ -481,7 +481,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/03ec644c-8e7a-4a3d-b7b8-a42d72c0260c.woff2") format('woff2');
+  src: url("fonts/03ec644c-8e7a-4a3d-b7b8-a42d72c0260c.woff2") format('woff2');
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 /* vietnamese */
@@ -490,7 +490,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/aecfd19e-6f8e-4f21-9f3c-8358f8ff7f1a.woff2") format('woff2');
+  src: url("fonts/aecfd19e-6f8e-4f21-9f3c-8358f8ff7f1a.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -499,7 +499,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/b2c4106b-f8cc-410a-82c7-6db176059999.woff2") format('woff2');
+  src: url("fonts/b2c4106b-f8cc-410a-82c7-6db176059999.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -508,7 +508,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url("assets/fonts/692bca6f-dbd4-422a-ac81-5266c66e57bf.woff2") format('woff2');
+  src: url("fonts/692bca6f-dbd4-422a-ac81-5266c66e57bf.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* cyrillic-ext */
@@ -517,7 +517,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/46ce0351-e43e-46a1-bcc4-db3fad7937a8.woff2") format('woff2');
+  src: url("fonts/46ce0351-e43e-46a1-bcc4-db3fad7937a8.woff2") format('woff2');
   unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 /* cyrillic */
@@ -526,7 +526,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/7a98edb2-b260-4e12-a00a-a4b47daee272.woff2") format('woff2');
+  src: url("fonts/7a98edb2-b260-4e12-a00a-a4b47daee272.woff2") format('woff2');
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 /* vietnamese */
@@ -535,7 +535,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/43a1b3b5-ac9d-47d5-8779-3d423c81f62b.woff2") format('woff2');
+  src: url("fonts/43a1b3b5-ac9d-47d5-8779-3d423c81f62b.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -544,7 +544,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/d458f69d-c782-4741-b18c-c5eed8ee70ed.woff2") format('woff2');
+  src: url("fonts/d458f69d-c782-4741-b18c-c5eed8ee70ed.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -553,7 +553,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/9ad3ab98-273c-4df9-b256-826afc8b878d.woff2") format('woff2');
+  src: url("fonts/9ad3ab98-273c-4df9-b256-826afc8b878d.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* cyrillic-ext */
@@ -562,7 +562,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/41a1d174-d12a-4fda-bfd6-95b106742273.woff2") format('woff2');
+  src: url("fonts/41a1d174-d12a-4fda-bfd6-95b106742273.woff2") format('woff2');
   unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 /* cyrillic */
@@ -571,7 +571,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/ec75e46b-a212-41e4-93ae-38c2919fa118.woff2") format('woff2');
+  src: url("fonts/ec75e46b-a212-41e4-93ae-38c2919fa118.woff2") format('woff2');
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 /* vietnamese */
@@ -580,7 +580,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/907e7eae-ffd9-4974-9181-082151b85fbe.woff2") format('woff2');
+  src: url("fonts/907e7eae-ffd9-4974-9181-082151b85fbe.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -589,7 +589,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/381d7d89-f1de-4a41-a061-a8e1338717cc.woff2") format('woff2');
+  src: url("fonts/381d7d89-f1de-4a41-a061-a8e1338717cc.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -598,7 +598,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/35c9f732-6ee3-442c-8be5-ff211373c33d.woff2") format('woff2');
+  src: url("fonts/35c9f732-6ee3-442c-8be5-ff211373c33d.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* cyrillic-ext */
@@ -607,7 +607,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/f1d35c20-0df4-424f-bd0f-bb16d88c3a0b.woff2") format('woff2');
+  src: url("fonts/f1d35c20-0df4-424f-bd0f-bb16d88c3a0b.woff2") format('woff2');
   unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
 }
 /* cyrillic */
@@ -616,7 +616,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/e6389280-f399-4abe-991b-624361c96950.woff2") format('woff2');
+  src: url("fonts/e6389280-f399-4abe-991b-624361c96950.woff2") format('woff2');
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 /* vietnamese */
@@ -625,7 +625,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/81d8825d-2460-4524-961e-29abd5348cea.woff2") format('woff2');
+  src: url("fonts/81d8825d-2460-4524-961e-29abd5348cea.woff2") format('woff2');
   unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
 }
 /* latin-ext */
@@ -634,7 +634,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/6c8a8dba-0a9f-49af-96cc-1384ae4bd5a3.woff2") format('woff2');
+  src: url("fonts/6c8a8dba-0a9f-49af-96cc-1384ae4bd5a3.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -643,7 +643,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/f9795465-434e-4a08-8c60-97710c64df59.woff2") format('woff2');
+  src: url("fonts/f9795465-434e-4a08-8c60-97710c64df59.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* latin-ext */
@@ -652,7 +652,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/9cca7703-f8f5-4fe7-986f-03ed0d08c48f.woff2") format('woff2');
+  src: url("fonts/9cca7703-f8f5-4fe7-986f-03ed0d08c48f.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -661,7 +661,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("assets/fonts/5a97094c-fcb1-461b-9225-d1869ca98991.woff2") format('woff2');
+  src: url("fonts/5a97094c-fcb1-461b-9225-d1869ca98991.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* latin-ext */
@@ -670,7 +670,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/9cca7703-f8f5-4fe7-986f-03ed0d08c48f.woff2") format('woff2');
+  src: url("fonts/9cca7703-f8f5-4fe7-986f-03ed0d08c48f.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -679,7 +679,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("assets/fonts/5a97094c-fcb1-461b-9225-d1869ca98991.woff2") format('woff2');
+  src: url("fonts/5a97094c-fcb1-461b-9225-d1869ca98991.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 /* latin-ext */
@@ -688,7 +688,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/9cca7703-f8f5-4fe7-986f-03ed0d08c48f.woff2") format('woff2');
+  src: url("fonts/9cca7703-f8f5-4fe7-986f-03ed0d08c48f.woff2") format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 /* latin */
@@ -697,6 +697,6 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("assets/fonts/5a97094c-fcb1-461b-9225-d1869ca98991.woff2") format('woff2');
+  src: url("fonts/5a97094c-fcb1-461b-9225-d1869ca98991.woff2") format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
