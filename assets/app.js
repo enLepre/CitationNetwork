@@ -31,7 +31,7 @@
     document.body.dataset.view = view;
     Object.entries(views).forEach(([k, el]) => (el.hidden = k !== view));
     document.querySelectorAll("button[data-view]").forEach(b => { b.classList.toggle("active", b.dataset.view === view); if (b.dataset.view === view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
-    document.querySelector(".mini-search").style.visibility = view === "search" ? "hidden" : "visible";
+    document.querySelector(".mini-search").hidden = view === "search";
     refreshShareBtn(view);
     if (graph) { graph.setActive(view === "graph"); if (view === "graph") requestAnimationFrame(() => graph.fit()); }
     if (view === "list") renderList();
@@ -228,7 +228,7 @@
     const btn = $("share-btn");
     if (!btn) return;
     const v = view || (Object.entries(views).find(([, el]) => !el.hidden) || [])[0];
-    btn.style.visibility = (v !== "search" && CURRENT.seedId) ? "visible" : "hidden";
+    btn.hidden = !(v !== "search" && CURRENT.seedId);
   }
 
   let toastTimer = null;

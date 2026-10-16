@@ -78,6 +78,14 @@ async function idleWrites(page) {
     await new Promise(r => setTimeout(r, 500)); observer.disconnect(); return count;
   });
 }
+async function navigate(page, view) {
+  await page.click('#menu-toggle');
+  await page.click('#notebook-menu [data-view="' + view + '"]');
+}
+async function appearance(page) {
+  await page.click('#menu-toggle');
+  await page.click('#appearance-toggle');
+}
 async function labelStats(page) {
   return page.evaluate(() => {
     const labels = [...document.querySelectorAll('.glabel')].filter(el => getComputedStyle(el).display !== 'none' && getComputedStyle(el.closest('.gnode')).display !== 'none');
@@ -218,13 +226,13 @@ async function labelStats(page) {
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 + 35, box.y + box.height / 2 + 20); await page.mouse.up(); await frames(page);
     assert.notEqual(await page.evaluate(() => CG.nodeById.Wseed.x), oldPosition.x);
     report.checks.push('Zoom, role filters, keyboard selection, abstract details and dragging');
-    await page.click('#appearance-toggle'); await page.selectOption('[name="paper"]', 'cool'); await page.selectOption('[name="serif"]', 'Newsreader');
+    await appearance(page); await page.selectOption('[name="paper"]', 'cool'); await page.selectOption('[name="serif"]', 'Newsreader');
     await page.uncheck('[name="labels"]'); await frames(page);
     assert.equal(await page.locator('.glabel').evaluateAll(nodes => nodes.filter(n => getComputedStyle(n).display !== 'none').length), 0);
     await page.check('[name="labels"]'); await page.click('#appearance-close');
-    const downloadPromise = page.waitForEvent('download'); await page.click('.topnav [data-view="list"]'); await page.click('#export-bib');
+    const downloadPromise = page.waitForEvent('download'); await navigate(page, 'list'); await page.click('#export-bib');
     const download = await downloadPromise; assert(download.suggestedFilename().endsWith('.bib'));
-    await page.click('.topnav [data-view="graph"]'); await frames(page);
+    await navigate(page, 'graph'); await frames(page);
     report.checks.push('Appearance controls, font changes, list view and BibTeX export');
     assert.equal(await page.locator('a[href*="Personal-Blog"]').count(), 0);
     assert.equal(await page.locator('.notebook-footer, .examples, .howto').count(), 0);
@@ -242,7 +250,7 @@ async function labelStats(page) {
       }
     }
     report.checks.push('Independent Search/Graph/List menu, no personal attribution, minimal search and counts-only list summary');
-    await page.click('#appearance-toggle'); await page.click('#appearance-reset'); await page.click('#appearance-close');
+    await appearance(page); await page.click('#appearance-reset'); await page.click('#appearance-close');
     await page.click('#menu-toggle');
     assert.equal(await page.locator('#menu-toggle').getAttribute('aria-expanded'), 'true');
     await page.click('#theme-toggle'); await frames(page);
@@ -255,12 +263,12 @@ async function labelStats(page) {
     await page.reload(); await settled(page);
     assert.equal(await page.locator('#theme-toggle').getAttribute('aria-pressed'), 'true');
     await page.click('#menu-toggle'); await page.click('#theme-toggle'); await page.keyboard.press('Escape');
-    await page.click('.topnav [data-view="search"]'); await frames(page);
+    await navigate(page, 'search'); await frames(page);
     await page.waitForTimeout(250); await page.screenshot({ path: path.join(output, 'after-search.png') });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     assert.equal(await page.locator('.menu-toggle span').evaluate(el => getComputedStyle(el).transitionDuration), '0s');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await page.click('.topnav [data-view="graph"]'); await frames(page);
+    await navigate(page, 'graph'); await frames(page);
     await page.locator('.gnode[data-id="Wseed"]').focus(); await page.keyboard.press('Enter');
     await page.waitForTimeout(350);
     assert(await page.locator('.topbar').evaluate(el => el.getBoundingClientRect().top >= 0), 'keyboard focus must not scroll the page out of view');
@@ -278,7 +286,7 @@ async function labelStats(page) {
     report.checks.push('120-paper density loads correctly');
     // Start a slow seed, then immediately pick a faster one. The slow response must not win.
     await page.evaluate(() => { document.getElementById('mini-input').value = ''; });
-    await page.click('.topnav [data-view="search"]'); await page.fill('#big-input', 'slow'); await page.click('#big-go');
+    await navigate(page, 'search'); await page.fill('#big-input', 'slow'); await page.click('#big-go');
     await page.waitForSelector('.presult');
     // Exercise load overlap through the exposed shared-link route by clicking results supplied by search.
     await page.evaluate(() => {
@@ -287,16 +295,22 @@ async function labelStats(page) {
       window.restoreSearch = () => { OpenAlex.search = originalSearch; };
     });
     await page.fill('#picker-input', 'slow'); await page.press('#picker-input', 'Enter'); await page.waitForSelector('.presult'); await page.click('.presult');
-    await page.click('.topnav [data-view="search"]'); await page.fill('#big-input', 'fast'); await page.click('#big-go'); await page.waitForSelector('.presult'); await page.click('.presult');
+    await navigate(page, 'search'); await page.fill('#big-input', 'fast'); await page.click('#big-go'); await page.waitForSelector('.presult'); await page.click('.presult');
     await settled(page); await page.waitForTimeout(700);
     assert.equal(await page.evaluate(() => CG.seedId), 'Wfast'); report.checks.push('Overlapping loads keep the newest seed');
     assert.deepEqual(errors, []);
-    await page.setViewportSize({ width: 390, height: 844 }); await page.click('.topnav [data-view="search"]'); await frames(page);
+    await page.setViewportSize({ width: 390, height: 844 }); await navigate(page, 'search'); await frames(page);
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     assert(await page.locator('#big-go').evaluate(el => el.getBoundingClientRect().right <= innerWidth));
-    assert(await page.locator('#appearance-toggle').evaluate(el => el.getBoundingClientRect().bottom <= document.querySelector('.topbar').getBoundingClientRect().bottom));
+    assert.equal(await page.locator('.topbar > button:not(.brand), .topnav, .topbar > .mini-search').count(), 0);
+    await page.click('#menu-toggle');
+    assert(await page.locator('#appearance-toggle').isVisible());
+    assert.equal((await page.locator('#theme-toggle').textContent()).trim(), '◐');
+    assert(await page.locator('#notebook-menu').evaluate(el => getComputedStyle(el).borderTopWidth === '0px'));
+    await page.screenshot({ path: path.join(output, 'after-mobile-menu.png') });
+    await page.keyboard.press('Escape');
     await page.screenshot({ path: path.join(output, 'after-mobile.png') });
-    await page.click('.topnav [data-view="graph"]'); await frames(page);
+    await navigate(page, 'graph'); await frames(page);
     assert(await page.evaluate(() => document.querySelector('.filterbar').getBoundingClientRect().top > document.querySelector('.seed-banner').getBoundingClientRect().bottom));
     await page.screenshot({ path: path.join(output, 'after-mobile-graph.png') });
     report.checks.push('Mobile search controls fit; graph filters do not overlap the heading');

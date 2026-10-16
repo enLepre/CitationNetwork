@@ -37,7 +37,7 @@
   const button = document.createElement('button');
   button.id = 'appearance-toggle'; button.className = 'share-btn'; button.textContent = 'Appearance';
   button.setAttribute('aria-controls', panel.id); button.setAttribute('aria-expanded', 'false');
-  document.querySelector('.topbar').appendChild(button);
+  document.querySelector('.menu-tools').insertBefore(button, document.getElementById('theme-toggle'));
   const menuButton = document.getElementById('menu-toggle');
   const menu = document.getElementById('notebook-menu');
   const theme = document.getElementById('theme-toggle');
@@ -63,6 +63,8 @@
     style.colorScheme = dark ? 'dark' : 'light';
     document.querySelector('meta[name="theme-color"]').content = tones[settings.paper][0];
     theme.setAttribute('aria-pressed', String(dark));
+    theme.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+    theme.title = theme.getAttribute('aria-label');
     if (window.CG) {
       window.CG.setFilter({ showLabels: settings.labels, linkOpacity: +settings.links });
       window.CG.setNodeScale(+settings.nodeScale);
@@ -78,10 +80,12 @@
   function setOpen(open, restore = true) {
     panel.hidden = !open; button.setAttribute('aria-expanded', String(open));
     if (open) { menuOpen(false); panel.querySelector('select').focus(); }
-    else if (restore) button.focus();
+    else if (restore) menuButton.focus();
   }
   menuButton.addEventListener('click', () => { setOpen(false, false); menuOpen(menu.hidden); });
   menu.querySelectorAll('[data-view]').forEach(link => link.addEventListener('click', () => menuOpen(false, true)));
+  document.getElementById('mini-input').addEventListener('focus', () => menuOpen(false));
+  document.getElementById('share-btn').addEventListener('click', () => menuOpen(false, true));
   theme.addEventListener('click', () => { settings.paper = settings.paper === 'dark' ? 'warm' : 'dark'; syncInputs(); apply(); persist(); });
   button.addEventListener('click', () => setOpen(panel.hidden));
   document.getElementById('appearance-close').addEventListener('click', () => setOpen(false));
