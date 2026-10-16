@@ -185,6 +185,22 @@ async function labelStats(page) {
     await page.click('#zoom-fit'); await frames(page);
     report.checks.push('Labels remain at least 12 screen pixels and do not overlap at overview or zoom');
     assert.equal(await idleWrites(page), 0); report.checks.push('Zero idle SVG mutations');
+    for (const role of ['cite', 'ref', 'linked']) {
+      const target = await page.evaluate(role => {
+        const stage = document.getElementById('graph-canvas').getBoundingClientRect();
+        return CG.nodes.filter(n => n.role === role).sort((a, b) => a.rad - b.rad).map(n => {
+          const r = n.cEl.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2;
+          return { id: n.id, title: n.title, x, y, hit: document.elementFromPoint(x, y)?.closest('[data-paper-id]')?.dataset.paperId };
+        }).find(n => n.hit === n.id && n.x > 60 && n.x < stage.right - 60 && n.y > stage.top + 180 && n.y < stage.bottom - 100);
+      }, role);
+      assert(target, 'a visible ' + role + ' paper is required');
+      await page.mouse.move(target.x, target.y); await page.mouse.down();
+      await page.mouse.move(target.x + 1, target.y + 1); await page.mouse.up(); await frames(page);
+      assert.equal(await page.evaluate(() => CG.selected), target.id, role + ' paper must select with pointer jitter');
+      assert.equal(await page.locator('#d-title').textContent(), target.title);
+      await page.click('#detail-close'); await page.waitForTimeout(350); await frames(page);
+    }
+    report.checks.push('Mouse clicks with slight movement open the correct citing, reference and co-cited details');
     const zoomBefore = await page.evaluate(() => CG.scale); await page.click('#zoom-in'); await frames(page);
     assert((await page.evaluate(() => CG.scale)) > zoomBefore);
     await page.click('#toggle-ref'); await frames(page);

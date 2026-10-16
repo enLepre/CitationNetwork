@@ -257,11 +257,12 @@ a { color: inherit; }
 #graph-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
 #graph-canvas.grabbing { cursor: grabbing; }
 .gnode { cursor: pointer; }
+.node-hit-target { cursor: pointer; }
 .gnode .halo { pointer-events: none; transition: opacity .2s; }
 .glabel {
   font-family: var(--mono); font-weight: 500;
   paint-order: stroke; stroke-linejoin: round;
-  pointer-events: none; letter-spacing: 0.01em;
+  pointer-events: all; cursor: pointer; letter-spacing: 0.01em;
 }
 .gedge { transition: opacity .15s; pointer-events: none; }
 
@@ -271,7 +272,7 @@ a { color: inherit; }
   display: flex; align-items: flex-start; gap: 14px;
   pointer-events: none; z-index: 6;
 }
-.seed-banner .meta { pointer-events: auto; max-width: 540px; }
+.seed-banner .meta { pointer-events: none; max-width: 540px; }
 .seed-banner .eyebrow { margin-bottom: 6px; }
 .seed-banner h2 {
   font-weight: 400; font-size: 22px; line-height: 1.22; letter-spacing: -0.01em;
