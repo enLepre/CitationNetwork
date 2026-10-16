@@ -119,7 +119,10 @@ async function labelStats(page) {
         await settled(page);
         assert.deepEqual(errors, [], version + ' has browser errors');
         assert.deepEqual(assetFailures, [], version + ' has missing static assets');
-        if (version === 'after') assert(await page.evaluate(() => document.fonts.check('12px "Spline Sans Mono"') && document.fonts.check('20px Spectral')));
+        if (version === 'after') {
+          assert(await page.evaluate(() => getComputedStyle(document.body).fontFamily.includes('Georgia') && getComputedStyle(document.body).backgroundColor === 'rgb(245, 242, 236)'));
+          assert.equal(await page.evaluate(() => performance.getEntriesByType('resource').filter(r => /\.woff2(?:$|\?)/.test(r.name)).length), 0, 'default Georgia needs no font downloads');
+        }
         const timing = await page.evaluate(() => ({ readyMs: performance.now(), bytes: performance.getEntriesByType('resource').filter(r => r.name.startsWith(location.origin)).reduce((s, r) => s + r.encodedBodySize, performance.getEntriesByType('navigation')[0].encodedBodySize), maxLongTaskMs: Math.max(0, ...longTasks) }));
         timing.directReadyMs = directReadyMs;
         timing.idleAttributeWritesIn500ms = await idleWrites(page);
@@ -178,12 +181,12 @@ async function labelStats(page) {
     for (const old of direct) { const n = expanded.find(n => n.id === old.id); assert.equal(n.x, old.x); assert.equal(n.y, old.y); }
     report.checks.push('Direct graph appears before delayed enrichment; existing paper positions stay fixed');
     const labels = await labelStats(page);
-    assert(labels.visible > 4); assert(labels.minScreenFontPx >= 11.99); assert.equal(labels.overlappingPairs, 0);
+    assert(labels.visible > 4); assert(labels.minScreenFontPx >= 12.99); assert.equal(labels.overlappingPairs, 0);
     for (let i = 0; i < 3; i++) await page.click('#zoom-in');
     await frames(page);
-    const zoomLabels = await labelStats(page); assert.equal(zoomLabels.overlappingPairs, 0); assert(zoomLabels.minScreenFontPx >= 11.99);
+    const zoomLabels = await labelStats(page); assert.equal(zoomLabels.overlappingPairs, 0); assert(zoomLabels.minScreenFontPx >= 12.99);
     await page.click('#zoom-fit'); await frames(page);
-    report.checks.push('Labels remain at least 12 screen pixels and do not overlap at overview or zoom');
+    report.checks.push('Labels remain at least 13 screen pixels and do not overlap at overview or zoom');
     assert.equal(await idleWrites(page), 0); report.checks.push('Zero idle SVG mutations');
     for (const role of ['cite', 'ref', 'linked']) {
       const target = await page.evaluate(role => {
@@ -223,6 +226,34 @@ async function labelStats(page) {
     const download = await downloadPromise; assert(download.suggestedFilename().endsWith('.bib'));
     await page.click('[data-view="graph"]'); await frames(page);
     report.checks.push('Appearance controls, font changes, list view and BibTeX export');
+    await page.click('#appearance-toggle'); await page.click('#appearance-reset'); await page.click('#appearance-close');
+    await page.click('#menu-toggle');
+    assert.equal(await page.locator('#menu-toggle').getAttribute('aria-expanded'), 'true');
+    await page.click('#theme-toggle'); await frames(page);
+    assert.equal(await page.locator('#theme-toggle').getAttribute('aria-pressed'), 'true');
+    assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(39, 44, 50)');
+    await page.screenshot({ path: path.join(output, 'after-dark-graph.png') });
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#menu-toggle').getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.locator('#menu-toggle').evaluate(el => el === document.activeElement), true);
+    await page.reload(); await settled(page);
+    assert.equal(await page.locator('#theme-toggle').getAttribute('aria-pressed'), 'true');
+    await page.click('#menu-toggle'); await page.click('#theme-toggle'); await page.keyboard.press('Escape');
+    await page.click('[data-view="search"]'); await frames(page);
+    await page.waitForTimeout(250); await page.screenshot({ path: path.join(output, 'after-search.png') });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    assert.equal(await page.locator('.menu-toggle span').evaluate(el => getComputedStyle(el).transitionDuration), '0s');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.click('[data-view="graph"]'); await frames(page);
+    await page.locator('.gnode[data-id="Wseed"]').focus(); await page.keyboard.press('Enter');
+    await page.waitForTimeout(350);
+    assert(await page.locator('.topbar').evaluate(el => el.getBoundingClientRect().top >= 0), 'keyboard focus must not scroll the page out of view');
+    await page.waitForSelector('#detail:not(.closed)');
+    const detailBounds = await page.locator('#detail').evaluate(el => ({ left: el.getBoundingClientRect().left, right: el.getBoundingClientRect().right, width: innerWidth }));
+    assert(detailBounds.right <= detailBounds.width + 1 && detailBounds.left >= -1, JSON.stringify(detailBounds));
+    await page.screenshot({ path: path.join(output, 'after-details.png') });
+    await page.click('#detail-close');
+    report.checks.push('Notebook palette, accessible diamond navigation, persisted dark paper, reduced motion and article-style details');
     const countBeforeReload = urls.length; await page.reload(); await settled(page);
     assert.equal(urls.length, countBeforeReload, 'reload should reuse session cache');
     report.checks.push('Reload reuses cached API responses');

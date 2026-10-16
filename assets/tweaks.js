@@ -1,25 +1,33 @@
-/* Appearance controls use native inputs; no React or runtime compiler needed. */
+/* Native appearance and notebook navigation controls. */
 (() => {
   const palettes = [
-    ['oklch(0.55 0.135 38)', 'oklch(0.64 0.085 78)', 'oklch(0.60 0.072 238)'],
-    ['oklch(0.52 0.13 25)', 'oklch(0.62 0.09 150)', 'oklch(0.55 0.10 285)'],
-    ['oklch(0.5 0.02 60)', 'oklch(0.62 0.085 70)', 'oklch(0.55 0.075 230)'],
-    ['oklch(0.55 0.14 330)', 'oklch(0.66 0.10 95)', 'oklch(0.58 0.09 200)']
+    ['#715b49', '#8b795f', '#536b82', '#657b6a'],
+    ['#805c57', '#68816c', '#74698a', '#7b815f'],
+    ['#68645b', '#8a795f', '#586f80', '#727c68'],
+    ['#886579', '#8a815c', '#567c83', '#6e816e']
   ];
   const tones = {
-    warm: ['oklch(0.971 0.006 83)', 'oklch(0.945 0.007 83)', 'oklch(0.992 0.004 83)', 'oklch(0.984 0.005 83)'],
-    cool: ['oklch(0.972 0.005 250)', 'oklch(0.946 0.006 250)', 'oklch(0.994 0.003 250)', 'oklch(0.986 0.004 250)'],
-    neutral: ['oklch(0.972 0.001 0)', 'oklch(0.946 0.001 0)', 'oklch(0.995 0 0)', 'oklch(0.986 0.001 0)']
+    warm: ['#f5f2ec', '#eeebe4'], cool: ['#f0f3f5', '#e7ecef'],
+    neutral: ['#f4f4f2', '#eaeae7'], dark: ['#272c32', '#30363d']
   };
-  const defaults = { palette: '0', paper: 'warm', serif: 'Spectral', links: 1, labels: true, nodeScale: 1 };
-  let settings = { ...defaults };
-  try { settings = { ...settings, ...JSON.parse(localStorage.getItem('citation-appearance') || '{}') }; } catch (error) {}
+  const defaults = { palette: '0', paper: 'warm', serif: 'Georgia', links: 1, labels: true, nodeScale: 1 };
+  const storageKey = 'citation-appearance-v2';
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch (error) {}
+  let settings = { ...defaults, ...saved };
+  if (!palettes[settings.palette]) settings.palette = '0';
+  if (!tones[settings.paper]) settings.paper = 'warm';
+  if (!['Georgia', 'Spectral', 'Newsreader', 'Source Serif 4'].includes(settings.serif)) settings.serif = 'Georgia';
+  for (const [key, min, max] of [['links', .1, 1], ['nodeScale', .7, 1.5]]) {
+    settings[key] = Number.isFinite(+settings[key]) ? Math.max(min, Math.min(max, +settings[key])) : defaults[key];
+  }
+  settings.labels = settings.labels !== false;
   const root = document.getElementById('tweaks-root');
   root.innerHTML = `<aside class="appearance-panel" id="appearance-panel" aria-label="Appearance" hidden>
     <div class="appearance-heading"><strong>Appearance</strong><button type="button" id="appearance-close" aria-label="Close appearance">×</button></div>
-    <label>Palette<select name="palette"><option value="0">Terracotta & blue</option><option value="1">Green & violet</option><option value="2">Muted earth</option><option value="3">Rose & sky</option></select></label>
-    <label>Paper<select name="paper"><option>warm</option><option>cool</option><option>neutral</option></select></label>
-    <label>Typeface<select name="serif"><option>Spectral</option><option>Newsreader</option><option>Source Serif 4</option></select></label>
+    <label>Palette<select name="palette"><option value="0">Notebook</option><option value="1">Garden</option><option value="2">Earth</option><option value="3">Rose & sky</option></select></label>
+    <label>Paper<select name="paper"><option value="warm">Warm</option><option value="cool">Cool</option><option value="neutral">Neutral</option><option value="dark">Dark</option></select></label>
+    <label>Typeface<select name="serif"><option>Georgia</option><option>Spectral</option><option>Newsreader</option><option>Source Serif 4</option></select></label>
     <label>Connection lines<input name="links" type="range" min="0.1" max="1" step="0.05"></label>
     <label>Node size<input name="nodeScale" type="range" min="0.7" max="1.5" step="0.05"></label>
     <label>Paper labels<input name="labels" type="checkbox"></label>
@@ -30,49 +38,67 @@
   button.id = 'appearance-toggle'; button.className = 'share-btn'; button.textContent = 'Appearance';
   button.setAttribute('aria-controls', panel.id); button.setAttribute('aria-expanded', 'false');
   document.querySelector('.topbar').appendChild(button);
+  const menuButton = document.getElementById('menu-toggle');
+  const menu = document.getElementById('notebook-menu');
+  const theme = document.getElementById('theme-toggle');
   const inputs = [...panel.querySelectorAll('[name]')];
+  function persist() { try { localStorage.setItem(storageKey, JSON.stringify(settings)); } catch (error) {} }
   function syncInputs() {
-    inputs.forEach(input => {
-      if (input.type === 'checkbox') input.checked = !!settings[input.name];
-      else input.value = settings[input.name];
-      if (input.type === 'select-one' && !input.value) { input.value = defaults[input.name]; settings[input.name] = input.value; }
-    });
+    inputs.forEach(input => { if (input.type === 'checkbox') input.checked = settings[input.name]; else input.value = settings[input.name]; });
   }
   function apply() {
     const style = document.documentElement.style;
-    const accents = palettes[settings.palette] || palettes[0];
-    ['seed', 'ref', 'cite'].forEach((name, i) => {
-      style.setProperty('--' + name, accents[i]);
-      style.setProperty('--' + name + '-tint', accents[i].replace(')', ' / 0.12)'));
+    const dark = settings.paper === 'dark';
+    const accents = palettes[settings.palette];
+    ['seed', 'ref', 'cite', 'linked'].forEach((name, i) => {
+      const color = dark ? `color-mix(in srgb, ${accents[i]}, white 40%)` : accents[i];
+      style.setProperty('--' + name, color);
+      style.setProperty('--' + name + '-tint', `color-mix(in srgb, ${color} 8%, transparent)`);
     });
-    ['bg', 'bg-2', 'surface', 'panel'].forEach((name, i) => style.setProperty('--' + name, (tones[settings.paper] || tones.warm)[i]));
+    ['bg', 'surface', 'panel'].forEach(name => style.setProperty('--' + name, tones[settings.paper][0]));
+    style.setProperty('--bg-2', tones[settings.paper][1]);
+    const ink = dark ? ['#e0e4e8', '#cdd4dc', '#adb5bf', '#414850', '#383f47'] : ['#34312c', '#514b43', '#70685e', '#ded8ce', '#e8e2d9'];
+    ['ink', 'ink-soft', 'ink-faint', 'line', 'line-soft'].forEach((name, i) => style.setProperty('--' + name, ink[i]));
     style.setProperty('--serif', '"' + settings.serif + '", Georgia, serif');
+    style.colorScheme = dark ? 'dark' : 'light';
+    document.querySelector('meta[name="theme-color"]').content = tones[settings.paper][0];
+    theme.setAttribute('aria-pressed', String(dark));
     if (window.CG) {
       window.CG.setFilter({ showLabels: settings.labels, linkOpacity: +settings.links });
       window.CG.setNodeScale(+settings.nodeScale);
       window.CG.nodes.forEach(n => { n.labelWidth = null; });
     }
   }
-  function setOpen(open) {
-    panel.hidden = !open; button.setAttribute('aria-expanded', String(open));
-    if (open) panel.querySelector('select').focus();
-    else button.focus();
+  function menuOpen(open, restore = false) {
+    menu.hidden = !open; menuButton.setAttribute('aria-expanded', String(open));
+    menuButton.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+    menuButton.parentElement.classList.toggle('is-open', open);
+    if (restore) menuButton.focus();
   }
+  function setOpen(open, restore = true) {
+    panel.hidden = !open; button.setAttribute('aria-expanded', String(open));
+    if (open) { menuOpen(false); panel.querySelector('select').focus(); }
+    else if (restore) button.focus();
+  }
+  menuButton.addEventListener('click', () => { setOpen(false, false); menuOpen(menu.hidden); });
+  theme.addEventListener('click', () => { settings.paper = settings.paper === 'dark' ? 'warm' : 'dark'; syncInputs(); apply(); persist(); });
   button.addEventListener('click', () => setOpen(panel.hidden));
   document.getElementById('appearance-close').addEventListener('click', () => setOpen(false));
-  document.addEventListener('keydown', event => { if (event.key === 'Escape' && !panel.hidden) setOpen(false); });
+  document.addEventListener('click', event => {
+    if (!menu.hidden && !menuButton.parentElement.contains(event.target)) menuOpen(false);
+    if (!panel.hidden && !panel.contains(event.target) && !button.contains(event.target)) setOpen(false, false);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    if (!panel.hidden) setOpen(false);
+    if (!menu.hidden) menuOpen(false, true);
+  });
   panel.addEventListener('input', event => {
-    const input = event.target;
-    if (!input.name) return;
+    const input = event.target; if (!input.name) return;
     settings[input.name] = input.type === 'checkbox' ? input.checked : input.value;
-    apply();
-    try { localStorage.setItem('citation-appearance', JSON.stringify(settings)); } catch (error) {}
+    apply(); persist();
   });
-  document.getElementById('appearance-reset').addEventListener('click', () => {
-    settings = { ...defaults }; syncInputs(); apply();
-    try { localStorage.removeItem('citation-appearance'); } catch (error) {}
-  });
-  // Retain the original embedded-prototype activation hook.
+  document.getElementById('appearance-reset').addEventListener('click', () => { settings = { ...defaults }; syncInputs(); apply(); persist(); });
   window.addEventListener('message', event => {
     if (event.source !== window.parent) return;
     if (event.data?.type === '__activate_edit_mode') setOpen(true);

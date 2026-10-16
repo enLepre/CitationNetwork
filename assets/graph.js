@@ -398,8 +398,8 @@
         n.hitEl.setAttribute('transform', `translate(${n.x} ${n.y})`);
         n.hitEl.setAttribute('r', Math.max(n.rad, 10 * inv));
         // counter-scale stroke + label so they stay constant in screen px
-        n.cEl.setAttribute("stroke-width", 2 * inv);
-        const labelFs = (n.role === "seed" ? 14 : 12) * inv;
+        n.cEl.setAttribute("stroke-width", 1.5 * inv);
+        const labelFs = (n.role === "seed" ? 15 : 13) * inv;
         n.tEl.setAttribute("font-size", labelFs);
         n.tEl.setAttribute("y", n.rad + 6 * inv + labelFs);
         n.tEl.setAttribute("stroke-width", 3.2 * inv);
@@ -419,7 +419,7 @@
         const bow = Math.min(30, len * 0.08);
         const nx = -dy / len, ny = dx / len;
         e.path.setAttribute("d", `M${a.x} ${a.y}Q${mx + nx * bow} ${my + ny * bow} ${b.x} ${b.y}`);
-        e.path.setAttribute("stroke-width", (e._lit ? 1.8 : 1.1) / this.scale);
+        e.path.setAttribute("stroke-width", (e._lit ? 1.3 : 0.8) / this.scale);
       });
     }
 
@@ -466,8 +466,8 @@
         e._lit = focus && lit;
         const col = e.kind === "cite" ? pal.cite : e.kind === "ref" ? pal.ref : pal.faint;
         e.path.setAttribute("stroke", col);
-        e.path.setAttribute("stroke-width", (e._lit ? 1.8 : 1.1) / this.scale);
-        const base = focus ? (lit ? 0.85 : 0.05) : (e.kind === "cross" ? 0.28 : 0.42);
+        e.path.setAttribute("stroke-width", (e._lit ? 1.3 : 0.8) / this.scale);
+        const base = focus ? (lit ? 0.8 : 0.04) : (e.kind === "cross" ? 0.20 : 0.32);
         e.path.style.opacity = base * this.linkOpacity;
       });
     }
@@ -485,29 +485,43 @@
       });
       ordered.forEach(n => {
         if (!n.labelCandidate || !this._visible(n) || boxes.length >= maxLabels) { n.tEl.style.display = 'none'; return; }
-        const fs = n.role === 'seed' ? 14 : 12;
+        const fs = n.role === 'seed' ? 15 : 13;
         // Canvas measures without interleaving SVG writes and layout reads.
         if (n.labelWidth == null) {
-          this._measure.font = '500 ' + fs + 'px ' + this._labelFamily;
+          this._measure.font = '400 ' + fs + 'px ' + this._labelFamily;
           n.labelWidth = this._measure.measureText(n.tEl.textContent).width + n.tEl.textContent.length * fs * 0.01;
         }
         const width = n.labelWidth;
-        const x = n.x * this.scale + this.tx, y = n.y * this.scale + this.ty + n.rad * this.scale + 6;
-        const box = { l: x - width / 2 - 4, r: x + width / 2 + 4, t: y, b: y + fs + 5 };
-        const outside = box.r < 0 || box.l > widthPx || box.b < 0 || box.t > heightPx;
-        const overlaps = boxes.some(b => box.l < b.r && box.r > b.l && box.t < b.b && box.b > b.t);
-        const hitsNode = this.nodes.some(other => {
-          if (other === n || !this._visible(other)) return false;
-          const nx = other.x * this.scale + this.tx, ny = other.y * this.scale + this.ty;
-          const r = other.rad * this.scale + 3;
-          const dx = nx - Math.max(box.l, Math.min(nx, box.r));
-          const dy = ny - Math.max(box.t, Math.min(ny, box.b));
-          return dx * dx + dy * dy < r * r;
-        });
+        const x = n.x * this.scale + this.tx, cy = n.y * this.scale + this.ty;
+        const radius = n.rad * this.scale, gap = radius + 7;
+        // Try each side before hiding a label in a crowded region.
+        const candidates = [
+          { x, y: cy + gap }, { x, y: cy - gap - fs - 5 },
+          { x: x + gap + width / 2, y: cy - fs / 2 },
+          { x: x - gap - width / 2, y: cy - fs / 2 }
+        ];
         const priority = n.id === focus || n.role === 'seed';
-        const show = !outside && (priority || (!overlaps && !hitsNode));
-        n.tEl.style.display = show ? '' : 'none';
-        if (show) boxes.push(box);
+        let chosen;
+        for (const candidate of candidates) {
+          const box = { l: candidate.x - width / 2 - 4, r: candidate.x + width / 2 + 4, t: candidate.y, b: candidate.y + fs + 5 };
+          const outside = box.l < 0 || box.r > widthPx || box.t < 0 || box.b > heightPx;
+          const overlaps = boxes.some(b => box.l < b.r && box.r > b.l && box.t < b.b && box.b > b.t);
+          const hitsNode = this.nodes.some(other => {
+            if (other === n || !this._visible(other)) return false;
+            const nx = other.x * this.scale + this.tx, ny = other.y * this.scale + this.ty;
+            const r = other.rad * this.scale + 3;
+            const dx = nx - Math.max(box.l, Math.min(nx, box.r));
+            const dy = ny - Math.max(box.t, Math.min(ny, box.b));
+            return dx * dx + dy * dy < r * r;
+          });
+          if (!outside && !overlaps && (!hitsNode || priority)) { chosen = { ...candidate, box }; break; }
+        }
+        n.tEl.style.display = chosen ? '' : 'none';
+        if (chosen) {
+          n.tEl.setAttribute('x', (chosen.x - x) / this.scale);
+          n.tEl.setAttribute('y', (chosen.y + fs - cy) / this.scale);
+          boxes.push(chosen.box);
+        }
       });
     }
 

@@ -36,8 +36,9 @@
       openPicker("");
       view = "search";
     }
+    document.body.dataset.view = view;
     Object.entries(views).forEach(([k, el]) => (el.hidden = k !== view));
-    document.querySelectorAll(".topnav button").forEach(b => b.classList.toggle("active", b.dataset.view === view));
+    document.querySelectorAll(".topnav button").forEach(b => { b.classList.toggle("active", b.dataset.view === view); if (b.dataset.view === view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
     document.querySelector(".mini-search").style.visibility = view === "search" ? "hidden" : "visible";
     refreshShareBtn(view);
     if (graph) { graph.setActive(view === "graph"); if (view === "graph") requestAnimationFrame(() => graph.fit()); }
@@ -305,10 +306,11 @@
   /* ---------------- search screen ---------------- */
   function buildSearch() {
     $("example-grid").innerHTML = EXAMPLES.map((e, i) => `
-      <div class="example-card" data-i="${i}">
-        <div class="t">${esc(e.title)}</div>
-        <div class="m">${esc(e.desc)} &nbsp;·&nbsp; <b>open live graph →</b></div>
-      </div>`).join("");
+      <button type="button" class="example-card" data-i="${i}">
+        <span class="example-diamond" aria-hidden="true"></span>
+        <span class="example-copy"><span class="t">${esc(e.title)}</span>
+        <span class="m">${esc(e.desc)}</span></span><span class="example-arrow" aria-hidden="true">↗</span>
+      </button>`).join("");
     $("example-grid").querySelectorAll(".example-card").forEach(c =>
       c.addEventListener("click", () => loadExample(EXAMPLES[+c.dataset.i].query)));
 
@@ -361,7 +363,7 @@
     tipFrame = requestAnimationFrame(() => {
       tipFrame = null;
       if (!tipPoint) return;
-      const stage = document.querySelector('.graph-stage').getBoundingClientRect();
+      const stage = document.querySelector('.graph-viewport').getBoundingClientRect();
       let lx = tipPoint.x + 16, ly = tipPoint.y + 16;
       if (lx + tipWidth > stage.width - 8) lx = tipPoint.x - tipWidth - 16;
       if (ly + tipHeight > stage.height - 8) ly = tipPoint.y - tipHeight - 16;
