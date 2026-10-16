@@ -104,6 +104,10 @@ async function labelStats(page) {
         const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
         const page = await context.newPage(); await mock(page);
         const errors = []; page.on('pageerror', e => errors.push(e.message));
+        const assetFailures = [];
+        page.on('response', response => {
+          if (response.url().startsWith(base) && response.status() >= 400) assetFailures.push(response.url() + ': ' + response.status());
+        });
         const cdp = await context.newCDPSession(page);
         await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
         await cdp.send('Network.enable');
@@ -114,6 +118,8 @@ async function labelStats(page) {
         const directReadyMs = await page.evaluate(() => performance.now());
         await settled(page);
         assert.deepEqual(errors, [], version + ' has browser errors');
+        assert.deepEqual(assetFailures, [], version + ' has missing static assets');
+        if (version === 'after') assert(await page.evaluate(() => document.fonts.check('12px "Spline Sans Mono"') && document.fonts.check('20px Spectral')));
         const timing = await page.evaluate(() => ({ readyMs: performance.now(), bytes: performance.getEntriesByType('resource').filter(r => r.name.startsWith(location.origin)).reduce((s, r) => s + r.encodedBodySize, performance.getEntriesByType('navigation')[0].encodedBodySize), maxLongTaskMs: Math.max(0, ...longTasks) }));
         timing.directReadyMs = directReadyMs;
         timing.idleAttributeWritesIn500ms = await idleWrites(page);

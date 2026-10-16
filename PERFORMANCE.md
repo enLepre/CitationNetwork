@@ -4,23 +4,25 @@ Measured 16 October 2026 against the original page at commit `e67f123`.
 
 | Measure | Original | Updated | Reduction |
 |---|---:|---:|---:|
-| First direct graph | 6.74 s | 1.61 s | 76.1% |
-| Full enriched graph | 7.31 s | 2.90 s | 60.3% |
-| Cold static asset payload | 3.338 MB | 0.169 MB | 94.9% |
-| Idle SVG attribute writes over 500 ms | 45264 | 0 | 100% |
-| 500-paper synchronous setup | 5906.9 ms | 47.3 ms | 99.2% |
-| 500-paper total layout and display | 6.06 s | 1.26 s | 79.2% |
-| 500-paper median hover to next displayed frame | 378.8 ms | 200.3 ms | 47.1% |
+| First direct graph | 7.43 s | 2.07 s | 72.2% |
+| Full enriched graph | 8.19 s | 3.10 s | 62.2% |
+| Cold static asset payload | 3.338 MB | 0.319 MB | 90.5% |
+| Idle SVG attribute writes over 500 ms | 30176 | 0 | 100% |
+| 500-paper synchronous setup | 6587.1 ms | 57.5 ms | 99.1% |
+| 500-paper total layout and display | 6.74 s | 1.15 s | 83.0% |
+| 500-paper median hover to next displayed frame | 310.5 ms | 151.7 ms | 51.1% |
 
 ## Method
 
+This run includes the restored web fonts. It supersedes the initial run, which used fallback fonts because stylesheet-relative font URLs were incorrect. Browser tests now reject missing static assets and verify font availability.
+
 155.0.4283.45 Edge/Chromium; 1440 × 1000 viewport; 4× CPU slowdown; 10 Mbit/s and 40 ms network latency for static assets. Cold-load values are medians of three fresh browser contexts. OpenAlex calls use the same deterministic fixtures for both versions, so these figures do not imply that the external API itself became faster. The 500-paper comparison is one run per version on identical data; hover is the median of nine changes. Payload is uncompressed response-body bytes, including fonts actually used.
 
-The first direct graph excludes optional co-cited enrichment; full readiness includes enrichment and font readiness. The old application waits for enrichment before first display. Synchronous setup measures only the initial JavaScript call; the total measurement includes background computation and display. Browser painting still has a cost: the 500-paper timer probe saw a maximum gap of 346 ms at 4× CPU slowdown, versus 6045 ms originally. These are improvements, not a guarantee of 60 fps for arbitrary graph sizes.
+The first direct graph excludes optional co-cited enrichment; full readiness includes enrichment and font readiness. The old application waits for enrichment before first display. Synchronous setup measures only the initial JavaScript call; the total measurement includes background computation and display. Browser painting still has a cost: the 500-paper timer probe saw a maximum gap of 409 ms at 4× CPU slowdown, versus 6706 ms originally. These are improvements, not a guarantee of 60 fps for arbitrary graph sizes.
 
 ## Readability and functional checks
 
-The fixture overview showed 4 labels originally and 10 after the update, with no overlapping label pairs in the updated overview. Updated labels stay at least 12 screen pixels (14 for the seed), including at different zoom levels. Visual review also covered desktop graphs, mobile search and mobile graph controls.
+The fixture overview showed 4 labels originally and 7 after the update, with no overlapping label pairs in the updated overview. Updated labels stay at least 12 screen pixels (14 for the seed), including at different zoom levels. Visual review also covered desktop graphs, mobile search and mobile graph controls.
 
 - Direct graph appears before delayed enrichment; existing paper positions stay fixed.
 - Labels remain at least 12 screen pixels and do not overlap at overview or zoom.
@@ -34,6 +36,6 @@ The fixture overview showed 4 labels originally and 10 after the update, with no
 - Time-sliced layout works without Workers; failed optional lookup preserves direct graph.
 - Live OpenAlex paper, network and abstract load successfully.
 
-The live API check returned 180 papers and 1118 edges, with 44 visible labels and 0 overlapping label pairs. The selected paper’s abstract also loaded. Live API data and latency can change.
+The live API check returned 180 papers and 1127 edges, with 43 visible labels and 0 overlapping label pairs. The selected paper’s abstract also loaded. Live API data and latency can change.
 
 Run `pnpm test` and `pnpm test:browser` to repeat the checks. Set `RUN_LIVE=1` for the optional real-API check. Raw results and screenshots are generated under `test-results/`.
