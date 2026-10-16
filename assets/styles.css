@@ -119,8 +119,8 @@ input::placeholder { color: var(--ink-faint); opacity: 1; }
 .gtooltip.show { opacity: 1; transform: translateY(0); }
 .gtooltip .tt { font-size: 16px; line-height: 1.4; }
 .gtooltip .tm { color: var(--ink-faint); font-size: 13px; margin-top: 6px; }
-.detail { flex: 0 0 var(--detail-width); width: var(--detail-width); min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--panel); transition: margin-right .2s ease; z-index: 12; }
-.detail.closed { margin-right: calc(-1 * var(--detail-width)); }
+.detail { flex: 0 0 var(--detail-width); width: var(--detail-width); min-height: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--panel); z-index: 12; }
+.detail.closed { display: none; }
 .detail-head { display: flex; align-items: center; gap: 12px; padding: 20px 28px; border-bottom: 1px solid var(--line); }
 .detail-head .role { font-size: 14px; color: var(--ink-faint); }
 .detail-head .role::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 9px; border-radius: 50%; background: currentColor; }
@@ -242,7 +242,7 @@ td.num { font-size: 16px; font-variant-numeric: tabular-nums; }
   .filterbar { gap: 4px 16px; padding: 4px 20px 12px; }
   .density, .chiptoggle { font-size: 14px; }
   .detail { position: absolute; right: 0; top: 0; bottom: 0; width: var(--detail-width); }
-  .detail.closed { margin-right: calc(-1 * var(--detail-width)); visibility: hidden; }
+  .detail.closed { display: none; }
   .detail-head { padding: 18px 24px; }
   .detail-body { padding: 24px; }
   .detail-body h3 { font-size: 27px; }
