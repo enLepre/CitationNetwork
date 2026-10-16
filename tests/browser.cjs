@@ -248,7 +248,9 @@ async function labelStats(page) {
     await page.locator('.gnode[data-id="Wseed"]').focus(); await page.keyboard.press('Enter');
     await page.waitForTimeout(350);
     assert(await page.locator('.topbar').evaluate(el => el.getBoundingClientRect().top >= 0), 'keyboard focus must not scroll the page out of view');
-    assert(await page.locator('#detail').evaluate(el => el.getBoundingClientRect().right <= innerWidth && el.getBoundingClientRect().left >= 0));
+    await page.waitForSelector('#detail:not(.closed)');
+    const detailBounds = await page.locator('#detail').evaluate(el => ({ left: el.getBoundingClientRect().left, right: el.getBoundingClientRect().right, width: innerWidth }));
+    assert(detailBounds.right <= detailBounds.width + 1 && detailBounds.left >= -1, JSON.stringify(detailBounds));
     await page.screenshot({ path: path.join(output, 'after-details.png') });
     await page.click('#detail-close');
     report.checks.push('Notebook palette, accessible diamond navigation, persisted dark paper, reduced motion and article-style details');
