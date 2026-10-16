@@ -4,30 +4,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Explore the references, citing papers and shared foundations around a paper.">
 <meta name="theme-color" content="#f5f2ec">
-<title>Citation Network — citation knowledge graph</title>
-<link rel="stylesheet" href="assets/fonts.css">
-<link rel="stylesheet" href="assets/styles.css?v=blog-menu-1">
+<title>Citation Network</title>
+<link rel="stylesheet" href="assets/styles.css?v=pages-1">
 
 </head>
-<body>
+<body data-page="search">
 <div id="app">
-  <!-- ============ Top bar ============ -->
-  <header class="topbar">
+<header class="topbar">
     <div class="site-menu">
       <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="notebook-menu"><span aria-hidden="true"></span></button>
       <nav id="notebook-menu" class="notebook-menu" aria-label="Citation Network navigation" aria-hidden="true" inert>
-        <button class="menu-brand" type="button">Citation Network</button>
-        <button class="menu-view" type="button" data-view="search">Search</button>
-        <button class="menu-view" type="button" data-view="graph">Graph</button>
-        <button class="menu-view" type="button" data-view="list">List</button>
+        <a class="menu-brand" href="index.html">Citation Network</a>
+        <a class="menu-view" data-view="search" href="index.html">Search</a>
+        <a class="menu-view" data-view="graph" href="graph.html">Graph</a>
+        <a class="menu-view" data-view="list" href="list.html">List</a>
         <div class="menu-tools">
-          <label class="mini-search">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
-            <input id="mini-input" type="text" aria-label="Find another paper" placeholder="Find another paper…">
-          </label>
-          <button id="share-btn" class="share-btn" title="Copy a link that reopens this exact graph">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"></line><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"></line></svg>
-            <span class="label">Share</span>
+          <button id="share-btn" class="share-btn" aria-label="Share graph" title="Copy a link that reopens this exact graph">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
           </button>
         </div>
         <button id="theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode" aria-pressed="false">
@@ -36,161 +29,22 @@
         </button>
       </nav>
     </div>
-    <button class="brand" type="button" aria-label="Citation Network search">Citation Network</button>
-  </header>
 
-  <!-- ============ Screen 1 — Search ============ -->
-  <section class="view" id="view-search">
+  </header>
+<main class="view" id="view-search">
     <div class="search-wrap">
       <h1>Citation Network</h1>
       <p class="lede">A wider landscape of connected papers.</p>
-      <p class="search-intro">Start with a title or DOI to explore the work a paper draws on, and the research that follows it.</p>
 
       <div class="bigsearch">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
         <input id="big-input" type="text" aria-label="Paper title, author, or DOI" placeholder="Paper title, author, or DOI…">
-        <button id="big-go">Explore <span aria-hidden="true">→</span></button>
+        <button id="big-go" type="button" aria-label="Search papers" title="Search papers"><span aria-hidden="true">→</span></button>
       </div>
 
     </div>
-  </section>
-
-  <!-- ============ Screen 2 — Graph ============ -->
-  <section class="view" id="view-graph" hidden="">
-    <div class="graph-stage">
-
-      <div class="seed-banner">
-        <div class="meta">
-          <span class="eyebrow">Seed paper</span>
-          <h2 id="seed-title">—</h2>
-          <div class="sub" id="seed-sub"></div>
-        </div>
-      </div>
-
-      <div class="filterbar">
-        <label class="density">
-          <span>Density</span>
-          <select id="density">
-            <option value="40">40 citing</option>
-            <option value="80" selected="">80 citing</option>
-            <option value="120">120 citing</option>
-          </select>
-        </label>
-        <button class="chiptoggle" id="toggle-ref" aria-pressed="true"><span class="swatch ref"></span>References</button>
-        <button class="chiptoggle" id="toggle-cite" aria-pressed="true"><span class="swatch cite"></span>Citing</button>
-        <button class="chiptoggle" id="toggle-linked" aria-pressed="true"><span class="swatch linked"></span>Co-cited</button>
-      </div>
-
-      <div class="graph-viewport">
-      <svg id="graph-canvas" xmlns="http://www.w3.org/2000/svg"></svg>
-      <div class="controls">
-        <div class="group">
-          <button id="zoom-in" title="Zoom in">+</button>
-          <button id="zoom-out" title="Zoom out">−</button>
-        </div>
-        <div class="group">
-          <button id="zoom-fit" title="Fit to screen">⤢</button>
-        </div>
-      </div>
-
-      <div class="statusbar">
-        <span class="k"><span class="swatch seed"></span>Seed</span>
-        <span class="k"><span class="swatch ref"></span>References</span>
-        <span class="k"><span class="swatch cite"></span>Citing</span>
-        <span class="k"><span class="swatch linked"></span>Co-cited</span>
-        <span class="div"></span>
-        <span id="status-counts">drag · scroll to zoom · click a node</span>
-        <span class="div"></span>
-        <span class="src">OpenAlex</span>
-      </div>
-
-      <div class="gtooltip" id="gtooltip"><div class="tt"></div><div class="tm"></div></div>
-
-      <!-- loading / error overlay -->
-      <div class="stage-overlay" id="loader" hidden="">
-        <div class="loader-box">
-          <div class="spinner" id="loader-spin"></div>
-          <div class="loader-title" id="loader-title">Building citation graph…</div>
-          <div class="loader-sub" id="loader-sub">Querying OpenAlex for references and citing work</div>
-          <div class="loader-actions" id="loader-actions" hidden="">
-            <button class="btn" id="loader-retry">Try again</button>
-            <button class="btn" id="loader-sample">Explore sample graph</button>
-          </div>
-        </div>
-      </div>
-      </div>
-    </div>
-
-    <!-- detail panel -->
-    <aside class="detail closed" id="detail">
-      <div class="detail-head">
-        <span class="role seed">Seed paper</span>
-        <button class="x" id="detail-close" title="Close">✕</button>
-      </div>
-      <div class="detail-body">
-        <h3 id="d-title"></h3>
-        <div class="authors" id="d-authors"></div>
-        <div class="venue" id="d-venue"></div>
-        <a id="d-link" class="d-link" href="#" target="_blank" rel="noopener noreferrer">
-          View at publisher
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-        </a>
-        <div class="stats">
-          <div class="stat"><div class="v" id="d-cites">—</div><div class="l">Citations</div></div>
-          <div class="stat"><div class="v" id="d-refs">—</div><div class="l">References</div></div>
-          <div class="stat"><div class="v" id="d-citedhere">—</div><div class="l">Cited here</div></div>
-        </div>
-        <span class="lbl">Abstract</span>
-        <p class="abstract" id="d-abstract"></p>
-        <div id="d-conns" class="connlist"></div>
-      </div>
-      <div class="detail-foot">
-        <button class="btn" id="d-recenter">Re-center graph</button>
-      </div>
-    </aside>
-  </section>
-
-  <!-- ============ Screen 3 — List ============ -->
-  <section class="view" id="view-list" hidden="">
-    <div class="list-wrap">
-      <div class="list-head">
-        <div>
-          <span class="eyebrow">Citation neighborhood</span>
-          <h1>Every paper in the graph</h1>
-          <div class="sub" id="list-seed"></div>
-        </div>
-        <div class="list-tools">
-          <label class="type-filter">
-            <span>Type</span>
-            <select id="type-filter"><option value="">All types</option></select>
-          </label>
-          <div class="list-sort">
-            <button data-sort="role" class="active">Role</button>
-            <button data-sort="year">Year</button>
-            <button data-sort="cites">Citations</button>
-            <button data-sort="links">Links</button>
-          </div>
-          <button id="export-bib" class="export-bib" title="Download the listed references as a BibTeX (.bib) file">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><path d="M5 21h14"></path></svg>
-            <span>Export .bib</span>
-          </button>
-        </div>
-      </div>
-      <table class="papers">
-        <thead><tr>
-          <th>Paper</th><th>Role</th><th class="venue">Venue</th>
-          <th class="num">Year</th><th class="num">Citations</th><th class="num">Links</th>
-        </tr></thead>
-        <tbody id="papers-body"></tbody>
-      </table>
-    </div>
-  </section>
+  </main>
 </div>
-
-
-
-
-<!-- ============ Search picker modal ============ -->
 <div class="picker" id="picker" hidden="">
   <div class="picker-backdrop" id="picker-backdrop"></div>
   <div class="picker-card">
@@ -203,21 +57,12 @@
     <div class="picker-foot"><span class="src">Results from OpenAlex · pick the paper to seed your graph</span></div>
   </div>
 </div>
-
-<!-- share confirmation toast -->
 <div class="toast" id="toast" hidden="">
   <span class="tmsg"></span>
   <input class="tsub" id="toast-url" readonly="" hidden="">
 </div>
-
-<div id="tweaks-root"></div>
-
-<!-- core app (vanilla) -->
-<script src="assets/layout.js" defer></script>
-<script src="assets/sample.js" defer></script>
-<script src="assets/openalex.js" defer></script>
-<script src="assets/graph.js?v=blog-menu-1" defer></script>
-<script src="assets/tweaks.js?v=blog-menu-1" defer></script>
-<script src="assets/app.js?v=blog-menu-1" defer></script>
+<script src="assets/openalex.js?v=pages-1" defer></script>
+<script src="assets/tweaks.js?v=pages-1" defer></script>
+<script src="assets/app.js?v=pages-1" defer></script>
 </body>
 </html>

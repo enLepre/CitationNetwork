@@ -19,32 +19,33 @@
   let netSeq = 0;               // bumped each load; guards stale background patches
 
   const $ = id => document.getElementById(id);
-  const views = { search: $("view-search"), graph: $("view-graph"), list: $("view-list") };
-
-  /* ---------------- router ---------------- */
-  function show(view) {
-    if ((view === "graph" || view === "list") && !CURRENT.seedId && !loading) {
-      // nothing loaded yet — send them to search
-      openPicker("");
-      view = "search";
-    }
-    document.body.dataset.view = view;
-    Object.entries(views).forEach(([k, el]) => (el.hidden = k !== view));
-    document.querySelectorAll("button[data-view]").forEach(b => { b.classList.toggle("active", b.dataset.view === view); if (b.dataset.view === view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
-    document.querySelector(".mini-search").hidden = view === "search";
-    refreshShareBtn(view);
-    if (graph) { graph.setActive(view === "graph"); if (view === "graph") requestAnimationFrame(() => graph.fit()); }
-    if (view === "list") renderList();
+  const PAGE = document.body.dataset.page;
+  let selectedId = null;
+  const params = new URLSearchParams(location.search);
+  const sharedSeed = params.get('seed');
+  let remembered = null;
+  try { remembered = JSON.parse(sessionStorage.getItem('citation-current') || 'null'); } catch (_) {}
+  function pageUrl(view, seedId = CURRENT.seedId || sharedSeed || remembered?.seedId) {
+    const url = new URL(view === 'search' ? 'index.html' : view + '.html', location.href);
+    if (view !== 'search' && seedId) { url.searchParams.set('seed', seedId); url.searchParams.set('density', String(citeLimit)); }
+    return url.href;
   }
+  function updateNavigation() {
+    document.querySelectorAll('[data-view]').forEach(link => {
+      link.href = pageUrl(link.dataset.view);
+      link.classList.toggle('active', link.dataset.view === PAGE);
+      if (link.dataset.view === PAGE) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+    });
+    refreshShareBtn();
+  }
+  function show(view) { location.assign(pageUrl(view)); }
   window.__show = show;
-  document.querySelectorAll("button[data-view]").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
-  document.querySelectorAll(".brand, .menu-brand").forEach(button => button.addEventListener("click", () => show("search")));
 
   /* ---------------- graph init ---------------- */
   function ensureGraph() {
     if (graph) return;
     graph = new CitationGraph($("graph-canvas"), {
-      onSelect: node => renderDetail(node),
+      onSelect: node => renderDetail(node || CURRENT.byId[CURRENT.seedId]),
       onHover: (node, x, y) => renderTooltip(node, x, y)
     });
     window.CG = graph;
@@ -56,6 +57,7 @@
   let pickerSeq = 0;
   function openPicker(prefill) {
     cancelSearch();
+    if (!picker) return;
     picker.hidden = false;
     const inp = $("picker-input");
     inp.value = prefill || "";
@@ -68,19 +70,19 @@
     clearTimeout(searchTimer); pickerSeq++;
     if (searchController) searchController.abort();
   }
-  function closePicker() { picker.hidden = true; cancelSearch(); }
-  $("picker-close").addEventListener("click", closePicker);
-  $("picker-backdrop").addEventListener("click", closePicker);
-  document.addEventListener("keydown", e => { if (e.key === "Escape" && !picker.hidden) closePicker(); });
+  function closePicker() { if (!picker) return; picker.hidden = true; cancelSearch(); }
+  $("picker-close")?.addEventListener("click", closePicker);
+  $("picker-backdrop")?.addEventListener("click", closePicker);
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && picker && !picker.hidden) closePicker(); });
 
   let searchTimer = null;
-  $("picker-input").addEventListener("input", e => {
+  $("picker-input")?.addEventListener("input", e => {
     cancelSearch();
     const q = e.target.value;
     if (!q.trim()) { $("picker-results").innerHTML = `<div class="picker-msg">Type a paper title, author, or DOI to begin.</div>`; return; }
     searchTimer = setTimeout(() => doSearch(q), 350);
   });
-  $("picker-input").addEventListener("keydown", e => { if (e.key === "Enter") { clearTimeout(searchTimer); doSearch(e.target.value); } });
+  $("picker-input")?.addEventListener("keydown", e => { if (e.key === "Enter") { clearTimeout(searchTimer); doSearch(e.target.value); } });
 
   async function doSearch(q) {
     cancelSearch();
@@ -114,6 +116,7 @@
   function setLoader(state, title, sub) {
     const ov = $("loader");
     ov.hidden = false;
+    $("loader-spin").hidden = state === "empty";
     $("loader-spin").className = state === "error" ? "spinner error" : "spinner";
     if (state === "error") $("loader-spin").textContent = "⚠"; else $("loader-spin").textContent = "";
     $("loader-title").textContent = title;
@@ -129,7 +132,7 @@
     loadController = new AbortController();
     const signal = loadController.signal, seq = ++netSeq;
     loading = true;
-    show('graph'); ensureGraph(); graph.cancelLayout();
+    if (PAGE === 'graph') { ensureGraph(); graph.cancelLayout(); }
     setLoader('loading', title, 'Fetching paper details from OpenAlex');
     let directShown = false;
     try {
@@ -162,10 +165,10 @@
     } finally { if (seq === netSeq) loading = false; }
   }
 
-  function loadSeed(seed) { return startLoad(() => Promise.resolve(seed), 'Building citation graph…'); }
+  function loadSeed(seed) { if (PAGE !== 'graph') { location.assign(pageUrl('graph', seed.id)); return; } return startLoad(() => Promise.resolve(seed), 'Building citation graph…'); }
   function loadSeedById(id, density) {
     if (density && ['40', '80', '120'].includes(String(density))) {
-      citeLimit = +density; $('density').value = String(citeLimit);
+      citeLimit = +density; if ($('density')) $('density').value = String(citeLimit);
     }
     return startLoad(options => OpenAlex.byId(id, options), 'Opening shared graph…');
   }
@@ -182,7 +185,7 @@
     CURRENT.neighbors = computeNeighbors(net.edges, CURRENT.byId);
     CURRENT.meta = net;
 
-    const applied = await graph.setData(net.papers, net.edges, net.seedId, { preserve });
+    const applied = graph ? await graph.setData(net.papers, net.edges, net.seedId, { preserve }) : true;
     if (!applied || seq !== netSeq || (signal && signal.aborted)) return;
     populateTypeFilter();
 
@@ -197,39 +200,27 @@
 
     const seed = CURRENT.byId[net.seedId];
     $("seed-title").textContent = seed.title;
-    $("seed-sub").textContent = `${seed.short} · ${seed.year} · ${seed.venue} · ${fmt(seed.cites)} citations`;
+    document.title = seed.title + (PAGE === "graph" ? " — Graph" : " — List");
     $("status-counts").textContent =
       `${net.refShown} references · top ${net.citingShown} of ${fmt(net.citingTotal)} citing` +
       (net.linkedShown ? ` · ${net.linkedShown} co-cited` : "");
-    if (!preserve) graph.select(null);
-    if (!views.list.hidden) renderList();
+    if (!preserve && graph) graph.select(null);
+    if (PAGE === "list") renderList();
     syncShareUrl();
-    refreshShareBtn();
+    updateNavigation();
+    window.CitationPage = { network: CURRENT, ready: true, selectedId };
   }
 
   /* ---------------- share ---------------- */
   // A shared graph is fully reproducible from the seed id + density: the network
   // is rebuilt live from OpenAlex, so the link only needs those two values.
-  function shareUrl() {
-    const u = new URL(location.href);
-    u.hash = "";
-    if (CURRENT.seedId) {
-      u.searchParams.set("seed", CURRENT.seedId);
-      u.searchParams.set("density", String(citeLimit));
-    }
-    return u.toString();
-  }
-  // Keep the address bar in sync so the browser's own share / bookmark works too.
+  function shareUrl() { return pageUrl('graph'); }
   function syncShareUrl() {
-    if (!CURRENT.seedId) return;
-    try { history.replaceState(null, "", shareUrl()); } catch (e) {}
+    if (!CURRENT.seedId || PAGE === 'search') return;
+    try { sessionStorage.setItem('citation-current', JSON.stringify({ seedId: CURRENT.seedId, density: citeLimit })); } catch (_) {}
+    history.replaceState(null, '', pageUrl(PAGE));
   }
-  function refreshShareBtn(view) {
-    const btn = $("share-btn");
-    if (!btn) return;
-    const v = view || (Object.entries(views).find(([, el]) => !el.hidden) || [])[0];
-    btn.hidden = !(v !== "search" && CURRENT.seedId);
-  }
+  function refreshShareBtn() { const button = $('share-btn'); if (button) button.hidden = PAGE === 'search' || !CURRENT.seedId; }
 
   let toastTimer = null;
   function showToast(msg, url) {
@@ -257,11 +248,11 @@
     } catch (e) { copied = false; }
     if (copied) {
       shareBtn.classList.add("copied");
-      shareBtn.querySelector(".label").textContent = "Copied";
+      shareBtn.setAttribute("aria-label", "Graph link copied");
       showToast("Link copied — anyone who opens it sees this graph");
       setTimeout(() => {
         shareBtn.classList.remove("copied");
-        shareBtn.querySelector(".label").textContent = "Share";
+        shareBtn.setAttribute("aria-label", "Share graph");
       }, 1600);
     } else {
       // Clipboard blocked (e.g. no https / permission) — surface the link to copy by hand.
@@ -283,26 +274,26 @@
   }
 
   /* ---- density control ---- */
-  $("density").addEventListener("change", e => {
+  $("density")?.addEventListener("change", e => {
     citeLimit = +e.target.value;
     if (lastSeed) loadSeed(CURRENT.byId[CURRENT.seedId] || lastSeed);
   });
 
   /* ---- loader error actions ---- */
-  $("loader-retry").addEventListener("click", () => { if (lastSeed) loadSeed(lastSeed); });
-  $("loader-sample").addEventListener("click", loadSample);
+  $("loader-retry")?.addEventListener("click", () => { if (lastSeed) loadSeed(lastSeed); });
+  $("loader-sample")?.addEventListener("click", loadSample);
 
   /* ---------------- search screen ---------------- */
   function buildSearch() {
+    if (!$("big-input")) return;
     const go = () => openPicker($("big-input").value);
     $("big-go").addEventListener("click", go);
     $("big-input").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
-    $("mini-input").addEventListener("keydown", e => { if (e.key === "Enter") openPicker($("mini-input").value); });
-    $("mini-input").addEventListener("focus", () => openPicker($("mini-input").value));
   }
 
   /* ---------------- graph controls ---------------- */
   function wireControls() {
+    if (PAGE !== "graph") return;
     const tRef = $("toggle-ref"), tCite = $("toggle-cite"), tLinked = $("toggle-linked");
     tRef.addEventListener("click", () => {
       const on = tRef.getAttribute("aria-pressed") === "true";
@@ -319,7 +310,7 @@
     $("zoom-in").addEventListener("click", () => graph && graph.zoomBy(1.25));
     $("zoom-out").addEventListener("click", () => graph && graph.zoomBy(0.8));
     $("zoom-fit").addEventListener("click", () => graph && graph.fit());
-    $("detail-close").addEventListener("click", () => graph && graph.select(null));
+
   }
 
   /* ---------------- tooltip ---------------- */
@@ -354,11 +345,16 @@
   /* ---------------- detail panel ---------------- */
   const detail = $("detail");
   function renderDetail(node) {
+    if (!detail) return;
+    selectedId = node?.id || null;
+    if (window.CitationPage) window.CitationPage.selectedId = selectedId;
     if (!node) { detail.classList.add("closed"); return; }
     detail.classList.remove("closed");
     detail.querySelector(".role").className = "role " + node.role;
     detail.querySelector(".role").textContent = roleLabel[node.role];
     $("d-title").textContent = node.title;
+    $("d-title").hidden = PAGE === "graph" && node.id === CURRENT.seedId;
+    $("detail-close").hidden = PAGE === "graph" && (!graph.selected || node.id === CURRENT.seedId);
     $("d-authors").textContent = node.authors;
     $("d-venue").textContent = `${node.venue} · ${node.year}`
       + (node.journalIF ? `  ·  journal impact factor: ${node.journalIF.toFixed(1)}` : "");
@@ -386,10 +382,10 @@
       OpenAlex.abstractFor(node.id).then(text => {
         node.abstract = text;
         // Only write if this paper is still the one on screen.
-        if (graph && graph.selected === node.id) { abEl.textContent = text; abEl.classList.remove("loading"); }
+        if (selectedId === node.id) { abEl.textContent = text; abEl.classList.remove("loading"); }
       }).catch(() => {
         node.abstract = "No abstract available from OpenAlex.";
-        if (graph && graph.selected === node.id) { abEl.textContent = node.abstract; abEl.classList.remove("loading"); }
+        if (selectedId === node.id) { abEl.textContent = node.abstract; abEl.classList.remove("loading"); }
       });
     } else {
       abEl.textContent = node.abstract;
@@ -408,7 +404,7 @@
     if (cited.length) html += `<span class="lbl">Cited by ${cited.length} in this graph</span>` + cited.map(mk).join("");
     if (!refs.length && !cited.length) html += `<span class="lbl">Connections</span><p class="abstract">No links to other papers in the current view.</p>`;
     $("d-conns").innerHTML = html;
-    $("d-conns").querySelectorAll(".conn").forEach(c => c.addEventListener("click", () => graph.focusNode(c.dataset.id)));
+    $("d-conns").querySelectorAll(".conn").forEach(c => c.addEventListener("click", () => graph ? graph.focusNode(c.dataset.id) : renderDetail(CURRENT.byId[c.dataset.id])));
 
     $("d-recenter").onclick = () => { const p = CURRENT.byId[node.id]; if (p) loadSeed(p); };
   }
@@ -439,7 +435,7 @@
       const nb = CURRENT.neighbors[p.id] || [];
       const refs = nb.filter(n => n.dir === "cites").length;
       const cited = nb.filter(n => n.dir === "citedby").length;
-      return `<tr data-id="${p.id}">
+      return `<tr data-id="${p.id}" tabindex="0" aria-label="Open summary: ${esc(p.title)}">
         <td><div class="pt">${esc(p.title)}</div><div class="pa">${esc(p.authors)}</div></td>
         <td><span class="rolepill ${p.role}">${roleLabel[p.role]}</span></td>
         <td class="venue mono" style="font-size:11.5px;color:var(--ink-soft)">${esc(p.venue)}</td>
@@ -449,7 +445,11 @@
       </tr>`;
     }).join("");
     if (!rows.length) tb.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--ink-faint);font-family:var(--mono);font-size:13px">No papers of this type in the graph.</td></tr>`;
-    tb.querySelectorAll("tr[data-id]").forEach(tr => tr.addEventListener("click", () => { show("graph"); graph.focusNode(tr.dataset.id); }));
+    tb.querySelectorAll('tr[data-id]').forEach(tr => {
+      const select = () => { renderDetail(CURRENT.byId[tr.dataset.id]); tb.querySelectorAll('tr').forEach(row => row.classList.toggle('selected', row === tr)); };
+      tr.addEventListener('click', select);
+      tr.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(); } });
+    });
     document.querySelectorAll(".list-sort button").forEach(b => {
       const active = b.dataset.sort === sortKey;
       b.classList.toggle("active", active);
@@ -474,7 +474,7 @@
       else { sortKey = k; sortDir = (k === "role") ? "asc" : "desc"; }
       renderList();
     }));
-  document.getElementById("type-filter").addEventListener("change", e => { typeFilter = e.target.value; renderList(); });
+  document.getElementById("type-filter")?.addEventListener("change", e => { typeFilter = e.target.value; renderList(); });
 
   /* ---------------- BibTeX export ---------------- */
   // Map OpenAlex display types to BibTeX entry types.
@@ -551,7 +551,7 @@
   async function loadSample() {
     if (loadController) loadController.abort();
     ++netSeq; loading = true;
-    show('graph'); ensureGraph(); graph.cancelLayout();
+    ensureGraph(); graph.cancelLayout();
     const papers = window.PAPERS, edges = window.EDGES, seedId = window.SEED_ID;
     const role = { [seedId]: "seed" };
     edges.forEach(e => { if (e.s === seedId) role[e.t] = role[e.t] || "ref"; if (e.t === seedId) role[e.s] = role[e.s] || "cite"; });
@@ -563,20 +563,27 @@
       citingTotal: edges.filter(e => e.t === seedId).length
     });
     $("status-counts").textContent += " · sample data";
-    loading = false; hideLoader(); show("graph");
+    loading = false; hideLoader();
   }
 
   /* ---------------- helpers ---------------- */
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
   function truncate(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
 
-  /* ---------------- boot ---------------- */
-  buildSearch();
-  wireControls();
-  show("search");
-
-  // A shared link carries the seed id (+ density) — reopen that exact graph.
-  const params = new URLSearchParams(location.search);
-  const sharedSeed = params.get("seed");
-  if (sharedSeed) loadSeedById(sharedSeed, params.get("density"));
+  /* Each document boots only its own page. Home never reads a seed or starts a graph. */
+  $('detail-close')?.addEventListener('click', () => {
+    if (graph) graph.select(null); else renderDetail(null);
+  });
+  const initialDensity = params.get('density') || remembered?.density;
+  if (['40','80','120'].includes(String(initialDensity))) citeLimit = +initialDensity;
+  buildSearch(); wireControls(); updateNavigation();
+  window.addEventListener('pagehide', () => { loadController?.abort(); graph?.cancelLayout(); cancelSearch(); });
+  if (PAGE !== 'search') {
+    const id = sharedSeed || remembered?.seedId;
+    if (id) loadSeedById(id, params.get('density') || remembered?.density);
+    else {
+      if (PAGE === 'list') renderList();
+      setLoader('empty', 'Choose a paper to begin', '<a href="index.html">Go to Search →</a>');
+    }
+  }
 })();

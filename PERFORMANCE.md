@@ -1,6 +1,6 @@
 # Performance verification
 
-Measured 16 October 2026 after the notebook redesign, against the original page at commit `e67f123`.
+Measured 16 October 2026 after the notebook redesign, against the original page at commit `e67f123`. This table records that earlier design; the separate-page browser suite generates current measurements under `test-results/performance.json`. Search now loads neither the graph renderer nor a network, and List loads paper data without creating a graph.
 
 | Measure | Original | Updated | Reduction |
 |---|---:|---:|---:|
