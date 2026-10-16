@@ -38,7 +38,7 @@
   }
   window.__show = show;
   document.querySelectorAll("button[data-view]").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
-  document.querySelector(".brand").addEventListener("click", () => show("search"));
+  document.querySelectorAll(".brand, .menu-brand").forEach(button => button.addEventListener("click", () => show("search")));
 
   /* ---------------- graph init ---------------- */
   function ensureGraph() {
