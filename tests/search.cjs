@@ -36,11 +36,17 @@ const paper=(id,title)=>({id:'https://openalex.org/'+id,display_name:title,publi
       await route.fulfill({contentType:'application/json',body:JSON.stringify(data)}).catch(()=>{});
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    await page.evaluate(()=>{window.entryFrames=[];const end=performance.now()+400;function frame(){entryFrames.push(document.querySelector('#big-input').getBoundingClientRect().y);if(performance.now()<end)requestAnimationFrame(frame);}requestAnimationFrame(frame);});
+    await page.focus('#big-input');await page.waitForTimeout(420);
+    const jump=await page.evaluate(()=>Math.max(...entryFrames.slice(1).map((y,i)=>Math.abs(y-entryFrames[i]))));
+    assert(jump<100,`Search entry must ease into place, largest step was ${jump}px`);
     await page.fill('#big-input','catalysis');await page.click('#big-go');
     await page.waitForFunction(()=>document.querySelectorAll('.presult').length===25);
+    await page.evaluate(()=>window.firstSearchRow=document.querySelector('.presult'));
     assert.equal(await page.locator('#picker').count(),0);
     assert((await page.locator('.result-authors').first().textContent()).includes('Jane Researcher'));
     await page.waitForFunction(()=>document.querySelector('#search-results').getAttribute('aria-busy')==='false');
+    assert(await page.evaluate(()=>firstSearchRow===document.querySelector('.presult')),'Progressive updates preserve row identity');
     await page.click('#search-more');await page.waitForFunction(()=>document.querySelectorAll('.presult').length===26);
     assert.equal(await page.locator('#search-more').isVisible(),false);
     await page.locator('#big-input').focus();await page.keyboard.press('ArrowDown');assert.equal(await page.locator('.presult').first().evaluate(el=>el===document.activeElement),true);
@@ -59,11 +65,14 @@ const paper=(id,title)=>({id:'https://openalex.org/'+id,display_name:title,publi
     await page.waitForFunction(()=>document.querySelector('#search-results').getAttribute('aria-busy')==='false');
     assert(urls.some(u=>(u.searchParams.get('filter')||'').includes('from_publication_date:2020-01-01,to_publication_date:2025-12-31,authorships.author.id:A1')));
     await page.click('#author-back');await page.waitForSelector('.author-result');
-    await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(root,'test-results/search-mobile.png')});
+    await page.setViewportSize({width:390,height:844});await page.waitForFunction(()=>!document.querySelector('#search-results').getAnimations({subtree:true}).length);await page.screenshot({path:path.join(root,'test-results/search-mobile.png')});
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
     await page.fill('#search-from','2030');await page.locator('#big-input').focus();assert((await page.locator('#search-status').textContent()).includes('valid year range'));
+    const anchor=await page.locator('#big-input').boundingBox();
     await page.fill('#big-input','');assert.equal(await page.locator('.presult').count(),0);
+    assert.equal((await page.locator('#big-input').boundingBox()).y,anchor.y,'Clearing search retains its position');
     assert.deepEqual(errors,[]);
+    console.log('Search entry maximum frame step: '+jump.toFixed(1)+'px (previous audit: 273.5px).');
     console.log('PASS: inline results, metadata, pagination, keyboard, stale-request cancellation, retained results, retry, typo recovery, author identity, year filters and mobile layout');
   } finally {await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;server.close();});

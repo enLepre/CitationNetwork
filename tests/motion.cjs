@@ -51,6 +51,14 @@ async function idle(page) {
     assert.deepEqual(await page.evaluate(()=>CG.nodes.map(n=>[n.x,n.y])),anchors,'motion must preserve the computed layout');
     assert.equal(await idle(page),0,'no rendering when settled');
     assert(await page.evaluate(()=>motionMetrics.frames.length>2),'settling must be animated, not an instant jump');
+    const zoomStart=await page.evaluate(()=>{const scale=CG.scale;CG.zoomBy(1.25,undefined,undefined,true);return scale;});
+    await frame(page);
+    assert(await page.evaluate(start=>CG.scale>start&&CG.scale<start*1.25,zoomStart),'zoom should interpolate');
+    await page.evaluate(()=>CG.zoomBy(1.25,undefined,undefined,true));
+    await page.waitForFunction(()=>!CG._camera);await frame(page);
+    assert(Math.abs(await page.evaluate(()=>CG.scale)-zoomStart*1.25*1.25)<.0001,'rapid zooms retain the cumulative target');
+    await page.evaluate(()=>CG.fit(true));await page.waitForFunction(()=>!CG._camera);await frame(page);
+    assert.equal(await idle(page),0,'camera animation stops completely');
     const p=await point(page,'P3');
     await page.mouse.move(p.x,p.y);await page.mouse.down();
     await page.mouse.move(p.x+60,p.y+30,{steps:8});await page.waitForTimeout(100);

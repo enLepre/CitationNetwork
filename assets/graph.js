@@ -42,7 +42,7 @@
       this._motion = new Map();
       this._motionActive = false;
       this._reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-      this._reducedMotion.addEventListener('change', () => { if (this._reducedMotion.matches) this._stopMotion(); });
+      this._reducedMotion.addEventListener('change', () => { if (this._reducedMotion.matches) { if (this._camera) this._moveCamera(...this._camera.to); this._stopMotion(); } });
 
       this._bind();
       this._active = true;
@@ -61,7 +61,7 @@
         if (this._active && this.nodes.length) this.fit();
       });
       this._resizeObserver.observe(svg);
-      document.addEventListener('visibilitychange', () => { if (document.hidden) this._stopMotion(); else this._invalidate(); });
+      document.addEventListener('visibilitychange', () => { if (document.hidden) { this._camera = null; this._stopMotion(); } else this._invalidate(); });
       document.fonts.ready.then(() => { this.nodes.forEach(n => { n.labelWidth = null; }); this._invalidate(); });
     }
 
@@ -69,8 +69,9 @@
     get H() { return this._height || this.svg.clientHeight || this.svg.parentNode.clientHeight; }
 
     /* ---------- data ---------- */
-    async setData(papers, edges, seedId, { preserve = false } = {}) {
-      const previous = preserve && this.seedId === seedId ? this.nodeById : {};
+    async setData(papers, edges, seedId, { preserve = false, view = null } = {}) {
+      const saved = view?.seedId === seedId ? Object.fromEntries(view.positions.map(p=>[p.id,p])) : {};
+      const previous = preserve && this.seedId === seedId ? this.nodeById : saved;
       const selected = preserve ? this.selected : null;
       this.cancelLayout();
       const seq = this._layoutSeq;
@@ -157,7 +158,7 @@
         g.setAttribute('tabindex', '0');
         g.setAttribute('aria-label', n.title + ', ' + n.short + ', ' + n.year);
         const title = el('title'); title.textContent = n.title; g.appendChild(title);
-        g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.focusNode(n.id); } });
+        g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.focusNode(n.id, true); } });
         this._wireNode(n);
         this._wireNode(n, n.hitEl);
         this.nodeLayer.appendChild(g);
@@ -165,18 +166,21 @@
 
       this.selected = selected && this.nodeById[selected] ? selected : null;
       this._invalidate({ positions: true, paint: true, labels: true });
-      this.ready = this._layout(seq);
+      const restored = view && papers.every(p => saved[p.id]);
+      this.ready = restored ? Promise.resolve(view.positions) : this._layout(seq);
       const positions = await this.ready;
       if (!positions || seq !== this._layoutSeq) return false;
       positions.forEach(p => { const n = this.nodeById[p.id]; if (n && !n.movedDuringLayout) { n.x = p.x; n.y = p.y; } });
-      if (!preserve && this._active) this.fit();
+      if (view && Number.isFinite(view.scale)) this._moveCamera(view.scale, view.tx + (this.W-view.width)/2, view.ty + (this.H-view.height)/2);
+      else if (!preserve && this._active) this.fit();
       this.onSelect(this.selected ? this.nodeById[this.selected] : null);
       this._invalidate({ positions: true, paint: true, labels: true });
-      this._settleIn(preserve ? new Set(Object.keys(previous)) : null);
+      this._settleIn(preserve || view ? new Set(Object.keys(previous)) : null);
       return true;
     }
 
     cancelLayout() {
+      this._camera = null;
       this._stopMotion();
       this._layoutSeq++;
       if (this._cancelWorker) this._cancelWorker();
@@ -217,6 +221,7 @@
       this._motionActive = true;
       this._motionLast = null;
       this._motionDeadline = performance.now() + 1100;
+      for (const spring of this._motion.values()) spring.fade = null;
       this._invalidate({});
     }
 
@@ -286,9 +291,16 @@
       for (const [id, spring] of this._motion) {
         const { n } = spring;
         if (n === this.dragNode) continue;
-        spring.vx += ((spring.tx - spring.x) * 180 - spring.vx * 23) * dt;
-        spring.vy += ((spring.ty - spring.y) * 180 - spring.vy * 23) * dt;
-        spring.x += spring.vx * dt; spring.y += spring.vy * dt;
+        if (spring.fade) {
+          const remaining = Math.pow(1 - Math.min(1, (now-spring.fade.start)/180), 2);
+          spring.x = spring.tx + (spring.fade.x-spring.tx)*remaining;
+          spring.y = spring.ty + (spring.fade.y-spring.ty)*remaining;
+          spring.vx = spring.vy = 0;
+        } else {
+          spring.vx += ((spring.tx - spring.x) * 180 - spring.vx * 23) * dt;
+          spring.vy += ((spring.ty - spring.y) * 180 - spring.vy * 23) * dt;
+          spring.x += spring.vx * dt; spring.y += spring.vy * dt;
+        }
         const quiet = Math.hypot(spring.tx - spring.x, spring.ty - spring.y) * this.scale < .08
           && Math.hypot(spring.vx, spring.vy) * this.scale < .5;
         if (quiet || now >= this._motionDeadline) {
@@ -349,7 +361,25 @@
       this._invalidate({ transform: true, positions: this.scale !== this._renderScale, labels: true });
     }
 
-    fit() {
+    _moveCamera(scale, tx, ty, animate = false) {
+      this._camera = null;
+      if (!animate || this.opts.motion === false || this._reducedMotion.matches || document.hidden) {
+        this.scale = scale; this.tx = tx; this.ty = ty; this._applyTransform(); return;
+      }
+      this._camera = { from: [this.scale, this.tx, this.ty], to: [scale, tx, ty], start: performance.now() };
+      this._invalidate({});
+    }
+
+    _stepCamera(now) {
+      const camera = this._camera;
+      if (!camera) return false;
+      const progress = Math.min(1, (now - camera.start) / 260), ease = 1 - Math.pow(1 - progress, 3);
+      [this.scale, this.tx, this.ty] = camera.from.map((v,i) => v + (camera.to[i]-v)*ease);
+      if (progress === 1) this._camera = null;
+      return true;
+    }
+
+    fit(animate = false) {
       const vis = this.nodes.filter(n => this._visible(n));
       if (!vis.length) return;
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -359,19 +389,15 @@
       });
       const pad = 96, w = this.W, h = this.H;
       const ns = Math.min(2, Math.max(0.08, Math.min((w - pad * 2) / (maxX - minX || 1), (h - pad * 2) / (maxY - minY || 1))));
-      this.scale = ns;
-      this.tx = w / 2 - ((minX + maxX) / 2) * ns;
-      this.ty = h / 2 - ((minY + maxY) / 2) * ns;
-      this._applyTransform();
+      this._moveCamera(ns, w / 2 - ((minX + maxX) / 2) * ns, h / 2 - ((minY + maxY) / 2) * ns, animate);
     }
 
-    zoomBy(factor, ox, oy) {
+    zoomBy(factor, ox, oy, animate = false) {
       const w = this.W, h = this.H;
       ox = ox == null ? w / 2 : ox; oy = oy == null ? h / 2 : oy;
       const [wx, wy] = this._toWorld(ox, oy);
-      this.scale = Math.min(3, Math.max(0.08, this.scale * factor));
-      this.tx = ox - wx * this.scale; this.ty = oy - wy * this.scale;
-      this._applyTransform();
+      const scale = Math.min(3, Math.max(0.08, (animate && this._camera ? this._camera.to[0] : this.scale) * factor));
+      this._moveCamera(scale, ox - wx * scale, oy - wy * scale, animate);
     }
 
     select(id) {
@@ -391,6 +417,7 @@
         n.gEl.focus({ preventScroll: true });
         // Grab the visible position, even during the short settling animation.
         n.x += n._ox || 0; n.y += n._oy || 0; n._ox = 0; n._oy = 0;
+        this._camera = null;
         this._motion.delete(n.id);
         this.dragNode = n; this.dragMoved = false;
         this._dragNeighbors = [...(this.adj[n.id] || [])].map(id => this.nodeById[id])
@@ -429,6 +456,7 @@
       svg.addEventListener("pointerdown", e => {
         if (e.button !== 0 || !e.isPrimary || this._pointerId != null) return;
         e.preventDefault();
+        this._camera = null;
         this.panning = true; this.dragMoved = false;
         this._pointerId = e.pointerId;
         this._dragThreshold = e.pointerType === 'touch' ? 8 : 4;
@@ -487,7 +515,7 @@
     /* ---------- render ---------- */
     setActive(active) {
       this._active = active;
-      if (!active) this._stopMotion();
+      if (!active) { this._camera = null; this._stopMotion(); }
       if (!active && this._frame != null) { cancelAnimationFrame(this._frame); this._frame = null; }
       if (active) this._invalidate();
     }
@@ -499,6 +527,10 @@
         this._frame = null;
         if (!this._active || document.hidden) return;
         const started = performance.now();
+        const camera = this._stepCamera(now);
+        this.svg.classList.toggle('camera-moving', !!this._camera);
+        if (camera) Object.assign(this._dirty, { transform: true, positions: true });
+        if (camera && !this._camera) this._dirty.labels = true;
         const motion = this._stepMotion(now);
         const dirty = this._dirty; this._dirty = {};
         if (dirty.transform) this.vp.setAttribute('transform', 'translate(' + this.tx + ' ' + this.ty + ') scale(' + this.scale + ')');
@@ -508,8 +540,10 @@
         if (motion && !dirty.paint && !dirty.positions && performance.now() - started > 12) {
           // Protect slower devices: finish this decorative effect instead of
           // competing with input or accumulating expensive animation frames.
-          this._stopMotion();
-        } else if (this._motionActive) this._invalidate({});
+          for (const spring of this._motion.values()) if (!spring.fade) spring.fade = {start:now,x:spring.x,y:spring.y};
+          this._motionDeadline = Math.min(this._motionDeadline, now + 180);
+          this._invalidate({});
+        } else if (this._motionActive || this._camera) this._invalidate({});
       });
     }
 
@@ -543,7 +577,10 @@
         const a = this.nodeById[e.s], b = this.nodeById[e.t];
         const ax = a.x + (a._ox || 0), ay = a.y + (a._oy || 0);
         const bx = b.x + (b._ox || 0), by = b.y + (b._oy || 0);
-        if (motionOnly && e._ax === ax && e._ay === ay && e._bx === bx && e._by === by) return;
+        if (e._ax === ax && e._ay === ay && e._bx === bx && e._by === by) {
+          if (!motionOnly) e.path.setAttribute('stroke-width', (e._shared ? 2.6 : e._lit ? 1.3 : .8) / this.scale);
+          return;
+        }
         e._ax = ax; e._ay = ay; e._bx = bx; e._by = by;
         const dx = bx - ax, dy = by - ay;
         const len = Math.hypot(dx, dy) || 1;
@@ -668,13 +705,12 @@
       });
     }
 
-    focusNode(id) {
+    focusNode(id, animate = false) {
       const n = this.nodeById[id]; if (!n) return;
       this.select(id);
       const w = this.W, h = this.H;
-      this.scale = Math.max(this.scale, 0.95);
-      this.tx = w / 2 - n.x * this.scale; this.ty = h / 2 - n.y * this.scale;
-      this._applyTransform();
+      const scale = Math.max(this.scale, 0.95);
+      this._moveCamera(scale, w / 2 - n.x * scale, h / 2 - n.y * scale, animate);
     }
 
     setNodeScale(s) {

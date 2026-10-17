@@ -17,6 +17,14 @@
     theme.setAttribute('aria-pressed', String(dark)); theme.title = dark ? 'Switch to light mode' : 'Switch to dark mode'; theme.setAttribute('aria-label',theme.title);
     if (window.CG) window.CG._invalidate({ paint:true,labels:true });
   }
-  theme.addEventListener('click',() => { dark=!dark; apply(); try { localStorage.setItem('citation-theme',dark ? 'dark':'light'); } catch (_) {} });
+  theme.addEventListener('click',() => {
+    dark=!dark;
+    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches && !document.documentElement.dataset.slide) {
+      document.documentElement.dataset.themeChange = 'true';
+      const transition = document.startViewTransition(apply);
+      transition.ready.catch(() => {}); transition.updateCallbackDone.catch(() => {});
+      transition.finished.finally(() => delete document.documentElement.dataset.themeChange).catch(() => {});
+    } else apply();
+    try { localStorage.setItem('citation-theme',dark ? 'dark':'light'); } catch (_) {} });
   window.applyAppearance = apply; apply();
 })();

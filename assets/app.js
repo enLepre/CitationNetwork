@@ -54,41 +54,74 @@
 
   /* ---------------- inline search ---------------- */
   let searchTimer = null, searchController = null, searchSeq = 0;
-  let searchPageNumber = 1, searchRows = [], selectedAuthor = null, retryMore = false, searchKey = '';
+  let searchPageNumber = 1, searchRows = [], selectedAuthor = null, retryMore = false, searchKey = '', resumeSearch = false;
   function cancelSearch() {
     clearTimeout(searchTimer); searchSeq++;
     searchController?.abort();
   }
-  function renderSearchRows(rows, authors) {
+  const motion = (element, frames, duration = 240) => window.CitationMotion.animate(element, frames, duration);
+  function enterSearch() {
+    if (document.body.classList.contains('has-search')) return;
+    const elements = [...document.querySelectorAll('.search-wrap > h1, .search-wrap > .lede, .bigsearch, .search-options, #search-hint')];
+    const before = elements.map(el => el.getBoundingClientRect());
+    try { sessionStorage.setItem('citation-search-compact', '1'); } catch (_) {}
+    document.body.classList.add('has-search');
+    const after = elements.map(el => el.getBoundingClientRect());
+    elements.forEach((el, i) => motion(el, [
+      { transform: `translate(${before[i].x-after[i].x}px, ${before[i].y-after[i].y}px)` },
+      { transform: 'translate(0,0)' }
+    ], 280));
+  }
+  function renderSearchRows(rows, authors, protect = true) {
     const box = $('search-results');
-    const focusedId = box.contains(document.activeElement) ? document.activeElement.dataset.id : null;
-    box.innerHTML = rows.map(p => authors ? `
-      <button type="button" class="presult author-result" data-id="${esc(p.id)}">
-        <div><div class="pt">${esc(p.name)}</div><div class="pm">${esc(p.institution || 'Affiliation unavailable')}</div><div class="pm">${esc(p.orcid ? 'ORCID ' + p.orcid.split('/').pop() : '')}</div></div>
-        <div class="pc">${fmt(p.works || 0)}<small>works</small></div>
-      </button>` : `
-      <button type="button" class="presult" data-id="${esc(p.id)}">
-        <div><div class="pt">${esc(p.title)}</div><div class="result-authors">${esc(p.authors)}</div><div class="pm">${esc(p.year)} · ${esc(p.venue)}</div></div>
-        <div class="pc">${fmt(p.cites)}<small>citations</small></div>
-      </button>`).join('');
-    const byId = new Map(rows.map(p => [p.id, p]));
-    box.querySelectorAll('.presult').forEach(button => button.addEventListener('click', () => {
-      const item = byId.get(button.dataset.id);
-      if (authors) { selectedAuthor = item; doSearch(); }
-      else { cancelSearch(); loadSeed(item); }
-    }));
-    if (focusedId) [...box.children].find(el => el.dataset.id === focusedId)?.focus({ preventScroll: true });
+    const existing = new Map([...box.children].map(el => [el.dataset.id, el]));
+    const interacting = box._pointerRow?.matches(':hover') || box.contains(document.activeElement);
+    // Never reorder or remove a result while it is being read or activated.
+    if (protect && interacting && existing.size) {
+      box._pendingRows = { rows, authors };
+      rows = [...existing.values()].map(el => el._paper).concat(rows.filter(p => !existing.has(p.id)));
+    } else box._pendingRows = null;
+    const old = new Map([...existing].map(([id, el]) => [id, el.getBoundingClientRect().top]));
+    const keep = new Set(rows.map(p => p.id));
+    for (const [id, el] of existing) if (!keep.has(id)) el.remove();
+    rows.forEach((p, index) => {
+      let button = existing.get(p.id);
+      const fresh = !button;
+      if (!button) {
+        button = document.createElement('button'); button.type = 'button'; button.className = 'presult'; button.dataset.id = p.id;
+        button.addEventListener('click', () => {
+          if (button._author) { selectedAuthor = button._paper; doSearch(); }
+          else { cancelSearch(); loadSeed(button._paper); }
+        });
+      }
+      button._paper = p; button._author = authors;
+      button.classList.toggle('author-result', authors);
+      const html = authors
+        ? `<div><div class="pt">${esc(p.name)}</div><div class="pm">${esc(p.institution || 'Affiliation unavailable')}</div><div class="pm">${esc(p.orcid ? 'ORCID ' + p.orcid.split('/').pop() : '')}</div></div><div class="pc">${fmt(p.works || 0)}<small>works</small></div>`
+        : `<div><div class="pt">${esc(p.title)}</div><div class="result-authors">${esc(p.authors)}</div><div class="pm">${esc(p.year)} · ${esc(p.venue)}</div></div><div class="pc">${fmt(p.cites)}<small>citations</small></div>`;
+      if (button._html !== html) { button.innerHTML = html; button._html = html; }
+      if (box.children[index] !== button) box.insertBefore(button, box.children[index] || null);
+      button._fresh = fresh;
+    });
+    // Read layout once after all writes; animate only visible changed rows.
+    const positions = [...box.children].map(el => [el, el.getBoundingClientRect()]);
+    for (const [el, rect] of positions) {
+      const delta = old.has(el.dataset.id) ? old.get(el.dataset.id) - rect.top : 6;
+      if (rect.bottom < 0 || rect.top > innerHeight || (!el._fresh && Math.abs(delta) < .5)) continue;
+      motion(el, [{ opacity: el._fresh ? 0 : 1, transform: `translateY(${delta}px)` }, { opacity: 1, transform: 'translateY(0)' }], 170);
+    }
   }
   async function doSearch(loadMore = false) {
     if (!$('big-input')) return;
     cancelSearch();
     const seq = searchSeq, term = $('big-input').value.trim();
     const status = $('search-status'), box = $('search-results'), more = $('search-more');
+    box._pendingRows = null;
     more.hidden = true; $('search-retry').hidden = true; box.setAttribute('aria-busy', 'false');
     if (!term) {
       searchRows = []; selectedAuthor = null; box.replaceChildren(); status.textContent = '';
       $('author-back').hidden = true; $('search-source').hidden = true;
-      document.body.classList.remove('has-search'); return;
+      box._pendingRows = null; return;
     }
     const from = $('search-from'), to = $('search-to');
     if (!from.validity.valid || !to.validity.valid || (from.value && to.value && +from.value > +to.value)) {
@@ -102,7 +135,7 @@
     searchController = new AbortController();
     const options = { signal: searchController.signal, page, mode: $('search-mode').value,
       yearFrom: from.value, yearTo: to.value, authorId: selectedAuthor?.id };
-    document.body.classList.add('has-search');
+    enterSearch();
     box.setAttribute('aria-busy', 'true');
     $('author-back').hidden = !selectedAuthor;
     status.textContent = loadMore ? 'Loading more results…' : selectedAuthor ? `Finding papers by ${selectedAuthor.name}…` : searchRows.length ? 'Updating results… Previous results remain below.' : 'Searching…';
@@ -111,8 +144,9 @@
       if (seq !== searchSeq) return;
       const unique = new Map(previous.map(p => [p.id, p]));
       result.results.forEach(p => unique.set(p.id, p));
+      const protect = searchKey === key;
       searchRows = [...unique.values()]; searchKey = key;
-      renderSearchRows(searchRows, authors);
+      renderSearchRows(searchRows, authors, protect);
       $('search-source').hidden = !searchRows.length;
       $('search-source').textContent = authors ? 'Results from OpenAlex · choose an author to see their publications' : 'Results from OpenAlex · choose a paper to explore its connections';
     };
@@ -140,7 +174,7 @@
   }
 
   /* ---------------- loading a seed network ---------------- */
-  let loading = false;
+  let loading = false, resumeLoad = false;
   function setLoader(state, title, sub) {
     const ov = $("loader");
     ov.hidden = false;
@@ -213,7 +247,11 @@
     CURRENT.neighbors = computeNeighbors(net.edges, CURRENT.byId);
     CURRENT.meta = net;
 
-    const applied = graph ? await graph.setData(net.papers, net.edges, net.seedId, { preserve }) : true;
+    let view = null;
+    if (graph && !preserve) {
+      try { const saved = JSON.parse(sessionStorage.getItem('citation-graph-view') || 'null'); if (saved?.seedId === net.seedId && saved.density === citeLimit && Array.isArray(saved.positions) && Number.isFinite(saved.scale) && saved.scale > 0) view = saved; } catch (_) {}
+    }
+    const applied = graph ? await graph.setData(net.papers, net.edges, net.seedId, { preserve, view }) : true;
     if (!applied || seq !== netSeq || (signal && signal.aborted)) return;
     populateTypeFilter();
 
@@ -232,7 +270,13 @@
     $("status-counts").textContent =
       `${net.refShown} references · top ${net.citingShown} of ${fmt(net.citingTotal)} citing` +
       (net.linkedShown ? ` · ${net.linkedShown} co-cited` : "");
-    if (!preserve && graph) graph.select(null);
+    if (!preserve && graph) {
+      graph.select(null);
+      if (Array.isArray(view?.cards) && view.cards.length) {
+        paperCards = view.cards.map(id => graph.nodeById[id]).filter(Boolean).slice(0,4);
+        updatePaperCards();
+      }
+    }
     if (PAGE === "list") renderList();
     if (PAGE === "paper") {
       let selection;
@@ -326,11 +370,32 @@
   function buildSearch() {
     const input = $('big-input');
     if (!input) return;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('citation-search-view') || 'null');
+      if (saved && Array.isArray(saved.rows) && typeof saved.query === 'string' && ['papers','title','authors'].includes(saved.mode)) {
+        input.value = saved.query; $('search-mode').value = saved.mode;
+        $('search-from').value = saved.from; $('search-to').value = saved.to;
+        selectedAuthor = saved.author; searchRows = saved.rows; searchPageNumber = saved.page; searchKey = saved.key;
+        document.body.classList.add('has-search');
+        renderSearchRows(searchRows, saved.mode === 'authors' && !selectedAuthor, false);
+        $('search-status').textContent = saved.status;
+        $('view-search').scrollTop = saved.scroll || 0;
+        $('search-source').hidden = !searchRows.length;
+        $('author-back').hidden = !selectedAuthor; $('search-more').hidden = !saved.more;
+        if (saved.mode === 'authors') { input.placeholder = 'Author’s name…'; input.setAttribute('aria-label', 'Search authors'); $('search-hint').textContent = 'Choose an author to explore their publications. Year filters apply to their papers.'; }
+      }
+    } catch (_) {}
     const schedule = () => {
       cancelSearch(); selectedAuthor = null;
       if (!input.value.trim()) { doSearch(); return; }
       searchTimer = setTimeout(() => doSearch(), 450);
     };
+    try { if (sessionStorage.getItem('citation-search-compact')) document.body.classList.add('has-search'); } catch (_) {}
+    input.addEventListener('focus', enterSearch);
+    const flushRows = () => requestAnimationFrame(() => { const pending = $('search-results')._pendingRows; if (pending) renderSearchRows(pending.rows, pending.authors); });
+    $('search-results').addEventListener('pointermove', event => { $('search-results')._pointerRow = event.target.closest('.presult'); });
+    $('search-results').addEventListener('pointerleave', () => { $('search-results')._pointerRow = null; flushRows(); });
+    $('search-results').addEventListener('focusout', flushRows);
     input.addEventListener('input', event => { if (!event.isComposing) schedule(); });
     input.addEventListener('compositionend', schedule);
     input.addEventListener('keydown', event => {
@@ -378,9 +443,9 @@
         if (graph) graph.setFilter(filters);
       });
     }
-    $("zoom-in")?.addEventListener("click", () => graph && graph.zoomBy(1.25));
-    $("zoom-out")?.addEventListener("click", () => graph && graph.zoomBy(0.8));
-    $("zoom-fit")?.addEventListener("click", () => graph && graph.fit());
+    $("zoom-in")?.addEventListener("click", () => graph && graph.zoomBy(1.25, undefined, undefined, true));
+    $("zoom-out")?.addEventListener("click", () => graph && graph.zoomBy(0.8, undefined, undefined, true));
+    $("zoom-fit")?.addEventListener("click", () => graph && graph.fit(true));
   }
 
   /* ---------------- tooltip ---------------- */
@@ -417,7 +482,7 @@
   const detail = $("detail");
   let paperCards = [];
   function updatePaperCards() {
-    const old = new Map([...detail.children].map(card => [card.dataset.id, card.getBoundingClientRect().top]));
+    const old = new Map([...detail.children].map(card => [card.dataset.id, card.getBoundingClientRect()]));
     const existing = new Map([...detail.children].map(card => [card.dataset.id, card]));
     detail.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
     detail.hidden = !paperCards.length;
@@ -451,20 +516,51 @@
       }
       detail.appendChild(card);
     }
-    for (const [id, card] of existing) if (!paperCards.some(p => p.id === id)) card.remove();
+    document.querySelectorAll('.motion-ghost').forEach(el => el.remove());
+    for (const [id, card] of existing) if (!paperCards.some(p => p.id === id)) {
+      const rect = old.get(id);
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const ghost = card.cloneNode(true);
+        const style = getComputedStyle(card), heading = getComputedStyle(card.querySelector('h2'));
+        ghost.className = 'node-popup motion-ghost' + (card.classList.contains('is-front') ? ' is-front' : '');
+        ghost.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+        ghost.setAttribute('aria-hidden', 'true'); ghost.inert = true;
+        Object.assign(ghost.style, { left: rect.x+'px', top: rect.y+'px', width: rect.width+'px', height: rect.height+'px', maxHeight:'none', padding:style.padding, transform:'none' });
+        Object.assign(ghost.querySelector('h2').style, {fontSize:heading.fontSize, margin:heading.margin});
+        document.body.appendChild(ghost);
+        const exit = motion(ghost, [{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(-6px)'}], 150);
+        if (exit) exit.finished.catch(() => {}).finally(() => ghost.remove()); else ghost.remove();
+      }
+      card.remove();
+    }
     graph.selectedIds = new Set(paperCards.map(p => p.id));
     graph.selected = selectedId = paperCards[0]?.id || null;
     if (window.CitationPage) window.CitationPage.selectedId = selectedId;
     graph._invalidate();
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      for (const card of detail.children) {
-        const previous = old.get(card.dataset.id);
-        card.getAnimations().forEach(animation => animation.cancel());
-        const offset = previous == null ? -16 : previous - card.getBoundingClientRect().top;
-        card.animate([{ transform: `translateY(${offset}px)`, opacity: previous == null ? 0 : 1 }, { transform: 'translateY(0)', opacity: 1 }], { duration: 240, easing: 'cubic-bezier(.2,.7,.2,1)' });
+    const positions = [...detail.children].map(card => {
+      card.getAnimations().forEach(animation => animation.cancel());
+      return [card, card.getBoundingClientRect()];
+    });
+    for (const [card, rect] of positions) {
+      const previous = old.get(card.dataset.id);
+      const offset = previous ? previous.top - rect.top : 8;
+      const ratio = previous && rect.height ? previous.height / rect.height : 1;
+      card.style.transformOrigin = 'top center';
+      motion(card, [{ transform: `translateY(${offset}px) scaleY(${ratio})`, opacity: previous ? 1 : 0 }, { transform: 'translateY(0) scaleY(1)', opacity: 1 }], 260);
+      // Counter-scale content so the paper itself does not squash with its card.
+      for (const child of card.children) {
+        child.style.transformOrigin = 'top center';
+        const reveal = child.classList.contains('card-body') && card.classList.contains('is-front') && (!previous || previous.height < 60);
+        const inverse = Array.from({length:61}, (_,i) => {
+          const t = i/60;
+          return { offset:t, transform:`scaleY(${1/(ratio+(1-ratio)*t)})`, opacity:reveal ? Math.min(1,t*2) : 1 };
+        });
+        motion(child, inverse, 260);
       }
+
     }
   }
+
   function closePaperCard(id) {
     paperCards = paperCards.filter(p => p.id !== id);
     updatePaperCards();
@@ -724,12 +820,30 @@
   const initialDensity = params.get('density') || remembered?.density;
   if (['40','80','120'].includes(String(initialDensity))) citeLimit = +initialDensity;
   buildSearch(); wireControls(); updateNavigation();
-  window.addEventListener('pageshow', () => {
+  window.addEventListener('pageshow', event => {
     try { remembered = JSON.parse(sessionStorage.getItem('citation-current') || 'null'); } catch (_) {}
     if (PAGE === 'search' && ['40','80','120'].includes(String(remembered?.density))) citeLimit = +remembered.density;
     updateNavigation();
+    if (event.persisted && resumeSearch && PAGE === 'search') { resumeSearch = false; doSearch(); }
+    if (event.persisted && resumeLoad && PAGE !== 'search') { resumeLoad = false; const id = CURRENT.seedId || sharedSeed || remembered?.seedId; if (id) loadSeedById(id, citeLimit); }
   });
-  window.addEventListener('pagehide', () => { loadController?.abort(); graph?.cancelLayout(); cancelSearch(); });
+  window.addEventListener('pagehide', () => {
+    try {
+      if (graph?.nodes.length && !loading) sessionStorage.setItem('citation-graph-view', JSON.stringify({
+        seedId: CURRENT.seedId, density: citeLimit, width: graph.W, height: graph.H,
+        scale: graph.scale, tx: graph.tx, ty: graph.ty,
+        positions: graph.nodes.map(n => ({id:n.id,x:n.x,y:n.y})), cards: paperCards.map(p=>p.id)
+      }));
+      if (PAGE === 'search') sessionStorage.setItem('citation-search-view', JSON.stringify({
+        query: $('big-input').value, mode: $('search-mode').value, from: $('search-from').value, to: $('search-to').value,
+        author: selectedAuthor, rows: searchRows, page: searchPageNumber, key: searchKey, scroll: $('view-search').scrollTop,
+        more: !$('search-more').hidden, status: $('search-results').getAttribute('aria-busy') === 'true' ? 'Previous results — press Enter to update.' : $('search-status').textContent
+      }));
+    } catch (_) {}
+    resumeSearch = PAGE === 'search' && $('search-results').getAttribute('aria-busy') === 'true';
+    resumeLoad = loading;
+    loadController?.abort(); graph?.cancelLayout(); cancelSearch();
+  });
   if (PAGE !== 'search') {
     const id = sharedSeed || remembered?.seedId;
     if (id) loadSeedById(id, params.get('density') || remembered?.density);

@@ -55,16 +55,16 @@ html[data-workspace=empty] body[data-page=search] .share-btn { visibility: hidde
 ::view-transition-old(navigation), ::view-transition-new(navigation) { animation: none; mix-blend-mode: normal; }
 ::view-transition-old(navigation) { display: none; }
 ::view-transition-group(navigation) { z-index: 2; }
-::view-transition-group(workspace) { overflow: clip; animation-duration: 320ms; }
-::view-transition-old(workspace), ::view-transition-new(workspace) { animation-name: none; animation-duration: 320ms; animation-timing-function: cubic-bezier(.22,.61,.36,1); mix-blend-mode: normal; }
+::view-transition-group(workspace) { overflow: clip; animation-duration: 300ms; }
+::view-transition-old(workspace), ::view-transition-new(workspace) { animation-name: none; animation-duration: 300ms; animation-timing-function: cubic-bezier(.22,.68,.25,1); mix-blend-mode: normal; }
 :root[data-slide=forward]::view-transition-old(workspace) { animation-name: slide-out-left; }
 :root[data-slide=forward]::view-transition-new(workspace) { animation-name: slide-in-right; }
 :root[data-slide=backward]::view-transition-old(workspace) { animation-name: slide-out-right; }
 :root[data-slide=backward]::view-transition-new(workspace) { animation-name: slide-in-left; }
-@keyframes slide-out-left { to { transform: translateX(-100%); } }
-@keyframes slide-in-right { from { transform: translateX(100%); } }
-@keyframes slide-out-right { to { transform: translateX(100%); } }
-@keyframes slide-in-left { from { transform: translateX(-100%); } }
+@keyframes slide-out-left { to { transform: translateX(-32px); opacity: 0; } }
+@keyframes slide-in-right { from { transform: translateX(32px); opacity: 0; } }
+@keyframes slide-out-right { to { transform: translateX(32px); opacity: 0; } }
+@keyframes slide-in-left { from { transform: translateX(-32px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   @view-transition { navigation: none; }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
@@ -314,8 +314,8 @@ table.papers tr:focus-visible { outline: 2px solid var(--ink); outline-offset: -
 /* Inline scholarly search stays in the same workspace. */
 body.has-search #view-search { display: block; }
 body.has-search .search-wrap { margin: 0 auto; padding-top: 36px; }
-body.has-search .search-wrap h1 { font-size: 42px; }
-body.has-search .search-wrap .lede { font-size: 22px; }
+
+
 body.has-search .bigsearch { margin-top: 28px; }
 .search-options { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px 20px; margin-top: 20px; }
 .search-options label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-soft); }
@@ -337,9 +337,33 @@ body.has-search .bigsearch { margin-top: 28px; }
   .search-options input { width: 80px; }
   #search-results .presult { padding: 18px 4px; gap: 12px; }
   #search-results .pc { font-size: 14px; }
-  body.has-search .search-wrap h1 { font-size: 36px; }
+
 }
 
 @media (max-width: 760px) {
   .search-options label:first-child { width: 100%; justify-content: center; }
 }
+
+/* A shared, restrained motion rhythm; no perpetual decorative work. */
+:root { --motion-ease: cubic-bezier(.22,.68,.25,1); }
+.gnode { transition: opacity 160ms var(--motion-ease); }
+.gedge { transition: opacity 160ms var(--motion-ease), stroke 160ms var(--motion-ease); }
+.presult { transition: background-color 140ms var(--motion-ease); }
+#search-status { min-height: 46px; }
+.search-wrap > h1, .search-wrap > .lede, .bigsearch, .search-options, #search-hint { transform-origin: top left; }
+.motion-ghost { position: fixed !important; margin: 0 !important; pointer-events: none !important; z-index: 30; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .gnode, .gedge, .presult { transition: none; }
+}
+
+:root[data-theme-change]::view-transition-old(workspace) { animation: soft-out 160ms ease both; }
+:root[data-theme-change]::view-transition-new(workspace) { animation: soft-in 160ms ease both; }
+@keyframes soft-out { to { opacity: 0; } }
+@keyframes soft-in { from { opacity: 0; } }
+
+.glabel { transition: opacity 140ms var(--motion-ease); }
+.camera-moving .glabel { opacity: .08; }
+@media (prefers-reduced-motion: reduce) { .glabel { transition: none; } }
+
+.gnode .halo { transition: opacity 160ms var(--motion-ease); }
+.gtooltip { transition: opacity 150ms var(--motion-ease), transform 150ms var(--motion-ease); }

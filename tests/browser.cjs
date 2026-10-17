@@ -244,9 +244,9 @@ async function labelStats(page) {
     const stackIds = await page.evaluate(() => { const ids=CG.nodes.slice(0,5).map(n=>n.id); ids.forEach(id=>CG.select(id)); return ids; });
     assert.deepEqual(await page.locator('.paper-card').evaluateAll(cards=>cards.map(c=>c.dataset.id)),stackIds.slice(1).reverse());
     assert.equal(await page.evaluate(()=>CG.selectedIds.size),4);
-    await page.waitForTimeout(300);
+    await page.waitForFunction(()=>!document.getElementById('detail').getAnimations({subtree:true}).length);
     const cardBoxes = await page.locator('.paper-card').evaluateAll(cards=>cards.map(c=>{const r=c.getBoundingClientRect();return {y:r.y,bottom:r.bottom};}));
-    for(let i=1;i<4;i++) assert(cardBoxes[i].bottom <= cardBoxes[i-1].y+9);
+    for(let i=1;i<4;i++) assert(cardBoxes[i].bottom <= cardBoxes[i-1].y+9,JSON.stringify(cardBoxes));
     await page.locator('.paper-card').nth(3).locator('.card-title').click();
     assert.equal(await page.evaluate(()=>CG.selected),stackIds[1]);
     assert.equal(await page.locator('.paper-card').count(),4);
@@ -264,7 +264,7 @@ async function labelStats(page) {
     assert(connections.shared>0 && connections.correct && connections.visible);
     await page.screenshot({path:path.join(output,'stack-cards.png')});
     await page.evaluate(()=>CG.select(null));
-    await page.click('#zoom-fit'); await frames(page);
+    await page.click('#zoom-fit'); await page.waitForFunction(()=>!CG._camera); await frames(page);
     const labels = await labelStats(page);assert(labels.visible>=1);assert.equal(labels.overlappingPairs,0);assert(labels.minScreenFontPx>=12.99);
     assert.equal(await idleWrites(page),0);
     const zoom=await page.evaluate(()=>CG.scale);await page.click('#zoom-in');await frames(page);assert(await page.evaluate(v=>CG.scale>v,zoom));
@@ -285,14 +285,16 @@ async function labelStats(page) {
     await navigate(page,'graph');await settled(page);
     assert.equal(await page.evaluate(()=>CG.nodes.filter(n=>n.role==='cite').length),120);
     assert.equal(await page.locator('.gnode').evaluateAll(nodes=>nodes.filter(n=>n.style.display!=='none').length),133);
+    const retainedView=await page.evaluate(()=>({scale:CG.scale,tx:CG.tx,ty:CG.ty,x:CG.nodes[2].x,y:CG.nodes[2].y}));
     await navigate(page,'paper');await page.waitForFunction(()=>window.CitationPage?.ready);
     assert.equal(await page.locator('#toggle-ref').getAttribute('aria-pressed'),'false');await page.click('#toggle-ref');
     await navigate(page,'graph');await settled(page);
+    assert.deepEqual(await page.evaluate(()=>({scale:CG.scale,tx:CG.tx,ty:CG.ty,x:CG.nodes[2].x,y:CG.nodes[2].y})),retainedView,'Returning to Graph preserves its camera and node positions');
     report.checks.push('Graph fills the workspace; all paper types open compact closable popups; Paper holds abstracts, connections, density and persistent graph filters');
     assert.equal(await page.locator('#mini-input, #appearance-toggle').count(),0);
     assert.equal((await page.locator('#share-btn').textContent()).trim(),'');assert.equal(await page.locator('#share-btn').getAttribute('aria-label'),'Share graph');
     await page.click('#share-btn');const sharedUrl=await page.evaluate(()=>window.copiedGraphUrl);assert.equal(new URL(sharedUrl).pathname,'/graph.html');assert.equal(new URL(sharedUrl).searchParams.get('density'),'120');
-    await page.click('#theme-toggle');assert(await page.locator('.theme-sun').isVisible());await page.keyboard.press('Escape');
+    await page.click('#theme-toggle');await page.waitForFunction(()=>document.getElementById('theme-toggle').getAttribute('aria-pressed')==='true');assert(await page.locator('.theme-sun').isVisible());await page.keyboard.press('Escape');
     assert(await page.locator('#notebook-menu').isVisible());
     await page.reload();await settled(page);assert.equal(await page.locator('#theme-toggle').getAttribute('aria-pressed'),'true');
     await page.click('#theme-toggle');await page.keyboard.press('Escape');
