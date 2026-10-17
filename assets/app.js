@@ -220,7 +220,12 @@
     try { sessionStorage.setItem('citation-current', JSON.stringify({ seedId: CURRENT.seedId, density: citeLimit })); } catch (_) {}
     history.replaceState(null, '', pageUrl(PAGE));
   }
-  function refreshShareBtn() { const button = $('share-btn'); if (button) button.hidden = PAGE === 'search' || !CURRENT.seedId; }
+  function refreshShareBtn() {
+    const seedId = CURRENT.seedId || (PAGE === 'search' ? remembered?.seedId : sharedSeed || remembered?.seedId);
+    const button = $('share-btn');
+    if (button) { button.hidden = false; button.disabled = !seedId; }
+    if (seedId) document.documentElement.dataset.workspace = 'active';
+  }
 
   let toastTimer = null;
   function showToast(msg, url) {
@@ -239,7 +244,7 @@
 
   const shareBtn = $("share-btn");
   shareBtn?.addEventListener("click", async () => {
-    if (!CURRENT.seedId) return;
+    if (!(CURRENT.seedId || remembered?.seedId || (PAGE !== 'search' && sharedSeed))) return;
     const url = shareUrl();
     let copied = false;
     try {
@@ -577,6 +582,11 @@
   const initialDensity = params.get('density') || remembered?.density;
   if (['40','80','120'].includes(String(initialDensity))) citeLimit = +initialDensity;
   buildSearch(); wireControls(); updateNavigation();
+  window.addEventListener('pageshow', () => {
+    try { remembered = JSON.parse(sessionStorage.getItem('citation-current') || 'null'); } catch (_) {}
+    if (PAGE === 'search' && ['40','80','120'].includes(String(remembered?.density))) citeLimit = +remembered.density;
+    updateNavigation();
+  });
   window.addEventListener('pagehide', () => { loadController?.abort(); graph?.cancelLayout(); cancelSearch(); });
   if (PAGE !== 'search') {
     const id = sharedSeed || remembered?.seedId;

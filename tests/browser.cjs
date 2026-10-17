@@ -175,6 +175,13 @@ async function labelStats(page) {
 
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     await context.addInitScript(() => {
+      addEventListener('pagereveal', event => {
+        const transition = event.viewTransition;
+        if (!transition) return;
+        transition.ready.then(() => {
+          window.lastSlide = { direction: document.documentElement.dataset.slide, content: getComputedStyle(document.documentElement, '::view-transition-new(workspace)').animationName, header: getComputedStyle(document.documentElement, '::view-transition-group(navigation)').animationName };
+        }).catch(() => {});
+      });
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.copiedGraphUrl = text; } } });
     });
     const page = await context.newPage(); const urls = await mock(page, { extraDelay: 1600 });
@@ -187,7 +194,7 @@ async function labelStats(page) {
     assert.equal(urls.length, 0, 'Home does not fetch a network, even with a legacy seed query');
     assert.equal(await page.evaluate(() => performance.getEntriesByType('resource').some(r => /layout|graph\.js/.test(r.name))), false);
     assert.equal(await page.locator('.search-intro').count(), 0);
-    assert.equal(await page.locator('.topbar a, #share-btn, #menu-toggle').count(), 0);
+    assert.equal(await page.locator('.topbar a:visible, #share-btn:visible, #menu-toggle').count(), 0);
     assert(await page.locator('#theme-toggle').isVisible());
     assert.equal((await page.locator('#big-go').textContent()).trim(), '→');
     const centered = await page.locator('.search-wrap').evaluate(el => { const r=el.getBoundingClientRect();return { x:r.x+r.width/2, y:r.y+r.height/2 }; });
@@ -242,7 +249,10 @@ async function labelStats(page) {
     assert.equal(await page.locator('main').count(),1);assert.equal(await page.locator('#view-search, #view-graph, #graph-canvas').count(),0);
     assert.equal(await page.evaluate(()=>typeof window.CG),'undefined');
     assert.equal(await page.evaluate(()=>performance.getEntriesByType('resource').some(r=>/layout|graph\.js/.test(r.name))),false);
+    assert.deepEqual(await page.locator('#notebook-menu').boundingBox(),nav);
     assert.equal(urls.length,apiBeforeList,'List reuses the cached network responses');
+    await page.waitForFunction(()=>window.lastSlide);
+    assert.deepEqual(await page.evaluate(()=>window.lastSlide),{direction:'forward',content:'slide-in-right',header:'none'});
     const listHeader=await page.locator('#seed-title').evaluate(el=>({x:el.getBoundingClientRect().x,y:el.getBoundingClientRect().y}));assert.deepEqual(listHeader,headerPosition);
     assert.match(await page.locator('#list-seed').textContent(),/^302 papers · \d+ links · top 120 of 160 citing$/);
     const listUrl=page.url();await page.click('#papers-body tr[data-id="Wr0"]');
@@ -258,14 +268,29 @@ async function labelStats(page) {
     report.checks.push('List loads independently without graph assets; clicking or keyboard-selecting a row opens its summary on the right, with sorting and export preserved');
     const beforeHome=urls.length;await page.click('[data-view=search]');await page.waitForURL('**/index.html');
     assert.equal(await page.locator('#view-search').count(),1);assert.equal(urls.length,beforeHome);assert.equal(new URL(page.url()).search,'');assert.equal(await page.evaluate(()=>typeof window.CG),'undefined');
+    await page.waitForFunction(()=>window.lastSlide);
+    assert.deepEqual(await page.evaluate(()=>window.lastSlide),{direction:'backward',content:'slide-in-left',header:'none'});
+    assert.deepEqual(await page.locator('#notebook-menu').boundingBox(),nav);
+    assert.equal(await page.locator('.topbar a:visible').count(),3);
+    assert.equal(await page.locator('[data-view=search]').getAttribute('aria-current'),'page');
+    await page.click('#share-btn');
+    assert.equal(new URL(await page.evaluate(()=>window.copiedGraphUrl)).searchParams.get('density'),'120');
+    const timeOrigin=await page.evaluate(()=>performance.timeOrigin);
+    await page.click('[data-view=search]');assert.equal(await page.evaluate(()=>performance.timeOrigin),timeOrigin);
     await page.reload();assert.equal(await page.locator('#view-search').count(),1);assert.equal(urls.length,beforeHome);
     await page.goBack();assert(new URL(page.url()).pathname.endsWith('/list.html'));await page.waitForFunction(()=>window.CitationPage?.ready);
     await navigate(page,'search');await page.setViewportSize({width:390,height:844});await page.waitForTimeout(250);
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert(await page.locator('#big-go').evaluate(el=>el.getBoundingClientRect().right<=innerWidth));
     await page.screenshot({path:path.join(output,'after-mobile.png')});
-    await page.goto(base+'/graph.html?seed=Wseed&density=120');await settled(page);await page.mouse.move(0,0);await frames(page);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(output,'after-mobile-graph.png')});
+    const mobileNav=await page.locator('#notebook-menu').boundingBox();
+    await navigate(page,'graph');await settled(page);assert.deepEqual(await page.locator('#notebook-menu').boundingBox(),mobileNav);await page.mouse.move(0,0);await frames(page);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(output,'after-mobile-graph.png')});
     await navigate(page,'list');await page.waitForFunction(()=>window.CitationPage?.ready);await page.click('#papers-body tr[data-id="Wr0"]');
+    assert.deepEqual(await page.locator('#notebook-menu').boundingBox(),mobileNav);
     assert(await page.locator('#detail').evaluate(el=>el.getBoundingClientRect().right<=innerWidth+1));assert(new URL(page.url()).pathname.endsWith('/list.html'));await page.screenshot({path:path.join(output,'after-mobile-list.png')});await page.click('#detail-close');
+    await page.emulateMedia({reducedMotion:'reduce'});
+    await navigate(page,'search');await page.waitForURL('**/index.html');
+    assert.equal(await page.evaluate(()=>window.lastSlide),undefined);
+    assert.deepEqual(await page.locator('#notebook-menu').boundingBox(),mobileNav);
     assert.deepEqual(errors,[]);report.checks.push('Home and reload always show Search; browser Back restores List; mobile pages and menu remain usable');await context.close();
     const fallback=await browser.newContext();const fallbackPage=await fallback.newPage();await mock(fallbackPage,{failExtra:true});await fallbackPage.addInitScript(()=>{window.Worker=undefined;});
     await fallbackPage.goto(base+'/graph.html?seed=Wseed');await settled(fallbackPage);assert.equal(await fallbackPage.evaluate(()=>CG.nodes.length),250);assert((await fallbackPage.locator('#status-counts').textContent()).includes('unavailable'));await fallback.close();

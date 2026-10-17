@@ -25,27 +25,56 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .mono { font-variant-numeric: tabular-nums; }
 .eyebrow { display: block; font-size: 13px; color: var(--ink-faint); font-weight: 400; letter-spacing: .035em; }
 #app { height: 100%; height: 100dvh; display: flex; flex-direction: column; }
-.topbar { flex: 0 0 auto; min-height: 78px; display: flex; align-items: center; justify-content: center; padding: 12px clamp(20px, 3vw, 48px); background: var(--bg); position: relative; z-index: 30; }
+.topbar { flex: 0 0 78px; height: 78px; display: flex; align-items: center; justify-content: center; padding: 12px clamp(20px, 3vw, 48px); background: var(--bg); position: relative; z-index: 30; }
 input::placeholder { color: var(--ink-faint); opacity: 1; }
 .share-btn { display: inline-flex; align-items: center; gap: 7px; border: 0; border-bottom: 1px solid transparent; background: transparent; padding: 8px 0; font-size: 15px; color: var(--ink-soft); }
 .share-btn:hover { border-bottom-color: var(--ink); }
 .share-btn.copied { color: var(--linked); font-style: italic; }
 /* Persistent, centered navigation with independent page links. */
-.notebook-menu { display: flex; align-items: center; justify-content: center; gap: clamp(8px, 2.5vw, 28px); border-bottom: 1px solid var(--line); padding: 0 4px; }
-.notebook-menu .menu-view { display: flex; align-items: center; min-height: 44px; padding: 8px 2px; font-size: 17px; border-bottom: 1px solid transparent; margin-bottom: -1px; }
+.notebook-menu { width: 348px; max-width: 100%; height: 45px; display: grid; grid-template-columns: 1.2fr 1.1fr 1fr 44px 44px; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); padding: 0 4px; }
+.notebook-menu .menu-view { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 2px; font-size: 17px; border-bottom: 1px solid transparent; margin-bottom: -1px; }
 .notebook-menu .menu-view:hover { color: var(--ink-faint); text-decoration: none; }
 .notebook-menu .menu-view.active { border-bottom-color: var(--ink); }
 .notebook-menu :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 #theme-toggle, .notebook-menu .share-btn { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; margin: 0; padding: 10px; border: 0; background: transparent; color: var(--ink); }
 #theme-toggle:hover, .notebook-menu .share-btn:hover { background: var(--bg-2); }
-body[data-page=search] .notebook-menu { border: 0; }
+html[data-workspace=empty] body[data-page=search] .notebook-menu { border-color: transparent; }
+html[data-workspace=empty] body[data-page=search] .menu-view,
+html[data-workspace=empty] body[data-page=search] .share-btn { visibility: hidden; pointer-events: none; }
+.notebook-menu .share-btn:disabled { opacity: .35; cursor: default; }
+.workspace-content { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: clip; view-transition-name: workspace; }
+.topbar { view-transition-name: navigation; }
+:root[data-theme=dark] {
+  color-scheme: dark;
+  --bg: #272c32; --bg-2: #30363d; --surface: #272c32; --panel: #272c32;
+  --ink: #e0e4e8; --ink-soft: #cdd4dc; --ink-faint: #adb5bf; --line: #414850; --line-soft: #383f47;
+}
+@view-transition { navigation: auto; }
+::view-transition-group(root), ::view-transition-group(navigation) { animation: none; }
+::view-transition-old(root), ::view-transition-new(root),
+::view-transition-old(navigation), ::view-transition-new(navigation) { animation: none; mix-blend-mode: normal; }
+::view-transition-old(navigation) { display: none; }
+::view-transition-group(navigation) { z-index: 2; }
+::view-transition-group(workspace) { overflow: clip; animation-duration: 320ms; }
+::view-transition-old(workspace), ::view-transition-new(workspace) { animation-name: none; animation-duration: 320ms; animation-timing-function: cubic-bezier(.22,.61,.36,1); mix-blend-mode: normal; }
+:root[data-slide=forward]::view-transition-old(workspace) { animation-name: slide-out-left; }
+:root[data-slide=forward]::view-transition-new(workspace) { animation-name: slide-in-right; }
+:root[data-slide=backward]::view-transition-old(workspace) { animation-name: slide-out-right; }
+:root[data-slide=backward]::view-transition-new(workspace) { animation-name: slide-in-left; }
+@keyframes slide-out-left { to { transform: translateX(-100%); } }
+@keyframes slide-in-right { from { transform: translateX(100%); } }
+@keyframes slide-out-right { to { transform: translateX(100%); } }
+@keyframes slide-in-left { from { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
 #theme-toggle svg { width: 22px; height: 22px; }
 .theme-sun { display: none; }
 :root[data-theme="dark"] .theme-sun { display: block; }
 :root[data-theme="dark"] .theme-moon { display: none; }
 .view { flex: 1; min-height: 0; position: relative; }
-.view:not([hidden]) { animation: ink-appear .18s ease-out; }
-@keyframes ink-appear { from { opacity: .35; } to { opacity: 1; } }
+
 #view-search, #view-list { overflow-y: auto; scrollbar-gutter: stable; }
 .search-wrap { width: min(calc(100% - 48px), 800px); margin: 0 auto; padding: 52px 0 64px; }
 .search-wrap h1 { margin: 16px 0 14px; font-weight: 400; font-size: clamp(48px, 7vw, 78px); line-height: 1; letter-spacing: -.045em; }
@@ -173,7 +202,8 @@ td.num { font-size: 16px; font-variant-numeric: tabular-nums; }
 .toast .tsub { display: block; width: 100%; min-width: 220px; margin-top: 10px; padding: 8px; background: none; border: 1px solid var(--line); font-size: 14px; }
 @media (max-width: 760px) {
   :root { --detail-width: min(420px, 100vw); }
-  .topbar { min-height: 68px; padding: 10px 12px; }
+  .topbar { flex-basis: 68px; height: 68px; padding: 10px 12px; }
+  .notebook-menu { gap: 8px; }
   .search-wrap { width: calc(100% - 40px); padding: 36px 0 48px; }
   .search-wrap h1 { font-size: clamp(42px, 10vw, 64px); }
   .search-wrap .lede { font-size: 23px; }

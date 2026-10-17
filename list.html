@@ -5,7 +5,8 @@
 <meta name="description" content="Explore the references, citing papers and shared foundations around a paper.">
 <meta name="theme-color" content="#f5f2ec">
 <title>List — Citation Network</title>
-<link rel="stylesheet" href="assets/styles.css?v=nav-2">
+<script blocking="render" src="assets/navigation.js?v=workspace-3"></script>
+<link rel="stylesheet" href="assets/styles.css?v=workspace-3">
 
 </head>
 <body data-page="list">
@@ -14,7 +15,7 @@
 <nav id="notebook-menu" class="notebook-menu" aria-label="Citation Network navigation">
 <a class="menu-view" data-view="search" href="index.html">Search</a>
 <a class="menu-view" data-view="graph" href="graph.html">Graph</a>
-<a class="menu-view" data-view="list" href="list.html">List</a>
+<a class="menu-view active" aria-current="page" data-view="list" href="list.html">List</a>
 <button id="theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode" aria-pressed="false">
           <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
           <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13.1A9 9 0 0 1 10.9 3.1a9 9 0 1 0 10 10Z"/></svg>
@@ -24,6 +25,7 @@
           </button>
 </nav>
 </header>
+<div class="workspace-content">
 <h1 class="page-paper-title" id="seed-title" aria-live="polite"></h1>
 <main class="view" id="view-list">
     <div class="list-content"><div class="list-wrap"><div class="stage-overlay" id="loader" hidden="">
@@ -94,13 +96,14 @@
       </div>
     </aside></main>
 </div>
+</div>
 
 <div class="toast" id="toast" hidden="">
   <span class="tmsg"></span>
   <input class="tsub" id="toast-url" readonly="" hidden="">
 </div>
-<script src="assets/openalex.js?v=nav-2" defer></script>
-<script src="assets/tweaks.js?v=nav-2" defer></script>
-<script src="assets/app.js?v=nav-2" defer></script>
+<script src="assets/openalex.js?v=workspace-3" defer></script>
+<script src="assets/tweaks.js?v=workspace-3" defer></script>
+<script src="assets/app.js?v=workspace-3" defer></script>
 </body>
 </html>
