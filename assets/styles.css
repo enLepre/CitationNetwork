@@ -4,8 +4,8 @@
   --bg: #f5f2ec; --bg-2: #eeebe4; --surface: #f5f2ec; --panel: #f5f2ec;
   --ink: #34312c; --ink-soft: #514b43; --ink-faint: #70685e;
   --line: #ded8ce; --line-soft: #e8e2d9;
-  --seed: #715b49; --ref: #8b795f; --cite: #536b82; --linked: #657b6a;
-  --seed-tint: #715b4914; --ref-tint: #8b795f14; --cite-tint: #536b8214; --linked-tint: #657b6a14;
+  --seed: #715b49; --ref: #8b795f; --cite: #536b82; --linked: #875f7b;
+  --seed-tint: #715b4914; --ref-tint: #8b795f14; --cite-tint: #536b8214; --linked-tint: color-mix(in srgb, var(--linked) 8%, transparent);
   --serif: Georgia, "Times New Roman", serif;
   /* Compatibility with the graph's label-measurement API; metadata is serif. */
   --mono: Georgia, "Times New Roman", serif;
