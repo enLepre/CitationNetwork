@@ -68,6 +68,7 @@ const frames = page => page.evaluate(() => new Promise(r => requestAnimationFram
 async function settled(page) {
   await page.waitForFunction(() => window.CG?.nodes.length && document.getElementById('loader').hidden);
   await page.waitForFunction(() => !document.getElementById('status-counts').textContent.includes('finding'));
+  await page.waitForFunction(() => !window.CG?._motionActive);
   await page.evaluate(() => document.fonts.ready); await frames(page);
 }
 async function idleWrites(page) {
@@ -155,6 +156,7 @@ async function labelStats(page) {
         const elapsedMs = performance.now() - start; clearInterval(timer);
         return { synchronousMs, elapsedMs, maxTimerGapMs: Math.max(0, ...gaps), nodes: CG.nodes.length };
       });
+      if (version === 'after') await page.waitForFunction(()=>!CG._motionActive);
       report.graph[version].idleAttributeWritesIn500ms = await idleWrites(page);
       report.graph[version].medianHoverToFrameMs = await page.evaluate(async () => {
         const times = [];

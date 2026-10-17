@@ -31,7 +31,7 @@ async function fixture(page) {
   await page.evaluate(async () => {
     document.getElementById('loader').hidden = true;
     window.selectedPapers = [];
-    window.CG = new CitationGraph(document.getElementById('graph-canvas'), { onSelect: n => selectedPapers.push(n?.id || null) });
+    window.CG = new CitationGraph(document.getElementById('graph-canvas'), { motion: false, onSelect: n => selectedPapers.push(n?.id || null) });
     const roles = ['seed', 'cite', 'ref', 'linked'];
     const papers = roles.map((role, i) => ({ id: role, role, title: role + ' paper', short: 'Author' + i, year: 2025, cites: 0 }));
     await CG.setData(papers, [{ s: 'cite', t: 'seed' }, { s: 'seed', t: 'ref' }, { s: 'linked', t: 'ref' }], 'seed');

@@ -39,6 +39,10 @@
       this._pointerId = null;
       this.showRefs = true; this.showCites = true; this.showLinked = true; this.showLabels = true; this.linkOpacity = 1;
       this._nodeScale = 1;
+      this._motion = new Map();
+      this._motionActive = false;
+      this._reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+      this._reducedMotion.addEventListener('change', () => { if (this._reducedMotion.matches) this._stopMotion(); });
 
       this._bind();
       this._active = true;
@@ -57,7 +61,7 @@
         if (this._active && this.nodes.length) this.fit();
       });
       this._resizeObserver.observe(svg);
-      document.addEventListener('visibilitychange', () => { if (!document.hidden) this._invalidate(); });
+      document.addEventListener('visibilitychange', () => { if (document.hidden) this._stopMotion(); else this._invalidate(); });
       document.fonts.ready.then(() => { this.nodes.forEach(n => { n.labelWidth = null; }); this._invalidate(); });
     }
 
@@ -168,10 +172,12 @@
       if (!preserve && this._active) this.fit();
       this.onSelect(this.selected ? this.nodeById[this.selected] : null);
       this._invalidate({ positions: true, paint: true, labels: true });
+      this._settleIn(preserve ? new Set(Object.keys(previous)) : null);
       return true;
     }
 
     cancelLayout() {
+      this._stopMotion();
       this._layoutSeq++;
       if (this._cancelWorker) this._cancelWorker();
     }
@@ -197,6 +203,102 @@
       }
       if (seq !== this._layoutSeq) return null;
       return CitationLayout.layout(input, () => seq !== this._layoutSeq);
+    }
+
+    /* Small, bounded display offsets: the worker's layout remains the anchor.
+       One shared render loop; no continuous force simulation or label solving. */
+    _canMove() {
+      return this.opts.motion !== false && !this._reducedMotion.matches && this._active && !document.hidden
+        && this.nodes.length <= 800 && this.edges.length <= 4000;
+    }
+
+    _wakeMotion() {
+      if (!this._canMove() || !this._motion.size) return;
+      this._motionActive = true;
+      this._motionLast = null;
+      this._motionDeadline = performance.now() + 1100;
+      this._invalidate({});
+    }
+
+    _spring(n) {
+      let spring = this._motion.get(n.id);
+      if (!spring) {
+        spring = { n, x: n._ox || 0, y: n._oy || 0, vx: 0, vy: 0, tx: 0, ty: 0 };
+        this._motion.set(n.id, spring);
+      }
+      return spring;
+    }
+
+    _settleIn(existing) {
+      if (!this._canMove()) return;
+      const center = this.nodeById[this.seedId];
+      if (!center) return;
+      for (const n of this.nodes) {
+        if (n === center || n.movedDuringLayout || existing?.has(n.id)) continue;
+        const dx = n.x - center.x, dy = n.y - center.y, distance = Math.hypot(dx, dy) || 1;
+        // About 4–12 screen pixels, independent of graph size and zoom.
+        const shift = Math.min(12 / this.scale, distance * .025);
+        const spring = this._spring(n);
+        spring.x = n._ox = -dx / distance * shift;
+        spring.y = n._oy = -dy / distance * shift;
+      }
+      this._wakeMotion();
+    }
+
+    _pullNeighbors(node, dx, dy) {
+      if (!this._canMove()) return;
+      const distance = Math.hypot(dx, dy) || 1;
+      const pull = Math.min(.08, 14 / this.scale / distance);
+      for (const n of this._dragNeighbors || []) {
+        const spring = this._spring(n);
+        spring.tx = dx * pull;
+        spring.ty = dy * pull;
+      }
+      this._wakeMotion();
+    }
+
+    _releaseMotion(node, cancelled) {
+      for (const spring of this._motion.values()) { spring.tx = 0; spring.ty = 0; }
+      if (!cancelled && node && this._canMove() && this._dragVelocity) {
+        const spring = this._spring(node);
+        // A restrained recoil; the dropped node returns exactly to its drop point.
+        const [vx, vy] = this._dragVelocity;
+        const cap = 65 / this.scale / (Math.hypot(vx, vy) || 1);
+        spring.vx = vx * Math.min(.1, cap);
+        spring.vy = vy * Math.min(.1, cap);
+      }
+      this._dragNeighbors = null; this._dragVelocity = null;
+      this._wakeMotion();
+    }
+
+    _stopMotion() {
+      if (!this._motion?.size) return;
+      for (const { n } of this._motion.values()) { n._ox = 0; n._oy = 0; }
+      this._motion.clear(); this._motionActive = false;
+      this._invalidate({ positions: true, labels: true });
+    }
+
+    _stepMotion(now) {
+      if (!this._motionActive) return false;
+      const dt = Math.min(1 / 30, this._motionLast == null ? 1 / 60 : (now - this._motionLast) / 1000);
+      this._motionLast = now;
+      let moving = false;
+      for (const [id, spring] of this._motion) {
+        const { n } = spring;
+        if (n === this.dragNode) continue;
+        spring.vx += ((spring.tx - spring.x) * 180 - spring.vx * 23) * dt;
+        spring.vy += ((spring.ty - spring.y) * 180 - spring.vy * 23) * dt;
+        spring.x += spring.vx * dt; spring.y += spring.vy * dt;
+        const quiet = Math.hypot(spring.tx - spring.x, spring.ty - spring.y) * this.scale < .08
+          && Math.hypot(spring.vx, spring.vy) * this.scale < .5;
+        if (quiet || now >= this._motionDeadline) {
+          spring.x = spring.tx; spring.y = spring.ty; spring.vx = 0; spring.vy = 0;
+          if (!spring.tx && !spring.ty) this._motion.delete(id);
+        } else moving = true;
+        n._ox = spring.x; n._oy = spring.y;
+      }
+      this._motionActive = moving;
+      return true;
     }
 
     // Node radius. Seed is fixed-large. Every other paper takes the LARGER of
@@ -287,7 +389,14 @@
         e.preventDefault();
         e.stopPropagation();
         n.gEl.focus({ preventScroll: true });
+        // Grab the visible position, even during the short settling animation.
+        n.x += n._ox || 0; n.y += n._oy || 0; n._ox = 0; n._oy = 0;
+        this._motion.delete(n.id);
         this.dragNode = n; this.dragMoved = false;
+        this._dragNeighbors = [...(this.adj[n.id] || [])].map(id => this.nodeById[id])
+          .filter(other => this._visible(other) && other.role !== 'seed')
+          .sort((a,b) => Math.hypot(a.x-n.x,a.y-n.y) - Math.hypot(b.x-n.x,b.y-n.y)).slice(0,48);
+        this._dragVelocity = [0,0]; this._dragTime = performance.now();
         const r = this.svg.getBoundingClientRect();
         this._dragStart = { sx: e.clientX - r.left, sy: e.clientY - r.top, x: n.x, y: n.y };
         this._pointerId = e.pointerId;
@@ -334,8 +443,12 @@
         if (this.dragNode) {
           const start = this._dragStart;
           if (!this.dragMoved && Math.hypot(sx - start.sx, sy - start.sy) < this._dragThreshold) return;
+          const oldX = this.dragNode.x, oldY = this.dragNode.y, now = performance.now();
           this.dragNode.x = start.x + (sx - start.sx) / this.scale;
           this.dragNode.y = start.y + (sy - start.sy) / this.scale;
+          const dt = Math.max(8, now - this._dragTime) / 1000;
+          this._dragVelocity = [(this.dragNode.x-oldX)/dt, (this.dragNode.y-oldY)/dt]; this._dragTime = now;
+          this._pullNeighbors(this.dragNode, this.dragNode.x-start.x, this.dragNode.y-start.y);
           this.dragNode.vx = 0; this.dragNode.vy = 0;
           this.dragNode.movedDuringLayout = true;
           this.dragMoved = true;
@@ -367,12 +480,14 @@
       this._dragStart = null;
       this.svg.classList.remove('grabbing');
       if (this.svg.hasPointerCapture(id)) this.svg.releasePointerCapture(id);
+      if (node && moved) this._releaseMotion(node, cancelled);
       if (!cancelled && !moved) this.select(node ? node.id : null);
     }
 
     /* ---------- render ---------- */
     setActive(active) {
       this._active = active;
+      if (!active) this._stopMotion();
       if (!active && this._frame != null) { cancelAnimationFrame(this._frame); this._frame = null; }
       if (active) this._invalidate();
     }
@@ -380,22 +495,35 @@
     _invalidate(changes = { paint: true, labels: true }) {
       for (const [key, dirty] of Object.entries(changes)) if (dirty) this._dirty[key] = true;
       if (!this._active || document.hidden || this._frame != null) return;
-      this._frame = requestAnimationFrame(() => {
+      this._frame = requestAnimationFrame(now => {
         this._frame = null;
+        if (!this._active || document.hidden) return;
+        const started = performance.now();
+        const motion = this._stepMotion(now);
         const dirty = this._dirty; this._dirty = {};
         if (dirty.transform) this.vp.setAttribute('transform', 'translate(' + this.tx + ' ' + this.ty + ') scale(' + this.scale + ')');
         if (dirty.paint) this._paint();
-        if (dirty.positions) { this._renderPositions(); this._renderScale = this.scale; }
-        if (dirty.labels) this._layoutLabels();
+        if (dirty.positions || motion) { this._renderPositions(!dirty.positions); this._renderScale = this.scale; }
+        if (dirty.labels || (motion && !this._motionActive)) this._layoutLabels();
+        if (motion && !dirty.paint && !dirty.positions && performance.now() - started > 12) {
+          // Protect slower devices: finish this decorative effect instead of
+          // competing with input or accumulating expensive animation frames.
+          this._stopMotion();
+        } else if (this._motionActive) this._invalidate({});
       });
     }
 
-    _renderPositions() {
+    _renderPositions(motionOnly = false) {
       const inv = 1 / this.scale;
       this.nodes.forEach(n => {
         if (n.gEl.style.display === "none") return;
-        n.gEl.setAttribute("transform", `translate(${n.x} ${n.y})`);
-        n.hitEl.setAttribute('transform', `translate(${n.x} ${n.y})`);
+        const x = n.x + (n._ox || 0), y = n.y + (n._oy || 0);
+        if (n._drawX !== x || n._drawY !== y) {
+          n.gEl.setAttribute("transform", `translate(${x} ${y})`);
+          n.hitEl.setAttribute('transform', `translate(${x} ${y})`);
+          n._drawX = x; n._drawY = y;
+        }
+        if (motionOnly) return;
         n.hitEl.setAttribute('r', Math.max(n.rad, 10 * inv));
         // counter-scale stroke + label so they stay constant in screen px
         n.cEl.setAttribute("stroke-width", 1.5 * inv);
@@ -413,13 +541,17 @@
       this.edges.forEach(e => {
         if (e.path.style.display === "none") return;
         const a = this.nodeById[e.s], b = this.nodeById[e.t];
-        const dx = b.x - a.x, dy = b.y - a.y;
+        const ax = a.x + (a._ox || 0), ay = a.y + (a._oy || 0);
+        const bx = b.x + (b._ox || 0), by = b.y + (b._oy || 0);
+        if (motionOnly && e._ax === ax && e._ay === ay && e._bx === bx && e._by === by) return;
+        e._ax = ax; e._ay = ay; e._bx = bx; e._by = by;
+        const dx = bx - ax, dy = by - ay;
         const len = Math.hypot(dx, dy) || 1;
-        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        const mx = (ax + bx) / 2, my = (ay + by) / 2;
         const bow = Math.min(30, len * 0.08);
         const nx = -dy / len, ny = dx / len;
-        e.path.setAttribute("d", `M${a.x} ${a.y}Q${mx + nx * bow} ${my + ny * bow} ${b.x} ${b.y}`);
-        e.path.setAttribute("stroke-width", (e._lit ? 1.3 : 0.8) / this.scale);
+        e.path.setAttribute("d", `M${ax} ${ay}Q${mx + nx * bow} ${my + ny * bow} ${bx} ${by}`);
+        if (!motionOnly) e.path.setAttribute("stroke-width", (e._lit ? 1.3 : 0.8) / this.scale);
       });
     }
 
@@ -492,7 +624,7 @@
           n.labelWidth = this._measure.measureText(n.tEl.textContent).width + n.tEl.textContent.length * fs * 0.01;
         }
         const width = n.labelWidth;
-        const x = n.x * this.scale + this.tx, cy = n.y * this.scale + this.ty;
+        const x = (n.x + (n._ox || 0)) * this.scale + this.tx, cy = (n.y + (n._oy || 0)) * this.scale + this.ty;
         const radius = n.rad * this.scale, gap = radius + 7;
         // Try each side before hiding a label in a crowded region.
         const candidates = [
@@ -508,7 +640,7 @@
           const overlaps = boxes.some(b => box.l < b.r && box.r > b.l && box.t < b.b && box.b > b.t);
           const hitsNode = this.nodes.some(other => {
             if (other === n || !this._visible(other)) return false;
-            const nx = other.x * this.scale + this.tx, ny = other.y * this.scale + this.ty;
+            const nx = (other.x + (other._ox || 0)) * this.scale + this.tx, ny = (other.y + (other._oy || 0)) * this.scale + this.ty;
             const r = other.rad * this.scale + 3;
             const dx = nx - Math.max(box.l, Math.min(nx, box.r));
             const dy = ny - Math.max(box.t, Math.min(ny, box.b));
