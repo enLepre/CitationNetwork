@@ -5,8 +5,8 @@
 <meta name="description" content="Explore the references, citing papers and shared foundations around a paper.">
 <meta name="theme-color" content="#f5f2ec">
 <title>Graph — Citation Network</title>
-<script blocking="render" src="assets/navigation.js?v=motion-9"></script>
-<link rel="stylesheet" href="assets/styles.css?v=motion-9">
+<script blocking="render" src="assets/navigation.js?v=spacing-10"></script>
+<link rel="stylesheet" href="assets/styles.css?v=spacing-10">
 
 </head>
 <body data-page="graph">
@@ -45,6 +45,18 @@
         <div class="group">
           <button id="zoom-fit" title="Fit to screen">⤢</button>
         </div>
+        <details class="graph-options" id="graph-options">
+          <summary aria-label="Graph layout and connections" title="Layout & connections"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="var(--bg)"/><circle cx="15" cy="17" r="2.5" fill="var(--bg)"/></svg></summary>
+          <div class="graph-options-panel">
+            <label class="spacing-label" for="graph-spacing">Spacing <output id="spacing-value">100%</output></label>
+            <input id="graph-spacing" type="range" min="80" max="180" step="5" value="100" disabled>
+            <label for="graph-links">Connections</label>
+            <select id="graph-links"><option value="all">All connections</option><option value="selected">Selected papers</option><option value="shared">Shared connections</option></select>
+            <button id="spread-nearby" type="button" disabled>Spread nearby</button>
+            <p id="graph-layout-hint">Select a paper to spread its neighbors.</p>
+            <p id="graph-layout-status" role="status" aria-live="polite"></p>
+          </div>
+        </details>
       </div><div class="gtooltip" id="gtooltip"><div class="tt"></div><div class="tm"></div></div></div></main>
 </div>
 </div>
@@ -53,11 +65,11 @@
   <span class="tmsg"></span>
   <input class="tsub" id="toast-url" readonly="" hidden="">
 </div>
-<script src="assets/layout.js?v=motion-9" defer></script>
-<script src="assets/sample.js?v=motion-9" defer></script>
-<script src="assets/graph.js?v=motion-9" defer></script>
-<script src="assets/openalex.js?v=motion-9" defer></script>
-<script src="assets/tweaks.js?v=motion-9" defer></script>
-<script src="assets/app.js?v=motion-9" defer></script>
+<script src="assets/layout.js?v=spacing-10" defer></script>
+<script src="assets/sample.js?v=spacing-10" defer></script>
+<script src="assets/graph.js?v=spacing-10" defer></script>
+<script src="assets/openalex.js?v=spacing-10" defer></script>
+<script src="assets/tweaks.js?v=spacing-10" defer></script>
+<script src="assets/app.js?v=spacing-10" defer></script>
 </body>
 </html>

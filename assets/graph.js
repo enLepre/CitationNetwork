@@ -12,7 +12,7 @@
     if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
     return n;
   };
-  const workerUrl = new URL("layout-worker.js", document.currentScript.src);
+  const workerUrl = new URL("layout-worker.js?v=spacing-10", document.currentScript.src);
 
   class CitationGraph {
     constructor(svg, opts) {
@@ -38,11 +38,11 @@
       this.dragNode = null; this.dragMoved = false; this.panning = false;
       this._pointerId = null;
       this.showRefs = true; this.showCites = true; this.showLinked = true; this.showLabels = true; this.linkOpacity = 1;
-      this._nodeScale = 1;
+      this._nodeScale = 1; this.spacing = 1; this.linkMode = 'all';
       this._motion = new Map();
       this._motionActive = false;
       this._reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-      this._reducedMotion.addEventListener('change', () => { if (this._reducedMotion.matches) { if (this._camera) this._moveCamera(...this._camera.to); this._stopMotion(); } });
+      this._reducedMotion.addEventListener('change', () => { if (this._reducedMotion.matches) { if (this._relocation) { for (const {n} of this._relocation.nodes) n._ox = n._oy = 0; this._relocation = null; this._invalidate({positions:true,labels:true}); } if (this._camera) this._moveCamera(...this._camera.to); this._stopMotion(); } });
 
       this._bind();
       this._active = true;
@@ -61,7 +61,7 @@
         if (this._active && this.nodes.length) this.fit();
       });
       this._resizeObserver.observe(svg);
-      document.addEventListener('visibilitychange', () => { if (document.hidden) { this._camera = null; this._stopMotion(); } else this._invalidate(); });
+      document.addEventListener('visibilitychange', () => { if (document.hidden) { this._endRelocation(); this._camera = null; this._stopMotion(); } else this._invalidate(); });
       document.fonts.ready.then(() => { this.nodes.forEach(n => { n.labelWidth = null; }); this._invalidate(); });
     }
 
@@ -70,6 +70,8 @@
 
     /* ---------- data ---------- */
     async setData(papers, edges, seedId, { preserve = false, view = null } = {}) {
+      this._dataReady = false;
+      if (view?.spacing) this.spacing = view.spacing;
       const saved = view?.seedId === seedId ? Object.fromEntries(view.positions.map(p=>[p.id,p])) : {};
       const previous = preserve && this.seedId === seedId ? this.nodeById : saved;
       const selected = preserve ? this.selected : null;
@@ -108,7 +110,7 @@
           ...p, role: r, citedHere: ch,
           x: old ? old.x : cx + Math.cos(ang) * rad,
           y: old ? old.y : cy + Math.sin(ang) * rad,
-          fixed: !!old || p.id === seedId,
+          fixed: !!old || p.id === seedId, userPinned: !!old?.userPinned,
           vx: 0, vy: 0, baseR: rr / this._nodeScale, rad: rr
         };
       });
@@ -176,22 +178,25 @@
       this.onSelect(this.selected ? this.nodeById[this.selected] : null);
       this._invalidate({ positions: true, paint: true, labels: true });
       this._settleIn(preserve || view ? new Set(Object.keys(previous)) : null);
+      this._dataReady = true;
       return true;
     }
 
     cancelLayout() {
+      this._endRelocation();
       this._camera = null;
       this._stopMotion();
       this._layoutSeq++;
       if (this._cancelWorker) this._cancelWorker();
     }
 
-    async _layout(seq) {
+    async _layout(seq, overrides = {}) {
       const input = {
-        width: this.W, height: this.H,
-        nodes: this.nodes.map(n => ({ id: n.id, role: n.role, rad: n.rad, x: n.x, y: n.y,
+        width: this.W, height: this.H, spacing: this.spacing,
+        nodes: this.nodes.map(n => ({ id: n.id, role: n.role, rad: n.rad, x: n.x, y: n.y, labelWidth: n.labelWidth || Math.min(140, (n.short || '').length * 7 + 40),
           ...(n.fixed ? { fx: n.x, fy: n.y } : {}) })),
-        edges: this.edges.map(({ s, t }) => ({ s, t }))
+        edges: this.edges.map(({ s, t }) => ({ s, t })),
+        ...overrides
       };
       if (typeof Worker !== 'undefined') {
         try {
@@ -207,6 +212,60 @@
       }
       if (seq !== this._layoutSeq) return null;
       return CitationLayout.layout(input, () => seq !== this._layoutSeq);
+    }
+
+    _endRelocation() {
+      if (!this._relocation) return;
+      for (const {n} of this._relocation.nodes) { n.x += n._ox || 0; n.y += n._oy || 0; n._ox = n._oy = 0; }
+      this._relocation = null;
+      this._invalidate({positions:true,labels:true});
+    }
+
+    _stepRelocation(now) {
+      if (!this._relocation) return false;
+      const t = Math.min(1, (now - this._relocation.start) / 320), remaining = Math.pow(1-t, 3);
+      for (const {n,x,y} of this._relocation.nodes) { n._ox = x * remaining; n._oy = y * remaining; }
+      if (t === 1) { this._relocation = null; this._dirty.labels = true; }
+      return true;
+    }
+
+    async arrange(spacing = this.spacing, centerId = null) {
+      if (!this._dataReady || !this.nodes.length || this.dragNode) return false;
+      const center = this.nodeById[centerId || this.seedId];
+      if (!center) return false;
+      this.cancelLayout();
+      const seq = this._layoutSeq, ratio = centerId ? 1.35 : spacing / this.spacing;
+      const local = centerId ? this.adj[centerId] : null;
+      const nodes = this.nodes.map(n => {
+        const movable = this._visible(n) && !n.userPinned && n.id !== this.seedId && n.id !== centerId && (!local || local.has(n.id));
+        return {id:n.id,role:n.role,rad:n.rad,x:n.x,y:n.y,
+          labelWidth:n.labelWidth || Math.min(140,(n.short || '').length*7+40),
+          anchorX:movable ? center.x+(n.x-center.x)*ratio : n.x,
+          anchorY:movable ? center.y+(n.y-center.y)*ratio : n.y,
+          ...(movable ? {localSpacing:centerId ? spacing*1.25 : spacing} : {fx:n.x,fy:n.y})};
+      });
+      const positions = await this._layout(seq, {nodes, spacing, anchored:true});
+      if (!positions || seq !== this._layoutSeq) return false;
+      const changed = [];
+      for (const p of positions) {
+        const n = this.nodeById[p.id];
+        if (!n || n.userPinned || n === this.dragNode) continue;
+        const x = n.x-p.x, y = n.y-p.y;
+        if (Math.hypot(x,y) < .01) continue;
+        n.x=p.x; n.y=p.y;
+        if (!this._reducedMotion.matches && this.opts.motion !== false && !document.hidden) {
+          n._ox=x; n._oy=y; changed.push({n,x,y});
+        }
+      }
+      this.spacing = spacing;
+      if (changed.length) this._relocation = {start:performance.now(),nodes:changed};
+      this._invalidate({positions:true,labels:!changed.length,paint:true});
+      return true;
+    }
+
+    setLinkMode(mode) {
+      this.linkMode = ['all','selected','shared'].includes(mode) ? mode : 'all';
+      this._invalidate();
     }
 
     /* Small, bounded display offsets: the worker's layout remains the anchor.
@@ -417,6 +476,7 @@
         n.gEl.focus({ preventScroll: true });
         // Grab the visible position, even during the short settling animation.
         n.x += n._ox || 0; n.y += n._oy || 0; n._ox = 0; n._oy = 0;
+        this._endRelocation();
         this._camera = null;
         this._motion.delete(n.id);
         this.dragNode = n; this.dragMoved = false;
@@ -479,6 +539,7 @@
           this._pullNeighbors(this.dragNode, this.dragNode.x-start.x, this.dragNode.y-start.y);
           this.dragNode.vx = 0; this.dragNode.vy = 0;
           this.dragNode.movedDuringLayout = true;
+          this.dragNode.userPinned = true;
           this.dragMoved = true;
           this._invalidate({ positions: true, labels: true });
         } else if (this.panning) {
@@ -515,7 +576,7 @@
     /* ---------- render ---------- */
     setActive(active) {
       this._active = active;
-      if (!active) { this._camera = null; this._stopMotion(); }
+      if (!active) { this._endRelocation(); this._camera = null; this._stopMotion(); }
       if (!active && this._frame != null) { cancelAnimationFrame(this._frame); this._frame = null; }
       if (active) this._invalidate();
     }
@@ -527,23 +588,25 @@
         this._frame = null;
         if (!this._active || document.hidden) return;
         const started = performance.now();
+        const relocation = this._stepRelocation(now);
+        this.svg.classList.toggle('layout-moving', !!this._relocation);
         const camera = this._stepCamera(now);
         this.svg.classList.toggle('camera-moving', !!this._camera);
         if (camera) Object.assign(this._dirty, { transform: true, positions: true });
         if (camera && !this._camera) this._dirty.labels = true;
-        const motion = this._stepMotion(now);
+        const motion = this._stepMotion(now) || relocation;
         const dirty = this._dirty; this._dirty = {};
         if (dirty.transform) this.vp.setAttribute('transform', 'translate(' + this.tx + ' ' + this.ty + ') scale(' + this.scale + ')');
         if (dirty.paint) this._paint();
         if (dirty.positions || motion) { this._renderPositions(!dirty.positions); this._renderScale = this.scale; }
-        if (dirty.labels || (motion && !this._motionActive)) this._layoutLabels();
-        if (motion && !dirty.paint && !dirty.positions && performance.now() - started > 12) {
+        if (dirty.labels || (motion && !this._motionActive && !this._relocation)) this._layoutLabels();
+        if (this._motionActive && !dirty.paint && !dirty.positions && performance.now() - started > 12) {
           // Protect slower devices: finish this decorative effect instead of
           // competing with input or accumulating expensive animation frames.
           for (const spring of this._motion.values()) if (!spring.fade) spring.fade = {start:now,x:spring.x,y:spring.y};
           this._motionDeadline = Math.min(this._motionDeadline, now + 180);
           this._invalidate({});
-        } else if (this._motionActive || this._camera) this._invalidate({});
+        } else if (this._motionActive || this._camera || this._relocation) this._invalidate({});
       });
     }
 
@@ -638,7 +701,10 @@
 
       this.edges.forEach(e => {
         const a = this.nodeById[e.s], b = this.nodeById[e.t];
-        const vis = this._visible(a) && this._visible(b);
+        e._shared = (selected.has(e.s) && (selected.has(e.t) || shared(e.t))) || (selected.has(e.t) && shared(e.s));
+        const connected = selected.has(e.s) || selected.has(e.t);
+        const modeVisible = this.linkMode === 'all' || (this.linkMode === 'selected' ? connected : e._shared);
+        const vis = this._visible(a) && this._visible(b) && modeVisible;
         e.path.style.display = vis ? "" : "none";
         if (!vis) return;
         const lit = !focus || selected.has(e.s) || selected.has(e.t) || this.hovered?.id === e.s || this.hovered?.id === e.t;

@@ -367,3 +367,20 @@ body.has-search .bigsearch { margin-top: 28px; }
 
 .gnode .halo { transition: opacity 160ms var(--motion-ease); }
 .gtooltip { transition: opacity 150ms var(--motion-ease), transform 150ms var(--motion-ease); }
+
+/* One quiet disclosure keeps layout tools out of the graph until needed. */
+.graph-options summary { list-style: none; display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--line); background: var(--bg); color: var(--ink-soft); cursor: pointer; }
+.graph-options summary::-webkit-details-marker { display: none; }
+.graph-options summary:hover, .graph-options[open] summary { background: var(--bg-2); }
+.graph-options summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.graph-options-panel { position: fixed; left: 24px; bottom: 70px; width: min(270px, calc(100vw - 32px)); max-height: calc(100dvh - 170px); overflow-y: auto; padding: 20px; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 8px 28px #0000000d; font-size: 14px; }
+.spacing-label { display: flex; justify-content: space-between; }
+.spacing-label output { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+#graph-spacing { width: 100%; margin: 16px 0 22px; accent-color: var(--ink-soft); }
+#graph-links { display: block; width: 100%; margin: 9px 0 18px; padding: 8px 4px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-size: 14px; }
+.controls #spread-nearby { width: 100%; height: 34px; font-size: 14px; border: 1px solid var(--line); }
+.controls button:disabled { opacity: .4; cursor: default; }
+#graph-layout-hint, #graph-layout-status { font-size: 12px; line-height: 1.5; color: var(--ink-faint); margin: 12px 0 0; }
+#graph-layout-status:empty { display: none; }
+.layout-moving .glabel { opacity: .08; }
+@media (max-width:760px) { .graph-options summary { width:34px; height:34px; } .graph-options-panel { left:16px; bottom:64px; } }

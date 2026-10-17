@@ -48,6 +48,11 @@
       onSelect: node => renderDetail(node),
       onHover: (node, x, y) => renderTooltip(node, x, y)
     });
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('citation-layout-controls') || '{}');
+      graph.spacing = Math.max(.8, Math.min(1.8, Number(saved.spacing) || 1));
+      graph.setLinkMode(saved.links);
+    } catch (_) {}
     window.CG = graph;
     if (window.applyAppearance) window.applyAppearance();
   }
@@ -287,6 +292,7 @@
     syncShareUrl();
     updateNavigation();
     window.CitationPage = { network: CURRENT, ready: true, selectedId };
+    syncLayoutControls();
   }
 
   /* ---------------- share ---------------- */
@@ -430,6 +436,37 @@
     try { saved = JSON.parse(sessionStorage.getItem('citation-filters') || '{}'); } catch (_) {}
     return { showRefs: saved?.showRefs !== false, showCites: saved?.showCites !== false, showLinked: saved?.showLinked !== false };
   }
+  let layoutTimer = null, layoutRequest = 0;
+  function syncLayoutControls() {
+    if (!$('graph-spacing') || !graph) return;
+    $('graph-spacing').disabled = !graph._dataReady;
+    $('graph-spacing').value = String(Math.round(graph.spacing * 100));
+    $('spacing-value').textContent = Math.round(graph.spacing * 100) + '%';
+    $('graph-links').value = graph.linkMode;
+    const canSpread = !!graph.selected && graph._dataReady && (graph.adj[graph.selected]?.size || 0) > 0;
+    $('spread-nearby').disabled = !canSpread;
+    $('graph-layout-hint').textContent = graph.linkMode === 'shared' && graph.selectedIds.size < 2
+      ? 'Select at least two papers to see shared connections.'
+      : graph.linkMode === 'selected' && !graph.selected
+      ? 'Select a paper to see its connections.'
+      : canSpread ? 'Spread the active paper’s neighbors. Dragged papers stay in place.' : 'Select a paper to spread its neighbors.';
+  }
+  function saveLayoutControls() {
+    try { sessionStorage.setItem('citation-layout-controls', JSON.stringify({spacing:graph.spacing,links:graph.linkMode})); } catch (_) {}
+  }
+  async function arrangeGraph(value, centerId = null) {
+    if (!graph) return;
+    const request = ++layoutRequest;
+    $('graph-layout-status').textContent = 'Adjusting spacing…';
+    try {
+      const changed = await graph.arrange(value, centerId);
+      if (request !== layoutRequest) return;
+      if (changed) saveLayoutControls();
+      $('graph-layout-status').textContent = changed ? 'Spacing updated.' : '';
+    } catch (_) {
+      if (request === layoutRequest) $('graph-layout-status').textContent = 'Could not adjust spacing. Please try again.';
+    } finally { if (request === layoutRequest) syncLayoutControls(); }
+  }
   function wireControls() {
     const filters = readFilters();
     for (const [id, key] of [['toggle-ref','showRefs'], ['toggle-cite','showCites'], ['toggle-linked','showLinked']]) {
@@ -446,6 +483,23 @@
     $("zoom-in")?.addEventListener("click", () => graph && graph.zoomBy(1.25, undefined, undefined, true));
     $("zoom-out")?.addEventListener("click", () => graph && graph.zoomBy(0.8, undefined, undefined, true));
     $("zoom-fit")?.addEventListener("click", () => graph && graph.fit(true));
+    $('graph-spacing')?.addEventListener('input', event => {
+      const value = +event.target.value / 100;
+      $('spacing-value').textContent = event.target.value + '%';
+      clearTimeout(layoutTimer);
+      // Cancel obsolete work immediately; only the latest slider value is applied.
+      layoutRequest++; if (graph?._dataReady) graph.cancelLayout();
+      layoutTimer = setTimeout(() => arrangeGraph(value), 160);
+    });
+    $('graph-links')?.addEventListener('change', event => {
+      graph?.setLinkMode(event.target.value); if (graph) saveLayoutControls(); syncLayoutControls();
+    });
+    $('spread-nearby')?.addEventListener('click', () => { clearTimeout(layoutTimer); if (graph?.selected) arrangeGraph(graph.spacing, graph.selected); });
+    $('graph-options')?.addEventListener('toggle', event => {
+      if (event.target.open) window.CitationMotion.animate(document.querySelector('.graph-options-panel'), [{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],150);
+    });
+    document.addEventListener('pointerdown', event => { const panel=$('graph-options'); if (panel?.open && !panel.contains(event.target)) panel.open=false; });
+    document.addEventListener('keydown', event => { const panel=$('graph-options'); if (event.key==='Escape' && panel?.open) { event.preventDefault(); panel.open=false; panel.querySelector('summary').focus(); event.stopImmediatePropagation(); } });
   }
 
   /* ---------------- tooltip ---------------- */
@@ -537,6 +591,7 @@
     graph.selected = selectedId = paperCards[0]?.id || null;
     if (window.CitationPage) window.CitationPage.selectedId = selectedId;
     graph._invalidate();
+    syncLayoutControls();
     const positions = [...detail.children].map(card => {
       card.getAnimations().forEach(animation => animation.cancel());
       return [card, card.getBoundingClientRect()];
@@ -815,7 +870,7 @@
   }
   $('detail-close')?.addEventListener('click', closeDetail);
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && PAGE === 'graph' && detail && !detail.hidden) { event.preventDefault(); closeDetail(); }
+    if (event.key === 'Escape' && PAGE === 'graph' && detail && !detail.hidden && !$('graph-options')?.open) { event.preventDefault(); closeDetail(); }
   });
   const initialDensity = params.get('density') || remembered?.density;
   if (['40','80','120'].includes(String(initialDensity))) citeLimit = +initialDensity;
@@ -832,7 +887,7 @@
       if (graph?.nodes.length && !loading) sessionStorage.setItem('citation-graph-view', JSON.stringify({
         seedId: CURRENT.seedId, density: citeLimit, width: graph.W, height: graph.H,
         scale: graph.scale, tx: graph.tx, ty: graph.ty,
-        positions: graph.nodes.map(n => ({id:n.id,x:n.x,y:n.y})), cards: paperCards.map(p=>p.id)
+        spacing: graph.spacing, positions: graph.nodes.map(n => ({id:n.id,x:n.x+(n._ox||0),y:n.y+(n._oy||0),userPinned:!!n.userPinned})), cards: paperCards.map(p=>p.id)
       }));
       if (PAGE === 'search') sessionStorage.setItem('citation-search-view', JSON.stringify({
         query: $('big-input').value, mode: $('search-mode').value, from: $('search-from').value, to: $('search-to').value,
@@ -840,6 +895,7 @@
         more: !$('search-more').hidden, status: $('search-results').getAttribute('aria-busy') === 'true' ? 'Previous results — press Enter to update.' : $('search-status').textContent
       }));
     } catch (_) {}
+    clearTimeout(layoutTimer); layoutRequest++;
     resumeSearch = PAGE === 'search' && $('search-results').getAttribute('aria-busy') === 'true';
     resumeLoad = loading;
     loadController?.abort(); graph?.cancelLayout(); cancelSearch();
