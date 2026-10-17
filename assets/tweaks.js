@@ -1,7 +1,5 @@
-/* Shared notebook theme and menu; page content belongs to separate documents. */
+/* Shared notebook theme; page content belongs to separate documents. */
 (() => {
-  const menuButton = document.getElementById('menu-toggle');
-  const menu = document.getElementById('notebook-menu');
   const theme = document.getElementById('theme-toggle');
   let dark = false;
   try {
@@ -19,15 +17,6 @@
     theme.setAttribute('aria-pressed', String(dark)); theme.title = dark ? 'Switch to light mode' : 'Switch to dark mode'; theme.setAttribute('aria-label',theme.title);
     if (window.CG) window.CG._invalidate({ paint:true,labels:true });
   }
-  function setOpen(open, restore = false) {
-    menu.inert = !open; menu.setAttribute('aria-hidden',String(!open)); menuButton.setAttribute('aria-expanded',String(open));
-    menuButton.setAttribute('aria-label',open ? 'Close navigation' : 'Open navigation'); menuButton.parentElement.classList.toggle('is-open',open);
-    if (restore) menuButton.focus();
-  }
-  menuButton.addEventListener('click',() => setOpen(menu.inert));
-  document.getElementById('share-btn').addEventListener('click',() => setOpen(false,true));
   theme.addEventListener('click',() => { dark=!dark; apply(); try { localStorage.setItem('citation-theme',dark ? 'dark':'light'); } catch (_) {} });
-  document.addEventListener('click',event => { if (!menu.inert && !menuButton.parentElement.contains(event.target)) setOpen(false); });
-  document.addEventListener('keydown',event => { if (event.key==='Escape' && !menu.inert) setOpen(false,true); });
   window.applyAppearance = apply; apply();
 })();

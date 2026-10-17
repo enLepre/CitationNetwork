@@ -238,7 +238,7 @@
   }
 
   const shareBtn = $("share-btn");
-  shareBtn.addEventListener("click", async () => {
+  shareBtn?.addEventListener("click", async () => {
     if (!CURRENT.seedId) return;
     const url = shareUrl();
     let copied = false;

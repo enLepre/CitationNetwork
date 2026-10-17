@@ -79,7 +79,7 @@ async function idleWrites(page) {
   });
 }
 async function navigate(page, view) {
-  await page.click('#menu-toggle');
+
   await page.click('#notebook-menu [data-view="' + view + '"]');
 }
 
@@ -187,6 +187,8 @@ async function labelStats(page) {
     assert.equal(urls.length, 0, 'Home does not fetch a network, even with a legacy seed query');
     assert.equal(await page.evaluate(() => performance.getEntriesByType('resource').some(r => /layout|graph\.js/.test(r.name))), false);
     assert.equal(await page.locator('.search-intro').count(), 0);
+    assert.equal(await page.locator('.topbar a, #share-btn, #menu-toggle').count(), 0);
+    assert(await page.locator('#theme-toggle').isVisible());
     assert.equal((await page.locator('#big-go').textContent()).trim(), '→');
     const centered = await page.locator('.search-wrap').evaluate(el => { const r=el.getBoundingClientRect();return { x:r.x+r.width/2, y:r.y+r.height/2 }; });
     assert(Math.abs(centered.x - 720) < 12); assert(Math.abs(centered.y - 500) < 60);
@@ -202,6 +204,10 @@ async function labelStats(page) {
     report.checks.push('Home is centered Search only; selecting a result opens a distinct Graph document; progressive layout stays stable');
     assert.equal(await page.locator('main').count(), 1);
     assert.equal(await page.locator('#view-search, #view-list').count(), 0);
+    assert.deepEqual(await page.locator('.topbar a').allTextContents(), ['Search', 'Graph', 'List']);
+    assert.equal(await page.locator('.topbar [aria-current=page]').textContent(), 'Graph');
+    const nav = await page.locator('#notebook-menu').boundingBox();
+    assert(Math.abs(nav.x + nav.width / 2 - 720) < 1);
     const headerPosition = await page.locator('#seed-title').evaluate(el=>({x:el.getBoundingClientRect().x,y:el.getBoundingClientRect().y}));
     assert.equal(await page.locator('#seed-title').textContent(), 'Catalytic pathways and connected research in chemistry');
     const split = await page.evaluate(()=>({left:document.getElementById('graph-info').getBoundingClientRect().width,right:document.querySelector('.graph-viewport').getBoundingClientRect().width,total:innerWidth}));
@@ -223,14 +229,14 @@ async function labelStats(page) {
     await page.click('#toggle-ref');await frames(page);assert.equal(await page.locator('.gnode').evaluateAll(nodes=>nodes.filter(n=>n.style.display!=='none').length),93);
     await page.click('#toggle-ref');await page.selectOption('#density','120');await settled(page);assert.equal(await page.evaluate(()=>CG.nodes.filter(n=>n.role==='cite').length),120);
     report.checks.push('Graph has a two-thirds information column on the left, graph only on the right, clickable papers, readable labels, zoom and filters');
-    await page.click('#menu-toggle');assert.equal(await page.locator('#mini-input, #appearance-toggle').count(),0);
+    assert.equal(await page.locator('#mini-input, #appearance-toggle').count(),0);
     assert.equal((await page.locator('#share-btn').textContent()).trim(),'');assert.equal(await page.locator('#share-btn').getAttribute('aria-label'),'Share graph');
     await page.click('#share-btn');const sharedUrl=await page.evaluate(()=>window.copiedGraphUrl);assert.equal(new URL(sharedUrl).pathname,'/graph.html');assert.equal(new URL(sharedUrl).searchParams.get('density'),'120');
-    await page.click('#menu-toggle');await page.click('#theme-toggle');assert(await page.locator('.theme-sun').isVisible());await page.keyboard.press('Escape');
-    assert(await page.locator('#notebook-menu').evaluate(el=>el.inert));
+    await page.click('#theme-toggle');assert(await page.locator('.theme-sun').isVisible());await page.keyboard.press('Escape');
+    assert(await page.locator('#notebook-menu').isVisible());
     await page.reload();await settled(page);assert.equal(await page.locator('#theme-toggle').getAttribute('aria-pressed'),'true');
-    await page.click('#menu-toggle');await page.click('#theme-toggle');await page.keyboard.press('Escape');
-    await page.emulateMedia({reducedMotion:'reduce'});assert(await page.locator('.site-menu').evaluate(el=>getComputedStyle(el,'::before').transitionDuration==='0s'));await page.emulateMedia({reducedMotion:'no-preference'});
+    await page.click('#theme-toggle');await page.keyboard.press('Escape');
+    await page.emulateMedia({reducedMotion:'reduce'});assert(await page.locator('.notebook-menu').evaluate(el=>getComputedStyle(el,'::before').transitionDuration==='0s'));await page.emulateMedia({reducedMotion:'no-preference'});
     await page.waitForTimeout(250); await page.screenshot({path:path.join(output,'after-details.png')});
     const apiBeforeList=urls.length;await navigate(page,'list');await page.waitForFunction(()=>window.CitationPage?.ready&&!document.getElementById('status-counts').textContent.includes('finding'));
     assert.equal(await page.locator('main').count(),1);assert.equal(await page.locator('#view-search, #view-graph, #graph-canvas').count(),0);
@@ -250,14 +256,14 @@ async function labelStats(page) {
     await page.selectOption('#type-filter','Article');assert.equal(await page.locator('#papers-body tr[data-id]').count(),302);
     const downloadPromise=page.waitForEvent('download');await page.click('#export-bib');assert((await downloadPromise).suggestedFilename().endsWith('.bib'));
     report.checks.push('List loads independently without graph assets; clicking or keyboard-selecting a row opens its summary on the right, with sorting and export preserved');
-    const beforeHome=urls.length;await page.click('#menu-toggle');await page.click('.menu-brand');await page.waitForURL('**/index.html');
+    const beforeHome=urls.length;await page.click('[data-view=search]');await page.waitForURL('**/index.html');
     assert.equal(await page.locator('#view-search').count(),1);assert.equal(urls.length,beforeHome);assert.equal(new URL(page.url()).search,'');assert.equal(await page.evaluate(()=>typeof window.CG),'undefined');
     await page.reload();assert.equal(await page.locator('#view-search').count(),1);assert.equal(urls.length,beforeHome);
     await page.goBack();assert(new URL(page.url()).pathname.endsWith('/list.html'));await page.waitForFunction(()=>window.CitationPage?.ready);
     await navigate(page,'search');await page.setViewportSize({width:390,height:844});await page.waitForTimeout(250);
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));assert(await page.locator('#big-go').evaluate(el=>el.getBoundingClientRect().right<=innerWidth));
     await page.screenshot({path:path.join(output,'after-mobile.png')});
-    await navigate(page,'graph');await settled(page);await page.mouse.move(0,0);await frames(page);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(output,'after-mobile-graph.png')});
+    await page.goto(base+'/graph.html?seed=Wseed&density=120');await settled(page);await page.mouse.move(0,0);await frames(page);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:path.join(output,'after-mobile-graph.png')});
     await navigate(page,'list');await page.waitForFunction(()=>window.CitationPage?.ready);await page.click('#papers-body tr[data-id="Wr0"]');
     assert(await page.locator('#detail').evaluate(el=>el.getBoundingClientRect().right<=innerWidth+1));assert(new URL(page.url()).pathname.endsWith('/list.html'));await page.screenshot({path:path.join(output,'after-mobile-list.png')});await page.click('#detail-close');
     assert.deepEqual(errors,[]);report.checks.push('Home and reload always show Search; browser Back restores List; mobile pages and menu remain usable');await context.close();
