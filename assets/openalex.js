@@ -15,11 +15,89 @@ window.OpenAlex = (function () {
     const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '[]');
     saved.filter(([, e]) => Date.now() - e.time < TTL).forEach(([k, e]) => responseCache.set(k, e));
   } catch (error) { /* Storage may be unavailable or full. */ }
-  function persistCache() {
+  const serializedCache = new Map();
+  let cacheTimer = null, cacheIdle = null;
+  const oversizedCache = new Set();
+  const dirtyCache = new Set();
+  function flushCache() {
+    clearTimeout(cacheTimer); cacheTimer = null;
+    if(cacheIdle != null) { window.cancelIdleCallback?.(cacheIdle); cacheIdle=null; }
+    if (!dirtyCache.size) return;
     try {
-      const small = [...responseCache].filter(([, e]) => JSON.stringify(e).length < 150000).slice(-30);
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(small));
-    } catch (error) { /* The memory cache is still available. */ }
+      for (const key of dirtyCache) {
+        const entry = responseCache.get(key);
+        if (!entry) continue;
+        const value = JSON.stringify([key, entry]);
+        if (value.length < 150000) { serializedCache.set(key, value); oversizedCache.delete(key); }
+        else { serializedCache.delete(key); oversizedCache.add(key); }
+      }
+      dirtyCache.clear();
+      // Bound synchronous fallback storage to 500 KB, including restored entries.
+      let size=0; const small=[];
+      for (const [key,entry] of [...responseCache].reverse()) {
+        if (Date.now()-entry.time >= TTL || oversizedCache.has(key)) continue;
+        let value=serializedCache.get(key);
+        if (!value) { value=JSON.stringify([key,entry]); if(value.length>=150000) { oversizedCache.add(key); continue; } serializedCache.set(key,value); }
+        if (size+value.length > 500000 || small.length>=30) break;
+        size+=value.length; small.push(value);
+      }
+      for(const key of serializedCache.keys()) if(!responseCache.has(key)) serializedCache.delete(key);
+      for(const key of oversizedCache) if(!responseCache.has(key)) oversizedCache.delete(key);
+      sessionStorage.setItem(STORAGE_KEY, '['+small.reverse().join(',')+']');
+    } catch (_) { /* Memory caching remains available when storage is full. */ }
+  }
+  function persistCache(key) {
+    dirtyCache.add(key);
+    if (cacheTimer == null && cacheIdle == null) cacheTimer=setTimeout(()=>{
+      cacheTimer=null;
+      if(window.requestIdleCallback) cacheIdle=window.requestIdleCallback(()=>{cacheIdle=null;flushCache();},{timeout:2000});
+      else flushCache();
+    }, 600);
+  }
+  window.addEventListener?.('pagehide', flushCache);
+
+  // Large assembled networks use asynchronous storage; keep only three recent ones.
+  let database;
+  const memoryNetworks = new Map();
+  function openDatabase() {
+    if (typeof indexedDB === 'undefined') return Promise.resolve(null);
+    if (!database) database=new Promise(resolve=>{
+      let request;
+      try { request=indexedDB.open('citation-workspace-v1',1); } catch (_) { resolve(null); return; }
+      request.onupgradeneeded=()=>request.result.createObjectStore('networks',{keyPath:'key'});
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=request.onblocked=()=>resolve(null);
+    });
+    return database;
+  }
+  async function cachedNetwork(seedId, density) {
+    const key=seedId+':'+density;
+    let entry=memoryNetworks.get(key);
+    if (!entry) {
+      const db=await openDatabase();
+      if (db) entry=await new Promise(resolve=>{
+        try { const request=db.transaction('networks').objectStore('networks').get(key);
+          request.onsuccess=()=>resolve(request.result); request.onerror=()=>resolve(null);
+        } catch (_) { resolve(null); }
+      });
+    }
+    return entry && Date.now()-entry.time<TTL ? entry.network : null;
+  }
+  async function saveNetwork(network, density) {
+    if (network.enrichmentFailed) return;
+    const entry={key:network.seedId+':'+density,time:Date.now(),network};
+    memoryNetworks.set(entry.key,entry);
+    if(memoryNetworks.size>3) memoryNetworks.delete(memoryNetworks.keys().next().value);
+    const db=await openDatabase(); if(!db) return;
+    await new Promise(resolve=>{
+      try {
+        const tx=db.transaction('networks','readwrite'), store=tx.objectStore('networks');
+        store.put(entry);
+        const all=store.getAll();
+        all.onsuccess=()=>all.result.sort((a,b)=>b.time-a.time).forEach((e,i)=>{if(i>=3||Date.now()-e.time>=TTL)store.delete(e.key);});
+        tx.oncomplete=tx.onerror=tx.onabort=()=>resolve();
+      } catch (_) { resolve(); }
+    });
   }
   const abort = signal => { if (signal) signal.throwIfAborted(); };
   const isAbort = error => error.name === 'AbortError';
@@ -122,7 +200,7 @@ window.OpenAlex = (function () {
         abort(signal);
         responseCache.set(url, { data, time: Date.now() });
         if (responseCache.size > 100) responseCache.delete(responseCache.keys().next().value);
-        persistCache();
+        persistCache(url);
         return data;
       }
     })();
@@ -377,5 +455,5 @@ window.OpenAlex = (function () {
     return network(papers, seed, citeRes, refPapers, linkedShown);
   }
 
-  return { search, searchPage, searchAuthors, resolveTop, byId, fetchByIds, abstractFor, citing, sourceImpact, buildNetwork, toPaper };
+  return { cachedNetwork, saveNetwork, flushCache, search, searchPage, searchAuthors, resolveTop, byId, fetchByIds, abstractFor, citing, sourceImpact, buildNetwork, toPaper };
 })();

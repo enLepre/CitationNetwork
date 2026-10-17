@@ -77,6 +77,9 @@
       { transform: 'translate(0,0)' }
     ], 280));
   }
+  const resultVisibility = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver(entries => {
+    for (const entry of entries) entry.target._inViewport=entry.isIntersecting;
+  }, {root:$('view-search'),rootMargin:'120px'}) : null;
   function renderSearchRows(rows, authors, protect = true) {
     const box = $('search-results');
     const existing = new Map([...box.children].map(el => [el.dataset.id, el]));
@@ -86,14 +89,14 @@
       box._pendingRows = { rows, authors };
       rows = [...existing.values()].map(el => el._paper).concat(rows.filter(p => !existing.has(p.id)));
     } else box._pendingRows = null;
-    const old = new Map([...existing].map(([id, el]) => [id, el.getBoundingClientRect().top]));
+    const old = new Map([...existing].filter(([,el])=>el._inViewport!==false).map(([id, el]) => [id, el.getBoundingClientRect().top]));
     const keep = new Set(rows.map(p => p.id));
-    for (const [id, el] of existing) if (!keep.has(id)) el.remove();
+    for (const [id, el] of existing) if (!keep.has(id)) { resultVisibility?.unobserve(el); el.remove(); }
     rows.forEach((p, index) => {
       let button = existing.get(p.id);
       const fresh = !button;
       if (!button) {
-        button = document.createElement('button'); button.type = 'button'; button.className = 'presult'; button.dataset.id = p.id;
+        button = document.createElement('button'); button._inViewport=index<15; resultVisibility?.observe(button); button.type = 'button'; button.className = 'presult'; button.dataset.id = p.id;
         button.addEventListener('click', () => {
           if (button._author) { selectedAuthor = button._paper; doSearch(); }
           else { cancelSearch(); loadSeed(button._paper); }
@@ -109,7 +112,7 @@
       button._fresh = fresh;
     });
     // Read layout once after all writes; animate only visible changed rows.
-    const positions = [...box.children].map(el => [el, el.getBoundingClientRect()]);
+    const positions = [...box.children].filter(el=>el._inViewport!==false).map(el => [el, el.getBoundingClientRect()]);
     for (const [el, rect] of positions) {
       const delta = old.has(el.dataset.id) ? old.get(el.dataset.id) - rect.top : 6;
       if (rect.bottom < 0 || rect.top > innerHeight || (!el._fresh && Math.abs(delta) < .5)) continue;
@@ -124,7 +127,7 @@
     box._pendingRows = null;
     more.hidden = true; $('search-retry').hidden = true; box.setAttribute('aria-busy', 'false');
     if (!term) {
-      searchRows = []; selectedAuthor = null; box.replaceChildren(); status.textContent = '';
+      searchRows = []; selectedAuthor = null; resultVisibility?.disconnect(); box.replaceChildren(); status.textContent = '';
       $('author-back').hidden = true; $('search-source').hidden = true;
       box._pendingRows = null; return;
     }
@@ -194,7 +197,7 @@
 
   // One owner for every load, including examples, retries, density and shared URLs.
   // Cancel network requests and worker jobs as soon as the user chooses a new seed.
-  async function startLoad(resolveSeed, title) {
+  async function startLoad(resolveSeed, title, cacheId = null) {
     if (loadController) loadController.abort();
     loadController = new AbortController();
     const signal = loadController.signal, seq = ++netSeq;
@@ -203,6 +206,14 @@
     setLoader('loading', title, 'Fetching paper details from OpenAlex');
     let directShown = false;
     try {
+      const cached = cacheId ? await OpenAlex.cachedNetwork(cacheId, citeLimit) : null;
+      if (signal.aborted || seq !== netSeq) return;
+      if (cached) {
+        lastSeed=cached.papers.find(p=>p.id===cached.seedId);
+        await applyNetwork(cached,{seq,signal});
+        if(signal.aborted || seq!==netSeq) return;
+        hideLoader(); return;
+      }
       const seed = await resolveSeed({ signal });
       if (signal.aborted || seq !== netSeq) return;
       if (!seed) throw new Error('That paper could not be found on OpenAlex.');
@@ -222,6 +233,8 @@
       if (signal.aborted || seq !== netSeq) return;
       if (net.linkedShown) await applyNetwork(net, { seq, signal, preserve: true });
       if (signal.aborted || seq !== netSeq) return;
+      await OpenAlex.saveNetwork(net, citeLimit);
+      if (signal.aborted || seq !== netSeq) return;
       updateStatus(net);
       if (net.enrichmentFailed) $('status-counts').textContent += ' · co-cited papers unavailable';
       hideLoader();
@@ -237,7 +250,7 @@
     if (density && ['40', '80', '120'].includes(String(density))) {
       citeLimit = +density; if ($('density')) $('density').value = String(citeLimit);
     }
-    return startLoad(options => OpenAlex.byId(id, options), 'Opening shared graph…');
+    return startLoad(options => OpenAlex.byId(id, options), 'Opening shared graph…', id);
   }
   function updateStatus(net) {
     $('status-counts').textContent = net.refShown + ' references · top ' + net.citingShown + ' of ' + fmt(net.citingTotal) + ' citing'
@@ -262,7 +275,7 @@
 
     // Journal impact factor loads in the background — it only refines node
     // sizes, so we never block the first paint on it. Patch sizes in when it arrives.
-    OpenAlex.sourceImpact(net.papers.map(p => p.sourceId), { signal }).then(ifIdx => {
+    if (graph) OpenAlex.sourceImpact(net.papers.map(p => p.sourceId), { signal }).then(ifIdx => {
       if (seq !== netSeq) return; // a newer graph loaded; drop this
       const ifByNode = {};
       net.papers.forEach(p => { p.journalIF = ifIdx[p.sourceId] || 0; ifByNode[p.id] = p.journalIF; });
@@ -722,25 +735,40 @@
     const rows = CURRENT.papers.slice()
       .filter(p => !typeFilter || p.type === typeFilter)
       .sort((a, b) => base(a, b) * dir);
-    tb.innerHTML = rows.map(p => {
+    const existingRows = new Map([...tb.querySelectorAll('tr[data-id]')].map(row=>[row.dataset.id,row]));
+    tb.querySelectorAll('tr:not([data-id])').forEach(row=>row.remove());
+    const keep = new Set(rows.map(p=>p.id));
+    for(const [id,row] of existingRows) if(!keep.has(id)) row.remove();
+    rows.forEach((p,index) => {
       const nb = CURRENT.neighbors[p.id] || [];
       const refs = nb.filter(n => n.dir === "cites").length;
       const cited = nb.filter(n => n.dir === "citedby").length;
-      return `<tr data-id="${p.id}" tabindex="0" aria-label="Open summary: ${esc(p.title)}">
+      const html = `<tr data-id="${p.id}" tabindex="0" aria-label="Open summary: ${esc(p.title)}">
         <td><div class="pt">${esc(p.title)}</div><div class="pa">${esc(p.authors)}</div></td>
         <td><span class="rolepill ${p.role}">${roleLabel[p.role]}</span></td>
         <td class="venue mono" style="font-size:11.5px;color:var(--ink-soft)">${esc(p.venue)}</td>
         <td class="num"><span class="mono">${p.year}</span></td>
         <td class="num"><span class="mono">${fmt(p.cites)}</span></td>
         <td class="num"><span class="mono" style="color:var(--ink-soft)">${refs}↓ ${cited}↑</span></td>
-      </tr>`;
-    }).join("");
-    if (!rows.length) tb.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--ink-faint);font-family:var(--mono);font-size:13px">No papers of this type in the graph.</td></tr>`;
-    tb.querySelectorAll('tr[data-id]').forEach(tr => {
-      const select = () => { renderDetail(CURRENT.byId[tr.dataset.id]); tb.querySelectorAll('tr').forEach(row => row.classList.toggle('selected', row === tr)); };
-      tr.addEventListener('click', select);
-      tr.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(); } });
+      </tr>`.replace(/(<td\b[^>]*>)/g, '$1<div class="list-cell">').replace(/<\/td>/g, '</div></td>');
+      let row=existingRows.get(p.id);
+      if(!row) { const template=document.createElement('template'); template.innerHTML=html; row=template.content.firstElementChild; row._html=html; }
+      else if(row._html!==html) { const template=document.createElement('template'); template.innerHTML=html; row.replaceChildren(...template.content.firstElementChild.childNodes); row._html=html; }
+      row.classList.toggle('selected',p.id===selectedId);
+      if(tb.children[index]!==row) tb.insertBefore(row,tb.children[index]||null);
     });
+    if (!rows.length) tb.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--ink-faint);font-family:var(--mono);font-size:13px">No papers of this type in the graph.</td></tr>`;
+    if(!tb._wired) {
+      tb._wired=true;
+      const select = event => {
+        if(event.type==='keydown' && event.key!=='Enter' && event.key!==' ') return;
+        const row=event.target.closest('tr[data-id]'); if(!row) return;
+        if(event.type==='keydown') event.preventDefault();
+        renderDetail(CURRENT.byId[row.dataset.id]);
+        tb.querySelectorAll('tr.selected').forEach(el=>el.classList.remove('selected')); row.classList.add('selected');
+      };
+      tb.addEventListener('click',select); tb.addEventListener('keydown',select);
+    }
     document.querySelectorAll(".list-sort button").forEach(b => {
       const active = b.dataset.sort === sortKey;
       b.classList.toggle("active", active);

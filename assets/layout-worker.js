@@ -1,5 +1,5 @@
 /* d3-force is bundled locally: no CDN dependency at runtime. */
-importScripts('layout.js?v=fluid-11');
+importScripts('layout.js?v=performance-12');
 self.onmessage = async ({ data }) => {
   // Workers are cancelled by termination; only the main-thread fallback yields.
   try { self.postMessage({ positions: await CitationLayout.layout(data, () => false, false) }); }

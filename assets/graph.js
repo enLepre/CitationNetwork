@@ -12,7 +12,7 @@
     if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
     return n;
   };
-  const workerUrl = new URL("layout-worker.js?v=fluid-11", document.currentScript.src);
+  const workerUrl = new URL("layout-worker.js?v=performance-12", document.currentScript.src);
 
   class CitationGraph {
     constructor(svg, opts) {
@@ -77,6 +77,7 @@
       const selected = preserve ? this.selected : null;
       this.cancelLayout();
       const seq = this._layoutSeq;
+      const reuse = preserve && this.seedId === seedId;
       this.seedId = seedId;
       this._endPointer(null, true);
       this.hovered = null; this.dragNode = null;
@@ -88,8 +89,10 @@
         if (e.t === seedId) role[e.s] = role[e.s] || "cite";
       });
 
-      // wipe DOM
-      this.edgeLayer.textContent = ""; this.hitLayer.textContent = ''; this.nodeLayer.textContent = "";
+      // Preserve existing SVG objects when optional neighbors arrive.
+      const oldNodes = reuse ? this.nodeById : {};
+      const oldEdges = new Map(reuse ? this.edges.map(e => [e.s+'>'+e.t, e]) : []);
+      if (!reuse) { this.edgeLayer.textContent = ''; this.hitLayer.textContent = ''; this.nodeLayer.textContent = ''; }
 
       // count in-graph cross-citations (how many graph papers cite each paper)
       // — this drives node size, so hubs stand out strongly from leaves.
@@ -106,14 +109,15 @@
         const ch = citedHere[p.id] || 0;
         const rr = this._radius(r, ch, p.journalIF) * this._nodeScale;
         const old = previous[p.id];
-        return {
+        return Object.assign(oldNodes[p.id] || {}, {
           ...p, role: r, citedHere: ch,
           x: old ? old.x : cx + Math.cos(ang) * rad,
           y: old ? old.y : cy + Math.sin(ang) * rad,
           fixed: !!old || p.id === seedId, userPinned: !!old?.userPinned,
           vx: 0, vy: 0, baseR: rr / this._nodeScale, rad: rr
-        };
+        });
       });
+      for (const [id,n] of Object.entries(oldNodes)) if (!pset.has(id)) { n.gEl.remove(); n.hitEl.remove(); }
       this.nodeById = {};
       this.nodes.forEach(n => (this.nodeById[n.id] = n));
 
@@ -124,10 +128,14 @@
         let kind = "cross";
         if (e.s === seedId) kind = "ref";
         else if (e.t === seedId) kind = "cite";
+        const cached = oldEdges.get(e.s+'>'+e.t);
+        if (cached) { oldEdges.delete(e.s+'>'+e.t); cached.kind=kind; return cached; }
         const path = el("path", { class: "gedge", fill: "none" });
         this.edgeLayer.appendChild(path);
         return { s: e.s, t: e.t, kind, path };
       });
+
+      for (const edge of oldEdges.values()) edge.path.remove();
 
       // Degree = number of links. Flag the three most-linked papers (excluding
       // the seed, which is always labelled) so their titles stay visible even
@@ -142,6 +150,7 @@
 
       // build node groups
       this.nodes.forEach(n => {
+        if (n.gEl) { n.cEl.setAttribute('r',n.rad); return; }
         const g = el("g", { class: "gnode", "data-id": n.id, 'data-paper-id': n.id });
         n.hitEl = el('circle', { class: 'node-hit-target', 'data-paper-id': n.id,
           fill: 'transparent', 'pointer-events': 'all', 'aria-hidden': 'true' });
@@ -198,14 +207,15 @@
         edges: this.edges.map(({ s, t }) => ({ s, t })),
         ...overrides
       };
+      if (input.nodes.every(n => n.fx != null && n.fy != null)) return input.nodes.map(({id,fx,fy}) => ({id,x:fx,y:fy}));
       if (typeof Worker !== 'undefined') {
         try {
           return await new Promise((resolve, reject) => {
-            const worker = new Worker(workerUrl);
-            const finish = () => { worker.terminate(); this._cancelWorker = null; };
-            this._cancelWorker = () => { finish(); resolve(null); };
+            const worker = this._worker || (this._worker = new Worker(workerUrl));
+            const finish = () => { worker.onmessage = worker.onerror = null; this._cancelWorker = null; };
+            this._cancelWorker = () => { finish(); worker.terminate(); this._worker = null; resolve(null); };
             worker.onmessage = ({ data }) => { finish(); data.error ? reject(new Error(data.error)) : resolve(data.positions); };
-            worker.onerror = e => { e.preventDefault(); finish(); reject(new Error('Worker unavailable')); };
+            worker.onerror = e => { e.preventDefault(); finish(); worker.terminate(); this._worker=null; reject(new Error('Worker unavailable')); };
             worker.postMessage(input);
           });
         } catch (error) { /* CSP or file URLs may block workers; yield between fallback batches. */ }
@@ -613,7 +623,7 @@
         const dirty = this._dirty; this._dirty = {};
         if (dirty.transform) this.vp.setAttribute('transform', 'translate(' + this.tx + ' ' + this.ty + ') scale(' + this.scale + ')');
         if (dirty.paint) this._paint();
-        if (dirty.positions || motion) { this._renderPositions(!dirty.positions); this._renderScale = this.scale; }
+        if (dirty.positions || motion || this._dirty.positions) { this._renderPositions(!dirty.positions); this._renderScale = this.scale; this._dirty.positions = false; }
         if (dirty.labels || (motion && !this._motionActive && !this._relocation)) this._layoutLabels();
         if (this._motionActive && !dirty.paint && !dirty.positions && performance.now() - started > 12) {
           // Protect slower devices: finish this decorative effect instead of
@@ -635,7 +645,8 @@
           n.hitEl.setAttribute('transform', `translate(${x} ${y})`);
           n._drawX = x; n._drawY = y;
         }
-        if (motionOnly) return;
+        if (n._styleScale === this.scale && n._styleRadius === n.rad) return;
+        n._styleScale = this.scale; n._styleRadius = n.rad;
         n.hitEl.setAttribute('r', Math.max(n.rad, 10 * inv));
         // counter-scale stroke + label so they stay constant in screen px
         n.cEl.setAttribute("stroke-width", 1.5 * inv);
@@ -651,12 +662,12 @@
         }
       });
       this.edges.forEach(e => {
-        if (e.path.style.display === "none") return;
+        if (e.path.style.display === "none" || (e._filtered && performance.now() >= e._fadeUntil)) return;
         const a = this.nodeById[e.s], b = this.nodeById[e.t];
         const ax = a.x + (a._ox || 0), ay = a.y + (a._oy || 0);
         const bx = b.x + (b._ox || 0), by = b.y + (b._oy || 0);
         if (e._ax === ax && e._ay === ay && e._bx === bx && e._by === by) {
-          if (!motionOnly) e.path.setAttribute('stroke-width', (e._shared ? 2.6 : e._lit ? 1.3 : .8) / this.scale);
+          if (e._styleScale !== this.scale) { e.path.setAttribute('stroke-width', (e._shared ? 2.6 : e._lit ? 1.3 : .8) / this.scale); e._styleScale=this.scale; }
           return;
         }
         e._ax = ax; e._ay = ay; e._bx = bx; e._by = by;
@@ -666,7 +677,7 @@
         const bow = Math.min(30, len * 0.08);
         const nx = -dy / len, ny = dx / len;
         e.path.setAttribute("d", `M${ax} ${ay}Q${mx + nx * bow} ${my + ny * bow} ${bx} ${by}`);
-        if (!motionOnly) e.path.setAttribute("stroke-width", (e._shared ? 2.6 : e._lit ? 1.3 : 0.8) / this.scale);
+        if (e._styleScale !== this.scale) { e.path.setAttribute("stroke-width", (e._shared ? 2.6 : e._lit ? 1.3 : 0.8) / this.scale); e._styleScale=this.scale; }
       });
     }
 
@@ -729,6 +740,10 @@
         e.path.setAttribute("stroke", e._shared ? pal.ink : col);
         e.path.setAttribute("stroke-width", (e._shared ? 2.6 : e._lit ? 1.3 : 0.8) / this.scale);
         const base = e._shared ? 1 : focus ? (lit ? 0.8 : 0.04) : (e.kind === "cross" ? 0.20 : 0.32);
+        if (!modeVisible && !e._filtered) e._fadeUntil = performance.now() + (this._reducedMotion.matches ? 0 : 180);
+        const revealing = modeVisible && e._filtered;
+        e._filtered = !modeVisible;
+        if (revealing) this._dirty.positions = true;
         e.path.style.opacity = modeVisible ? base * this.linkOpacity : 0;
       });
     }

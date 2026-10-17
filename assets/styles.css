@@ -384,3 +384,8 @@ body.has-search .bigsearch { margin-top: 28px; }
 #graph-layout-status:empty { display: none; }
 .layout-moving .glabel { opacity: .08; }
 @media (max-width:760px) { .graph-options summary { width:34px; height:34px; } .graph-options-panel { left:16px; bottom:64px; } }
+
+/* Keep long result collections accessible while skipping offscreen layout/paint. */
+.presult { content-visibility: auto; contain-intrinsic-size: auto 104px; }
+#papers-body .list-cell { content-visibility: auto; contain-intrinsic-size: auto 22px; }
+#papers-body td:first-child .list-cell { contain-intrinsic-size: auto 64px; }

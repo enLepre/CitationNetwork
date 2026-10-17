@@ -35,6 +35,7 @@ test('reference records and repeated queries use caches, including across reload
   const api = client(fetch, saved);
   await api.fetchByIds(['W1', 'W2']); await api.fetchByIds(['W2']);
   assert.equal(calls, 1);
+  api.flushCache(); // pagehide flushes batched writes before a document switch.
   await client(fetch, saved).fetchByIds(['W1', 'W2']);
   assert.equal(calls, 1);
 });
@@ -132,4 +133,15 @@ test('DOI lookup stays exact, handles missing records, and does not hide network
   assert.equal((await api.search('https://doi.org/10.1000/test'))[0].id,'W1');assert.equal(calls,1);
   const missing=client(async()=>({ok:false,status:404}));assert.equal((await missing.search('10.1000/missing')).length,0);
   const broken=client(async()=>{throw new Error('offline');});await assert.rejects(broken.search('10.1000/missing'),/offline/);
+});
+
+
+test('response cache batches writes and limits the saved payload', async () => {
+  let writes=0; const values=new Map();
+  const saved={get:k=>values.get(k),set:(k,v)=>{writes++;values.set(k,v);}};
+  const api=client(async url=>ok({...raw(url.includes('W2')?'W2':'W1'),display_name:'x'.repeat(100000)}),saved);
+  await api.byId('W1'); await api.byId('W2');
+  assert.equal(writes,0,'successful responses do not synchronously write storage');
+  api.flushCache(); assert.equal(writes,1);api.flushCache();assert.equal(writes,1);
+  assert([...values.values()].every(v=>v.length<500100));
 });
