@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f5f2ec">
 <title>Graph — Citation Network</title>
 <script blocking="render" src="assets/navigation.js?v=search-14"></script>
-<link rel="stylesheet" href="assets/styles.css?v=plum-18">
+<link rel="stylesheet" href="assets/styles.css?v=center-19">
 
 </head>
 <body data-page="graph">
@@ -61,7 +61,7 @@
             <label for="graph-links">Connections</label>
             <select id="graph-links"><option value="all">All connections</option><option value="selected">Selected papers</option><option value="shared">Shared connections</option></select>
             <button id="spread-nearby" type="button" disabled>Spread nearby</button>
-            <p id="graph-layout-hint">Select a paper to spread its neighbors.</p>
+            <button id="recenter-selected" type="button" disabled>Re-center graph</button>
             <p id="graph-layout-status" role="status" aria-live="polite"></p>
           </div>
         </details>
@@ -78,6 +78,6 @@
 <script src="assets/graph.js?v=search-14" defer></script>
 <script src="assets/openalex.js?v=search-14" defer></script>
 <script src="assets/tweaks.js?v=plum-18" defer></script>
-<script src="assets/app.js?v=roles-16" defer></script>
+<script src="assets/app.js?v=center-19" defer></script>
 </body>
 </html>

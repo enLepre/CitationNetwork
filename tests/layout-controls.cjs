@@ -105,6 +105,8 @@ async function labelStats(page) {
     assert.equal(await page.locator('.graph-options-panel').isVisible(),false);
     await page.click('#graph-options summary');
     assert(await page.locator('#spread-nearby').isDisabled());
+    assert(await page.locator('#recenter-selected').isDisabled());
+    assert.equal(await page.locator('#graph-layout-hint').count(),0);
     const baseline=await page.evaluate(()=>{
       CG.nodeById.Wr1.userPinned=true;
       const center=CG.nodeById[CG.seedId];
@@ -153,6 +155,14 @@ async function labelStats(page) {
     await page.waitForTimeout(200);await page.waitForFunction(()=>CG.spacing===1.2&&!CG._cancelWorker);assert.equal(await page.evaluate(()=>!!CG._relocation),false);
     await page.evaluate(async()=>{const a=CG.arrange(1.8);const b=CG.arrange(.9);await Promise.all([a,b]);});assert.equal(await page.evaluate(()=>CG.spacing),.9,'latest spacing request wins');
     assert.equal(await idleWrites(page),0);assert.deepEqual(errors,[]);
+    await page.evaluate(()=>{CG.select('Wr2');CG.select('Wr3');});
+    await page.click('#recenter-selected');
+    await page.waitForFunction(()=>CG.seedId==='Wr3'&&CitationPage.ready&&document.getElementById('loader').hidden);
+    await settled(page);
+    assert.equal(await page.evaluate(()=>CG.seedId),'Wr3','re-center uses the newest selected paper');
+    assert.equal(new URL(page.url()).searchParams.get('seed'),'Wr3');
+    assert.equal(await page.locator('.paper-card').count(),0);
+    assert.deepEqual(errors,[]);
     console.log(JSON.stringify({checks:'spacing, fixed papers, local spreading, link modes, rapid input, persistence, mobile and reduced motion passed',averageRadiusBefore:baseline.radius,averageRadiusAfter:expanded.radius}));
   }finally{await browser.close();server.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;server.close();});

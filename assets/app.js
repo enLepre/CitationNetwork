@@ -461,11 +461,7 @@
     $('graph-links').value = graph.linkMode;
     const canSpread = !!graph.selected && graph._dataReady && (graph.adj[graph.selected]?.size || 0) > 0;
     $('spread-nearby').disabled = !canSpread;
-    $('graph-layout-hint').textContent = graph.linkMode === 'shared' && graph.selectedIds.size < 2
-      ? 'Select at least two papers to see shared connections.'
-      : graph.linkMode === 'selected' && !graph.selected
-      ? 'Select a paper to see its connections.'
-      : canSpread ? 'Spread the active paper’s neighbors. Dragged papers stay in place.' : 'Select a paper to spread its neighbors.';
+    $('recenter-selected').disabled = !graph._dataReady || !graph.selected || graph.selected === graph.seedId;
   }
   function saveLayoutControls() {
     try { sessionStorage.setItem('citation-layout-controls', JSON.stringify({spacing:graph.spacing,bondStrength:graph.bondStrength,links:graph.linkMode})); } catch (_) {}
@@ -519,6 +515,14 @@
       graph?.setLinkMode(event.target.value); if (graph) saveLayoutControls(); syncLayoutControls();
     });
     $('spread-nearby')?.addEventListener('click', () => { clearTimeout(layoutTimer); if (graph?.selected) arrangeGraph(graph.spacing, graph.selected); });
+    $('recenter-selected')?.addEventListener('click', () => {
+      const id=graph?.selected;
+      if (!id || id===graph.seedId || !graph._dataReady) return;
+      clearTimeout(layoutTimer); layoutRequest++;
+      $('graph-options').open=false;
+      $('recenter-selected').disabled=true;
+      loadSeedById(id,citeLimit);
+    });
     $('graph-options')?.addEventListener('toggle', event => {
       if (event.target.open) window.CitationMotion.animate(document.querySelector('.graph-options-panel'), [{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],150);
     });
