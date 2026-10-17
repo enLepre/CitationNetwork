@@ -9,7 +9,7 @@
     } catch (_) {}
   }
   restore();
-  const order = { 'index.html': 0, '': 0, 'graph.html': 1, 'list.html': 2 };
+  const order = { 'index.html': 0, '': 0, 'paper.html': 1, 'graph.html': 2, 'list.html': 3 };
   function direction(from, to) {
     if (!from || !to) return null;
     const a = new URL(from), b = new URL(to);

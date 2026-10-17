@@ -5,8 +5,8 @@
 <meta name="description" content="Explore the references, citing papers and shared foundations around a paper.">
 <meta name="theme-color" content="#f5f2ec">
 <title>Graph — Citation Network</title>
-<script blocking="render" src="assets/navigation.js?v=workspace-3"></script>
-<link rel="stylesheet" href="assets/styles.css?v=workspace-3">
+<script blocking="render" src="assets/navigation.js?v=paper-4"></script>
+<link rel="stylesheet" href="assets/styles.css?v=paper-4">
 
 </head>
 <body data-page="graph">
@@ -14,6 +14,7 @@
 <header class="topbar">
 <nav id="notebook-menu" class="notebook-menu" aria-label="Citation Network navigation">
 <a class="menu-view" data-view="search" href="index.html">Search</a>
+<a class="menu-view" data-view="paper" href="paper.html">Paper</a>
 <a class="menu-view active" aria-current="page" data-view="graph" href="graph.html">Graph</a>
 <a class="menu-view" data-view="list" href="list.html">List</a>
 <button id="theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode" aria-pressed="false">
@@ -26,29 +27,7 @@
 </nav>
 </header>
 <div class="workspace-content">
-<h1 class="page-paper-title" id="seed-title" aria-live="polite"></h1>
-<main class="view" id="view-graph"><div class="graph-info" id="graph-info"><div class="filterbar">
-        <label class="density">
-          <span>Density</span>
-          <select id="density">
-            <option value="40">40 citing</option>
-            <option value="80" selected="">80 citing</option>
-            <option value="120">120 citing</option>
-          </select>
-        </label>
-        <button class="chiptoggle" id="toggle-ref" aria-pressed="true"><span class="swatch ref"></span>References</button>
-        <button class="chiptoggle" id="toggle-cite" aria-pressed="true"><span class="swatch cite"></span>Citing</button>
-        <button class="chiptoggle" id="toggle-linked" aria-pressed="true"><span class="swatch linked"></span>Co-cited</button>
-      </div><div class="statusbar">
-        <span class="k"><span class="swatch seed"></span>Seed</span>
-        <span class="k"><span class="swatch ref"></span>References</span>
-        <span class="k"><span class="swatch cite"></span>Citing</span>
-        <span class="k"><span class="swatch linked"></span>Co-cited</span>
-        <span class="div"></span>
-        <span id="status-counts">drag · scroll to zoom · click a node</span>
-        <span class="div"></span>
-        <span class="src">OpenAlex</span>
-      </div><div class="stage-overlay" id="loader" hidden="">
+<main class="view" id="view-graph" aria-label="Citation graph"><div class="graph-viewport"><div class="stage-overlay" id="loader" hidden="">
         <div class="loader-box">
           <div class="spinner" id="loader-spin"></div>
           <div class="loader-title" id="loader-title">Building citation graph…</div>
@@ -58,32 +37,13 @@
             <button class="btn" id="loader-sample">Explore sample graph</button>
           </div>
         </div>
-      </div><aside class="detail closed" id="detail" aria-label="Paper summary">
-      <div class="detail-head">
-        <span class="role seed">Seed paper</span>
-        <button class="x" id="detail-close" title="Close">✕</button>
-      </div>
-      <div class="detail-body">
-        <h3 id="d-title"></h3>
-        <div class="authors" id="d-authors"></div>
-        <div class="venue" id="d-venue"></div>
-        <a id="d-link" class="d-link" href="#" target="_blank" rel="noopener noreferrer">
-          View at publisher
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-        </a>
-        <div class="stats">
-          <div class="stat"><div class="v" id="d-cites">—</div><div class="l">Citations</div></div>
-          <div class="stat"><div class="v" id="d-refs">—</div><div class="l">References</div></div>
-          <div class="stat"><div class="v" id="d-citedhere">—</div><div class="l">Cited here</div></div>
-        </div>
-        <span class="lbl">Abstract</span>
-        <p class="abstract" id="d-abstract"></p>
-        <div id="d-conns" class="connlist"></div>
-      </div>
-      <div class="detail-foot">
-        <button class="btn" id="d-recenter">Re-center graph</button>
-      </div>
-    </aside></div><div class="graph-viewport"><svg id="graph-canvas" xmlns="http://www.w3.org/2000/svg" aria-label="Connected papers"></svg><div class="controls">
+      </div><span id="status-counts" hidden aria-live="polite"></span><aside class="node-popup" id="detail" role="dialog" aria-labelledby="d-title" hidden>
+  <button class="popup-close" id="detail-close" type="button" aria-label="Close paper information" title="Close">×</button>
+  <h2 id="d-title"></h2>
+  <p id="d-authors"></p>
+  <p class="popup-meta"><span id="d-year"></span><span id="d-venue"></span></p>
+  <a id="d-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+</aside><svg id="graph-canvas" xmlns="http://www.w3.org/2000/svg" aria-label="Connected papers"></svg><div class="controls">
         <div class="group">
           <button id="zoom-in" title="Zoom in">+</button>
           <button id="zoom-out" title="Zoom out">−</button>
@@ -99,11 +59,11 @@
   <span class="tmsg"></span>
   <input class="tsub" id="toast-url" readonly="" hidden="">
 </div>
-<script src="assets/layout.js?v=workspace-3" defer></script>
-<script src="assets/sample.js?v=workspace-3" defer></script>
-<script src="assets/graph.js?v=workspace-3" defer></script>
-<script src="assets/openalex.js?v=workspace-3" defer></script>
-<script src="assets/tweaks.js?v=workspace-3" defer></script>
-<script src="assets/app.js?v=workspace-3" defer></script>
+<script src="assets/layout.js?v=paper-4" defer></script>
+<script src="assets/sample.js?v=paper-4" defer></script>
+<script src="assets/graph.js?v=paper-4" defer></script>
+<script src="assets/openalex.js?v=paper-4" defer></script>
+<script src="assets/tweaks.js?v=paper-4" defer></script>
+<script src="assets/app.js?v=paper-4" defer></script>
 </body>
 </html>

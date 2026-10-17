@@ -45,7 +45,7 @@
   function ensureGraph() {
     if (graph) return;
     graph = new CitationGraph($("graph-canvas"), {
-      onSelect: node => renderDetail(node || CURRENT.byId[CURRENT.seedId]),
+      onSelect: node => renderDetail(node),
       onHover: (node, x, y) => renderTooltip(node, x, y)
     });
     window.CG = graph;
@@ -165,7 +165,7 @@
     } finally { if (seq === netSeq) loading = false; }
   }
 
-  function loadSeed(seed) { if (PAGE !== 'graph') { location.assign(pageUrl('graph', seed.id)); return; } return startLoad(() => Promise.resolve(seed), 'Building citation graph…'); }
+  function loadSeed(seed) { if (PAGE !== 'graph' && PAGE !== 'paper') { location.assign(pageUrl('graph', seed.id)); return; } return startLoad(() => Promise.resolve(seed), 'Building citation graph…'); }
   function loadSeedById(id, density) {
     if (density && ['40', '80', '120'].includes(String(density))) {
       citeLimit = +density; if ($('density')) $('density').value = String(citeLimit);
@@ -199,13 +199,19 @@
     }).catch(() => {});
 
     const seed = CURRENT.byId[net.seedId];
-    $("seed-title").textContent = seed.title;
-    document.title = seed.title + (PAGE === "graph" ? " — Graph" : " — List");
+    if ($("seed-title")) $("seed-title").textContent = seed.title;
+    document.title = seed.title + ({ graph: " — Graph", paper: " — Paper", list: " — List" }[PAGE]);
     $("status-counts").textContent =
       `${net.refShown} references · top ${net.citingShown} of ${fmt(net.citingTotal)} citing` +
       (net.linkedShown ? ` · ${net.linkedShown} co-cited` : "");
     if (!preserve && graph) graph.select(null);
     if (PAGE === "list") renderList();
+    if (PAGE === "paper") {
+      let selection;
+      try { selection = JSON.parse(sessionStorage.getItem('citation-selected') || 'null'); } catch (_) {}
+      renderDetail(CURRENT.byId[selectedId] || (selection?.seedId === net.seedId && CURRENT.byId[selection.paperId]) || seed);
+    }
+    if (graph) graph.setFilter(readFilters());
     syncShareUrl();
     updateNavigation();
     window.CitationPage = { network: CURRENT, ready: true, selectedId };
@@ -297,31 +303,34 @@
   }
 
   /* ---------------- graph controls ---------------- */
+  function readFilters() {
+    let saved;
+    try { saved = JSON.parse(sessionStorage.getItem('citation-filters') || '{}'); } catch (_) {}
+    return { showRefs: saved?.showRefs !== false, showCites: saved?.showCites !== false, showLinked: saved?.showLinked !== false };
+  }
   function wireControls() {
-    if (PAGE !== "graph") return;
-    const tRef = $("toggle-ref"), tCite = $("toggle-cite"), tLinked = $("toggle-linked");
-    tRef.addEventListener("click", () => {
-      const on = tRef.getAttribute("aria-pressed") === "true";
-      tRef.setAttribute("aria-pressed", String(!on)); ensureGraph(); graph.setFilter({ showRefs: !on });
-    });
-    tCite.addEventListener("click", () => {
-      const on = tCite.getAttribute("aria-pressed") === "true";
-      tCite.setAttribute("aria-pressed", String(!on)); ensureGraph(); graph.setFilter({ showCites: !on });
-    });
-    tLinked.addEventListener("click", () => {
-      const on = tLinked.getAttribute("aria-pressed") === "true";
-      tLinked.setAttribute("aria-pressed", String(!on)); ensureGraph(); graph.setFilter({ showLinked: !on });
-    });
-    $("zoom-in").addEventListener("click", () => graph && graph.zoomBy(1.25));
-    $("zoom-out").addEventListener("click", () => graph && graph.zoomBy(0.8));
-    $("zoom-fit").addEventListener("click", () => graph && graph.fit());
-
+    const filters = readFilters();
+    for (const [id, key] of [['toggle-ref','showRefs'], ['toggle-cite','showCites'], ['toggle-linked','showLinked']]) {
+      const button = $(id);
+      if (!button) continue;
+      button.setAttribute('aria-pressed', String(filters[key]));
+      button.addEventListener('click', () => {
+        filters[key] = !filters[key];
+        button.setAttribute('aria-pressed', String(filters[key]));
+        try { sessionStorage.setItem('citation-filters', JSON.stringify(filters)); } catch (_) {}
+        if (graph) graph.setFilter(filters);
+      });
+    }
+    $("zoom-in")?.addEventListener("click", () => graph && graph.zoomBy(1.25));
+    $("zoom-out")?.addEventListener("click", () => graph && graph.zoomBy(0.8));
+    $("zoom-fit")?.addEventListener("click", () => graph && graph.fit());
   }
 
   /* ---------------- tooltip ---------------- */
   const tip = $('gtooltip');
   let tipNode = null, tipFrame = null, tipPoint = null, tipWidth = 0, tipHeight = 0;
   function renderTooltip(node, x, y) {
+    if (node && PAGE === 'graph' && !$('detail').hidden) node = null;
     if (!node) {
       tip.classList.remove('show'); tipNode = null; tipPoint = null;
       if (tipFrame != null) cancelAnimationFrame(tipFrame);
@@ -353,13 +362,32 @@
     if (!detail) return;
     selectedId = node?.id || null;
     if (window.CitationPage) window.CitationPage.selectedId = selectedId;
+    if (node) {
+      try { sessionStorage.setItem('citation-selected', JSON.stringify({ seedId: CURRENT.seedId, paperId: node.id })); } catch (_) {}
+    }
+    if (PAGE === 'graph') {
+      detail.hidden = !node;
+      if (!node) return;
+      renderTooltip(null);
+      $('d-title').textContent = node.title || 'Untitled paper';
+      $('d-authors').textContent = node.authors || 'Authors unavailable';
+      $('d-year').textContent = node.year || 'Year unavailable';
+      $('d-venue').textContent = node.venue || 'Journal unavailable';
+      const link = $('d-link');
+      let url = null;
+      try { const parsed = new URL(node.url); if (['https:', 'http:'].includes(parsed.protocol)) url = parsed.href; } catch (_) {}
+      link.hidden = !url;
+      link.href = url || '#';
+      link.textContent = url || '';
+      return;
+    }
     if (!node) { detail.classList.add("closed"); return; }
     detail.classList.remove("closed");
     detail.querySelector(".role").className = "role " + node.role;
     detail.querySelector(".role").textContent = roleLabel[node.role];
     $("d-title").textContent = node.title;
-    $("d-title").hidden = PAGE === "graph" && node.id === CURRENT.seedId;
-    $("detail-close").hidden = PAGE === "graph" && (!graph.selected || node.id === CURRENT.seedId);
+    $("d-title").hidden = false;
+    $("detail-close").hidden = PAGE === "paper";
     $("d-authors").textContent = node.authors;
     $("d-venue").textContent = `${node.venue} · ${node.year}`
       + (node.journalIF ? `  ·  journal impact factor: ${node.journalIF.toFixed(1)}` : "");
@@ -576,8 +604,16 @@
   function truncate(s, n) { s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
 
   /* Each document boots only its own page. Home never reads a seed or starts a graph. */
-  $('detail-close')?.addEventListener('click', () => {
-    if (graph) graph.select(null); else renderDetail(null);
+  function closeDetail() {
+    if (graph) {
+      const node = graph.nodeById[graph.selected];
+      graph.select(null);
+      node?.cEl?.closest('.gnode')?.focus({ preventScroll: true });
+    } else renderDetail(null);
+  }
+  $('detail-close')?.addEventListener('click', closeDetail);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && PAGE === 'graph' && detail && !detail.hidden) { event.preventDefault(); closeDetail(); }
   });
   const initialDensity = params.get('density') || remembered?.density;
   if (['40','80','120'].includes(String(initialDensity))) citeLimit = +initialDensity;

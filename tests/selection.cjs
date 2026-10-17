@@ -29,8 +29,6 @@ async function fixture(page) {
   }
   await page.goto('http://127.0.0.1:' + server.address().port + '/graph.html');
   await page.evaluate(async () => {
-    document.getElementById('graph-info').style.display = 'none';
-    document.getElementById('view-graph').style.gridTemplateColumns = '1fr';
     document.getElementById('loader').hidden = true;
     window.selectedPapers = [];
     window.CG = new CitationGraph(document.getElementById('graph-canvas'), { onSelect: n => selectedPapers.push(n?.id || null) });
@@ -73,14 +71,13 @@ async function fixture(page) {
     console.log('PASS: real dragging preserves the grab offset without selecting');
 
     await page.evaluate(() => {
-      document.getElementById('seed-title').textContent = 'A long seed heading above the graph should not block paper selection';
       CG.nodeById.cite.x = 200; CG.nodeById.cite.y = 45;
       CG._invalidate({ positions: true, paint: true, labels: true });
     }); await frame(page);
     const underHeading = await point(page, 'cite'); await page.mouse.click(underHeading.x, underHeading.y); await frame(page);
-    assert.equal(await page.evaluate(() => CG.selected), 'cite', 'the static seed heading must not intercept graph clicks');
+    assert.equal(await page.evaluate(() => CG.selected), 'cite', 'papers near the top of the full graph must remain clickable');
     await page.evaluate(() => { CG.nodeById.cite.x = 480; CG.nodeById.cite.y = 350; });
-    console.log('PASS: the static seed banner does not intercept clicks on papers');
+    console.log('PASS: papers near the top of the full graph remain clickable');
 
     await page.evaluate(() => { CG.scale = 0.25; CG.tx = 250; CG.ty = 180; CG._applyTransform(); CG._invalidate({ positions: true, paint: true, labels: true }); });
     await frame(page);
