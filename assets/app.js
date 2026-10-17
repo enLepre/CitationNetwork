@@ -488,8 +488,9 @@
       $('spacing-value').textContent = event.target.value + '%';
       clearTimeout(layoutTimer);
       // Cancel obsolete work immediately; only the latest slider value is applied.
-      layoutRequest++; if (graph?._dataReady) graph.cancelLayout();
-      layoutTimer = setTimeout(() => arrangeGraph(value), 160);
+      layoutRequest++; graph?.previewSpacing(value);
+      if (graph) saveLayoutControls();
+      layoutTimer = setTimeout(() => arrangeGraph(value), 180);
     });
     $('graph-links')?.addEventListener('change', event => {
       graph?.setLinkMode(event.target.value); if (graph) saveLayoutControls(); syncLayoutControls();

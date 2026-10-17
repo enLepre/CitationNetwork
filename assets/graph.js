@@ -12,7 +12,7 @@
     if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
     return n;
   };
-  const workerUrl = new URL("layout-worker.js?v=spacing-10", document.currentScript.src);
+  const workerUrl = new URL("layout-worker.js?v=fluid-11", document.currentScript.src);
 
   class CitationGraph {
     constructor(svg, opts) {
@@ -227,6 +227,21 @@
       for (const {n,x,y} of this._relocation.nodes) { n._ox = x * remaining; n._oy = y * remaining; }
       if (t === 1) { this._relocation = null; this._dirty.labels = true; }
       return true;
+    }
+
+    // Cheap direct manipulation while dragging; force refinement runs after a pause.
+    previewSpacing(spacing) {
+      if (!this._dataReady || this.dragNode) return;
+      this.cancelLayout();
+      const center = this.nodeById[this.seedId], ratio = spacing / this.spacing;
+      if (!center) return;
+      for (const n of this.nodes) {
+        if (n === center || n.userPinned || !this._visible(n)) continue;
+        n.x = center.x + (n.x - center.x) * ratio;
+        n.y = center.y + (n.y - center.y) * ratio;
+      }
+      this.spacing = spacing;
+      this._invalidate({positions:true});
     }
 
     async arrange(spacing = this.spacing, centerId = null) {
@@ -704,7 +719,7 @@
         e._shared = (selected.has(e.s) && (selected.has(e.t) || shared(e.t))) || (selected.has(e.t) && shared(e.s));
         const connected = selected.has(e.s) || selected.has(e.t);
         const modeVisible = this.linkMode === 'all' || (this.linkMode === 'selected' ? connected : e._shared);
-        const vis = this._visible(a) && this._visible(b) && modeVisible;
+        const vis = this._visible(a) && this._visible(b);
         e.path.style.display = vis ? "" : "none";
         if (!vis) return;
         const lit = !focus || selected.has(e.s) || selected.has(e.t) || this.hovered?.id === e.s || this.hovered?.id === e.t;
@@ -714,7 +729,7 @@
         e.path.setAttribute("stroke", e._shared ? pal.ink : col);
         e.path.setAttribute("stroke-width", (e._shared ? 2.6 : e._lit ? 1.3 : 0.8) / this.scale);
         const base = e._shared ? 1 : focus ? (lit ? 0.8 : 0.04) : (e.kind === "cross" ? 0.20 : 0.32);
-        e.path.style.opacity = base * this.linkOpacity;
+        e.path.style.opacity = modeVisible ? base * this.linkOpacity : 0;
       });
     }
 

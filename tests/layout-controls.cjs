@@ -110,16 +110,34 @@ async function labelStats(page) {
       const center=CG.nodeById[CG.seedId];
       return {scale:CG.scale,pin:[CG.nodeById.Wr1.x,CG.nodeById.Wr1.y],radius:CG.nodes.reduce((sum,n)=>sum+Math.hypot(n.x-center.x,n.y-center.y),0)/CG.nodes.length};
     });
-    await page.locator('#graph-spacing').evaluate(el=>{el.value='150';el.dispatchEvent(new Event('input',{bubbles:true}));});
+    const immediate = await page.locator('#graph-spacing').evaluate(el=>{
+      const before = CG.nodeById.Wr2.x;
+      el.value='150';el.dispatchEvent(new Event('input',{bubbles:true}));
+      return {moved:CG.nodeById.Wr2.x!==before,spacing:CG.spacing};
+    });
+    assert(immediate.moved && immediate.spacing===1.5,'slider must move nodes immediately, before worker refinement');
+    await page.waitForFunction(()=>document.getElementById('graph-layout-status').textContent==='Spacing updated.');
     await page.waitForFunction(()=>CG.spacing===1.5&&!CG._relocation&&!CG._cancelWorker);
     const expanded=await page.evaluate(()=>{const c=CG.nodeById[CG.seedId];return {scale:CG.scale,pin:[CG.nodeById.Wr1.x,CG.nodeById.Wr1.y],radius:CG.nodes.reduce((sum,n)=>sum+Math.hypot(n.x-c.x,n.y-c.y),0)/CG.nodes.length};});
     assert.equal(expanded.scale,baseline.scale,'spacing must not be negated by automatic fitting');assert.deepEqual(expanded.pin,baseline.pin);
     assert(expanded.radius>baseline.radius*1.1,'larger spacing should spread the graph');
+    const liveDrag = await page.evaluate(async()=>{
+      const slider=document.getElementById('graph-spacing'), samples=[];
+      for(const value of [155,160,165,170,165,160,155,150]) {
+        slider.value=String(value);slider.dispatchEvent(new Event('input',{bubbles:true}));
+        await new Promise(requestAnimationFrame);
+        samples.push({spacing:CG.spacing,x:CG.nodeById.Wr2._drawX,worker:!!CG._cancelWorker});
+      }
+      return samples;
+    });
+    assert(liveDrag.every((s,i)=>s.spacing===[1.55,1.6,1.65,1.7,1.65,1.6,1.55,1.5][i]&&!s.worker));
+    assert(liveDrag.every((s,i)=>!i||s.x!==liveDrag[i-1].x),'each slider frame must update the visible graph');
+    await page.waitForTimeout(200);await page.waitForFunction(()=>!CG._cancelWorker&&!CG._relocation);
     await page.evaluate(()=>{CG.select('Wr2');CG.select('Wr3');});
     await page.selectOption('#graph-links','selected');await frames(page);
-    assert(await page.evaluate(()=>CG.edges.filter(e=>e.path.style.display!=='none').every(e=>CG.selectedIds.has(e.s)||CG.selectedIds.has(e.t))));
+    assert(await page.evaluate(()=>CG.edges.filter(e=>e.path.style.display!=='none'&&Number(e.path.style.opacity)>0).every(e=>CG.selectedIds.has(e.s)||CG.selectedIds.has(e.t))));
     await page.selectOption('#graph-links','shared');await frames(page);
-    assert(await page.evaluate(()=>CG.edges.some(e=>e.path.style.display!=='none')&&CG.edges.filter(e=>e.path.style.display!=='none').every(e=>e._shared)));
+    assert(await page.evaluate(()=>CG.edges.some(e=>e.path.style.display!=='none'&&Number(e.path.style.opacity)>0)&&CG.edges.filter(e=>e.path.style.display!=='none'&&Number(e.path.style.opacity)>0).every(e=>e._shared)));
     const beforeLocal=await page.evaluate(()=>({center:CG.selected,points:CG.nodes.map(n=>({id:n.id,x:n.x,y:n.y})),near:[...CG.adj[CG.selected]]}));
     await page.click('#spread-nearby');await page.waitForFunction(()=>document.getElementById('graph-layout-status').textContent==='Spacing updated.'&&!CG._relocation&&!CG._cancelWorker);
     const afterLocal=await page.evaluate(()=>CG.nodes.map(n=>({id:n.id,x:n.x,y:n.y})));
@@ -132,7 +150,7 @@ async function labelStats(page) {
     await page.screenshot({path:path.join(output,'layout-controls-mobile.png')});
     await page.emulateMedia({reducedMotion:'reduce'});
     await page.locator('#graph-spacing').evaluate(el=>{el.value='120';el.dispatchEvent(new Event('input',{bubbles:true}));});
-    await page.waitForFunction(()=>CG.spacing===1.2&&!CG._cancelWorker);assert.equal(await page.evaluate(()=>!!CG._relocation),false);
+    await page.waitForTimeout(200);await page.waitForFunction(()=>CG.spacing===1.2&&!CG._cancelWorker);assert.equal(await page.evaluate(()=>!!CG._relocation),false);
     await page.evaluate(async()=>{const a=CG.arrange(1.8);const b=CG.arrange(.9);await Promise.all([a,b]);});assert.equal(await page.evaluate(()=>CG.spacing),.9,'latest spacing request wins');
     assert.equal(await idleWrites(page),0);assert.deepEqual(errors,[]);
     console.log(JSON.stringify({checks:'spacing, fixed papers, local spreading, link modes, rapid input, persistence, mobile and reduced motion passed',averageRadiusBefore:baseline.radius,averageRadiusAfter:expanded.radius}));
