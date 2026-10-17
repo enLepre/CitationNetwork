@@ -296,9 +296,9 @@ table.papers tr:focus-visible { outline: 2px solid var(--ink); outline-offset: -
 }
 
 /* Four-paper stack: the front card expands, older titles remain reachable. */
-.paper-stack { position: absolute; top: 20px; right: 20px; z-index: 14; width: min(380px, calc(100% - 40px)); pointer-events: none; }
-.paper-stack .paper-card { position: relative; inset: auto; width: 100%; margin: -8px 0 0; height: 52px; max-height: none; padding: 12px 26px 4px; overflow: hidden; pointer-events: auto; }
-.paper-stack .paper-card.is-front { height: auto; margin-top: 0; padding: 30px 26px 26px; overflow-y: auto; }
+.paper-stack { display: flex; flex-direction: column-reverse; position: absolute; top: 20px; right: 20px; z-index: 14; width: min(380px, calc(100% - 40px)); pointer-events: none; }
+.paper-stack .paper-card { position: relative; inset: auto; width: 100%; flex-shrink: 0; margin: 0 0 -8px; height: 52px; max-height: none; padding: 12px 26px 4px; overflow: hidden; pointer-events: auto; }
+.paper-stack .paper-card.is-front { height: auto; margin: 0; padding: 30px 26px 26px; overflow-y: auto; }
 .paper-card h2 { margin: 0 22px 0 0; font-size: 16px; }
 .paper-card.is-front h2 { margin: 8px 22px 16px 0; font-size: 25px; }
 .card-title { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

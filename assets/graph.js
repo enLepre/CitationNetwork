@@ -551,7 +551,7 @@
         const bow = Math.min(30, len * 0.08);
         const nx = -dy / len, ny = dx / len;
         e.path.setAttribute("d", `M${ax} ${ay}Q${mx + nx * bow} ${my + ny * bow} ${bx} ${by}`);
-        if (!motionOnly) e.path.setAttribute("stroke-width", (e._lit ? 1.3 : 0.8) / this.scale);
+        if (!motionOnly) e.path.setAttribute("stroke-width", (e._shared ? 2.6 : e._lit ? 1.3 : 0.8) / this.scale);
       });
     }
 
@@ -559,8 +559,18 @@
     _paint() {
       const pal = this._palette();
       const focus = this.hovered || (this.selected && this.nodeById[this.selected]);
-      const neigh = focus ? this.adj[focus.id] : null;
-      const isLit = id => !focus || this.selectedIds.has(id) || focus.id === id || (neigh && neigh.has(id));
+      // Keep every selected paper's neighborhood visible; shared neighbors
+      // and direct links between selected papers get the strongest emphasis.
+      const selected = new Set(this.selectedIds);
+      if (this.selected) selected.add(this.selected);
+      const counts = new Map();
+      for (const id of selected) {
+        if (!this.nodeById[id] || !this._visible(this.nodeById[id])) continue;
+        for (const neighbor of this.adj[id] || []) counts.set(neighbor, (counts.get(neighbor) || 0) + 1);
+      }
+      const shared = id => (counts.get(id) || 0) >= 2;
+      const neigh = this.hovered ? this.adj[this.hovered.id] : null;
+      const isLit = id => !focus || selected.has(id) || counts.has(id) || this.hovered?.id === id || neigh?.has(id);
 
       this.nodes.forEach(n => {
         const vis = this._visible(n);
@@ -574,10 +584,10 @@
         n.cEl.setAttribute("stroke", pal.bg);
         n.gEl.style.opacity = lit ? 1 : 0.2;
         // halo
-        if (isSel || n.role === "seed") {
+        if (isSel || shared(n.id) || n.role === "seed") {
           n.haloEl.setAttribute("r", n.rad + (isSel ? 8 : 6));
-          n.haloEl.setAttribute("fill", col);
-          n.haloEl.style.opacity = isSel ? 0.2 : 0.12;
+          n.haloEl.setAttribute("fill", shared(n.id) ? pal.ink : col);
+          n.haloEl.style.opacity = isSel || shared(n.id) ? 0.2 : 0.12;
         } else { n.haloEl.style.opacity = 0; }
         // label
         const big = n.role === "seed";
@@ -594,12 +604,13 @@
         const vis = this._visible(a) && this._visible(b);
         e.path.style.display = vis ? "" : "none";
         if (!vis) return;
-        const lit = focus ? (focus.id === e.s || focus.id === e.t) : true;
+        const lit = !focus || selected.has(e.s) || selected.has(e.t) || this.hovered?.id === e.s || this.hovered?.id === e.t;
+        e._shared = (selected.has(e.s) && (selected.has(e.t) || shared(e.t))) || (selected.has(e.t) && shared(e.s));
         e._lit = focus && lit;
         const col = e.kind === "cite" ? pal.cite : e.kind === "ref" ? pal.ref : pal.faint;
-        e.path.setAttribute("stroke", col);
-        e.path.setAttribute("stroke-width", (e._lit ? 1.3 : 0.8) / this.scale);
-        const base = focus ? (lit ? 0.8 : 0.04) : (e.kind === "cross" ? 0.20 : 0.32);
+        e.path.setAttribute("stroke", e._shared ? pal.ink : col);
+        e.path.setAttribute("stroke-width", (e._shared ? 2.6 : e._lit ? 1.3 : 0.8) / this.scale);
+        const base = e._shared ? 1 : focus ? (lit ? 0.8 : 0.04) : (e.kind === "cross" ? 0.20 : 0.32);
         e.path.style.opacity = base * this.linkOpacity;
       });
     }

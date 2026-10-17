@@ -246,13 +246,22 @@ async function labelStats(page) {
     assert.equal(await page.evaluate(()=>CG.selectedIds.size),4);
     await page.waitForTimeout(300);
     const cardBoxes = await page.locator('.paper-card').evaluateAll(cards=>cards.map(c=>{const r=c.getBoundingClientRect();return {y:r.y,bottom:r.bottom};}));
-    for(let i=1;i<4;i++) assert(cardBoxes[i].y >= cardBoxes[i-1].bottom-9);
+    for(let i=1;i<4;i++) assert(cardBoxes[i].bottom <= cardBoxes[i-1].y+9);
     await page.locator('.paper-card').nth(3).locator('.card-title').click();
     assert.equal(await page.evaluate(()=>CG.selected),stackIds[1]);
     assert.equal(await page.locator('.paper-card').count(),4);
     await page.click('#detail-close');
     assert.equal(await page.locator('.paper-card').count(),3);
     assert.equal(await page.evaluate(id=>CG.selectedIds.has(id),stackIds[1]),false);
+    await frames(page);
+    const connections = await page.evaluate(() => {
+      const selected = CG.selectedIds;
+      const counts = new Map();
+      for (const id of selected) for (const neighbor of CG.adj[id]) counts.set(neighbor,(counts.get(neighbor)||0)+1);
+      const expected = CG.edges.filter(e => (selected.has(e.s) && (selected.has(e.t) || counts.get(e.t)>=2)) || (selected.has(e.t) && counts.get(e.s)>=2));
+      return { shared: expected.length, correct: expected.every(e => e._shared && +e.path.style.opacity===1 && +e.path.getAttribute('stroke-width')*CG.scale>2.5), visible: CG.edges.filter(e=>selected.has(e.s)||selected.has(e.t)).every(e=>+e.path.style.opacity>=0.8) };
+    });
+    assert(connections.shared>0 && connections.correct && connections.visible);
     await page.screenshot({path:path.join(output,'stack-cards.png')});
     await page.evaluate(()=>CG.select(null));
     await page.click('#zoom-fit'); await frames(page);
