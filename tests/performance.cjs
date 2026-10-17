@@ -117,6 +117,7 @@ async function labelStats(page) {
     for(let i=0;i<12;i++){CG.previewSpacing(1.2+i*.01);await new Promise(requestAnimationFrame);}
     observer.disconnect();return {paths,styles};
   });assert.deepEqual(writes,{paths:0,styles:0},'spacing skips invisible paths and unchanged styling');
+  await page.waitForFunction(()=>!CG._physicsRunning);
   await page.evaluate(()=>CG.setLinkMode('all'));await frames(page);
   assert(await page.evaluate(()=>CG.edges.every(e=>e._ax===CG.nodeById[e.s].x+(CG.nodeById[e.s]._ox||0))),'revealed edges refresh to current coordinates');
   const requests=urls.length;

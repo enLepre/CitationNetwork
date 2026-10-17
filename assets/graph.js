@@ -12,7 +12,8 @@
     if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
     return n;
   };
-  const workerUrl = new URL("layout-worker.js?v=search-14", document.currentScript.src);
+  const workerUrl = new URL("layout-worker.js?v=physics-21", document.currentScript.src);
+  const physicsWorkerUrl = new URL('physics-worker.js?v=physics-21',document.currentScript.src);
 
   class CitationGraph {
     constructor(svg, opts) {
@@ -38,7 +39,7 @@
       this.dragNode = null; this.dragMoved = false; this.panning = false;
       this._pointerId = null;
       this.showRefs = true; this.showCites = true; this.showLinked = true; this.showLabels = true; this.linkOpacity = 1;
-      this._nodeScale = 1; this.spacing = 1; this.bondStrength = 1; this.linkMode = 'all';
+      this._nodeScale = 1; this.spacing = 1; this.bondStrength = 1; this.linkDistance = 145; this.centerForce = 1; this.linkMode = 'all';
       this._motion = new Map();
       this._motionActive = false;
       this._reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -61,7 +62,7 @@
         if (this._active && this.nodes.length) this.fit();
       });
       this._resizeObserver.observe(svg);
-      document.addEventListener('visibilitychange', () => { if (document.hidden) { this._endRelocation(); this._camera = null; this._stopMotion(); } else this._invalidate(); });
+      document.addEventListener('visibilitychange', () => { if (document.hidden) { this._stopPhysics(); this._endRelocation(); this._camera = null; this._stopMotion(); } else this._invalidate(); });
       document.fonts.ready.then(() => { this.nodes.forEach(n => { n.labelWidth = null; }); this._invalidate(); });
     }
 
@@ -71,8 +72,7 @@
     /* ---------- data ---------- */
     async setData(papers, edges, seedId, { preserve = false, view = null } = {}) {
       this._dataReady = false;
-      if (view?.spacing) this.spacing = view.spacing;
-      if (view?.bondStrength) this.bondStrength = view.bondStrength;
+      if (view?.forceVersion===2) {this.spacing=view.spacing;this.bondStrength=view.bondStrength;this.linkDistance=view.linkDistance;this.centerForce=view.centerForce;}
       const saved = view?.seedId === seedId ? Object.fromEntries(view.positions.map(p=>[p.id,p])) : {};
       const previous = preserve && this.seedId === seedId ? this.nodeById : saved;
       const selected = preserve ? this.selected : null;
@@ -193,6 +193,7 @@
     }
 
     cancelLayout() {
+      this._stopPhysics();
       this._endRelocation();
       this._camera = null;
       this._stopMotion();
@@ -202,7 +203,7 @@
 
     async _layout(seq, overrides = {}) {
       const input = {
-        width: this.W, height: this.H, spacing: this.spacing, bondStrength: this.bondStrength,
+        width: this.W, height: this.H, spacing: this.spacing, bondStrength: this.bondStrength, linkDistance:this.linkDistance, centerForce:this.centerForce,
         nodes: this.nodes.map(n => ({ id: n.id, role: n.role, rad: n.rad, x: n.x, y: n.y, labelWidth: n.labelWidth || Math.min(140, (n.short || '').length * 7 + 40),
           ...(n.fixed ? { fx: n.x, fy: n.y } : {}) })),
         edges: this.edges.map(({ s, t }) => ({ s, t })),
@@ -240,42 +241,95 @@
       return true;
     }
 
-    // Cheap direct manipulation while dragging; force refinement runs after a pause.
-    previewSpacing(spacing) {
-      if (!this._dataReady || this.dragNode) return;
-      this.cancelLayout();
-      const center = this.nodeById[this.seedId], ratio = spacing / this.spacing;
-      if (!center) return;
-      for (const n of this.nodes) {
-        if (n === center || n.userPinned || !this._visible(n)) continue;
-        n.x = center.x + (n.x - center.x) * ratio;
-        n.y = center.y + (n.y - center.y) * ratio;
-      }
-      this.spacing = spacing;
-      this._invalidate({positions:true});
+    _forceSettings() {return {spacing:this.spacing,bondStrength:this.bondStrength,linkDistance:this.linkDistance,centerForce:this.centerForce};}
+
+    _stopPhysics() {
+      this._physicsWorker?.terminate();this._physicsWorker=null;
+      this._physicsSim=null;this._physicsRunning=false;this._physicsPending=null;
+      if(this._physicsFallbackFrame!=null)cancelAnimationFrame(this._physicsFallbackFrame);
+      if(this._physicsSettingsFrame!=null)cancelAnimationFrame(this._physicsSettingsFrame);
+      this._physicsFallbackFrame=this._physicsSettingsFrame=null;
+      this._invalidate({labels:true});
     }
 
-    // Immediate edge-based preview; the worker resolves collisions after a pause.
-    previewBonds(value) {
-      if (!this._dataReady || this.dragNode) return;
-      value = Math.max(.5, Math.min(2, value));
-      this.cancelLayout();
-      const pull = Math.log(value / this.bondStrength) * .35;
-      const shifts = new Map();
-      for (const e of this.edges) {
-        const a=this.nodeById[e.s], b=this.nodeById[e.t];
-        if (!this._visible(a) || !this._visible(b)) continue;
-        for (const [n,other] of [[a,b],[b,a]]) {
-          if (n.userPinned || n.id===this.seedId) continue;
-          const shift=shifts.get(n) || {x:0,y:0};
-          shift.x+=(other.x-n.x)*pull/Math.max(1,n.degree);
-          shift.y+=(other.y-n.y)*pull/Math.max(1,n.degree);
-          shifts.set(n,shift);
-        }
+    _physicsInput() {
+      const center=this.nodeById[this.seedId];
+      const nodes=this.nodes.filter(n=>this._visible(n));
+      const ids=new Set(nodes.map(n=>n.id));
+      return {width:this.W,height:this.H,centerX:center.x,centerY:center.y,...this._forceSettings(),
+        nodes:nodes.map(n=>({id:n.id,rad:n.rad,x:n.x,y:n.y,
+          ...(n.userPinned||n===this.dragNode||n.id===this.seedId?{fx:n.x,fy:n.y}:{})})),
+        edges:this.edges.filter(e=>ids.has(e.s)&&ids.has(e.t)).map(({s,t})=>({s,t}))};
+    }
+
+    _receivePhysics(data) {
+      if(data.revision>this._physicsRevision || !this._active || document.hidden)return;
+      // Keep streaming during rapid input; an older snapshot cannot end the latest run.
+      if(data.revision!==this._physicsRevision)data={...data,done:false};
+      if(data.error){this._startPhysicsFallback();return;}
+      if(!this._reducedMotion.matches || data.done) this._physicsPending=data;
+      this._physicsRunning=!data.done;
+      this._invalidate({});
+    }
+
+    _startPhysicsFallback() {
+      this._physicsWorker?.terminate();this._physicsWorker=null;
+      const input=this._physicsInput();
+      this._physicsSim=CitationLayout.createSimulation(input).alpha(.3);
+      this._physicsTicks=0;this._runPhysicsFallback();
+    }
+    _runPhysicsFallback() {
+      if(this._physicsFallbackFrame!=null)return;
+      const frame=()=>{
+        this._physicsFallbackFrame=null;
+        const sim=this._physicsSim;if(!sim||!this._active||document.hidden)return;
+        const start=performance.now();
+        do {sim.tick();this._physicsTicks++;} while(this._physicsTicks%2 && performance.now()-start<3);
+        const done=sim.alpha()<.004||this._physicsTicks>=180;
+        this._receivePhysics({revision:this._physicsRevision,done,positions:sim.nodes().map(({id,x,y})=>({id,x,y}))});
+        if(!done)this._physicsFallbackFrame=requestAnimationFrame(frame);
+      };
+      this._physicsFallbackFrame=requestAnimationFrame(frame);
+    }
+
+    updateForces(settings={}) {
+      if(!this._dataReady||!this._active||document.hidden)return;
+      for(const [key,min,max] of [['spacing',0,3],['bondStrength',0,3],['centerForce',0,3],['linkDistance',40,300]]) {
+        if(Number.isFinite(settings[key]))this[key]=Math.max(min,Math.min(max,settings[key]));
       }
-      for(const [n,shift] of shifts) {n.x+=shift.x;n.y+=shift.y;}
-      this.bondStrength=value;
-      this._invalidate({positions:true});
+      this._layoutSeq++;
+      if(this._cancelWorker)this._cancelWorker();
+      if(this._physicsPending)this._physicsPending.done=false;
+      this._physicsRevision=(this._physicsRevision||0)+1;
+      this._physicsRunning=true;
+      this._endRelocation();this._stopMotion();
+      // Coalesce slider events; update the same simulation without resetting positions.
+      if(this._physicsSettingsFrame!=null)return;
+      this._physicsSettingsFrame=requestAnimationFrame(()=>{
+        this._physicsSettingsFrame=null;
+        if(!this._active||document.hidden)return;
+        if(this._physicsSim) {
+          CitationLayout.configure(this._physicsSim,this._forceSettings());
+          this._physicsSim.alpha(Math.max(.3,this._physicsSim.alpha()));this._physicsTicks=0;this._runPhysicsFallback();return;
+        }
+        if(!this._physicsWorker) {
+          try {
+            const worker=this._physicsWorker=new Worker(physicsWorkerUrl);
+            worker.onmessage=({data})=>{if(this._physicsWorker===worker)this._receivePhysics(data);};
+            worker.onerror=e=>{e.preventDefault();if(this._physicsWorker===worker)this._startPhysicsFallback();};
+            worker.postMessage({type:'init',revision:this._physicsRevision,input:this._physicsInput()});
+          }catch(_){this._startPhysicsFallback();}
+        } else this._physicsWorker.postMessage({type:'settings',revision:this._physicsRevision,settings:this._forceSettings()});
+      });
+    }
+    previewSpacing(value) {this.updateForces({spacing:value});}
+    previewBonds(value) {this.updateForces({bondStrength:value});}
+
+    _pinPhysics(node) {
+      if(!this._dataReady)return;
+      this.updateForces();
+      if(this._physicsWorker)this._physicsWorker.postMessage({type:'pin',revision:this._physicsRevision,id:node.id,x:node.x,y:node.y});
+      if(this._physicsSim){const n=this._physicsSim.nodes().find(n=>n.id===node.id);if(n){n.fx=n.x=node.x;n.fy=n.y=node.y;n.vx=n.vy=0;}}
     }
 
     async arrange(spacing = this.spacing, centerId = null) {
@@ -371,6 +425,7 @@
     }
 
     _releaseMotion(node, cancelled) {
+      if(this._physicsRunning){this._dragNeighbors=null;this._dragVelocity=null;return;}
       for (const spring of this._motion.values()) { spring.tx = 0; spring.ty = 0; }
       if (!cancelled && node && this._canMove() && this._dragVelocity) {
         const spring = this._spring(node);
@@ -455,11 +510,13 @@
     }
 
     setFilter(opts) {
+      const resumePhysics=this._physicsRunning;this._stopPhysics();
       if ("showRefs" in opts) this.showRefs = opts.showRefs;
       if ("showCites" in opts) this.showCites = opts.showCites;
       if ("showLinked" in opts) this.showLinked = opts.showLinked;
       if ("showLabels" in opts) this.showLabels = opts.showLabels;
       if ("linkOpacity" in opts) this.linkOpacity = opts.linkOpacity;
+      if(resumePhysics)this.updateForces();
       this._invalidate({ positions: true, paint: true, labels: true });
     }
 
@@ -585,10 +642,11 @@
           this.dragNode.y = start.y + (sy - start.sy) / this.scale;
           const dt = Math.max(8, now - this._dragTime) / 1000;
           this._dragVelocity = [(this.dragNode.x-oldX)/dt, (this.dragNode.y-oldY)/dt]; this._dragTime = now;
-          this._pullNeighbors(this.dragNode, this.dragNode.x-start.x, this.dragNode.y-start.y);
+
           this.dragNode.vx = 0; this.dragNode.vy = 0;
           this.dragNode.movedDuringLayout = true;
           this.dragNode.userPinned = true;
+          this._pinPhysics(this.dragNode);
           this.dragMoved = true;
           this._invalidate({ positions: true, labels: true });
         } else if (this.panning) {
@@ -625,7 +683,7 @@
     /* ---------- render ---------- */
     setActive(active) {
       this._active = active;
-      if (!active) { this._endRelocation(); this._camera = null; this._stopMotion(); }
+      if (!active) { this._stopPhysics(); this._endRelocation(); this._camera = null; this._stopMotion(); }
       if (!active && this._frame != null) { cancelAnimationFrame(this._frame); this._frame = null; }
       if (active) this._invalidate();
     }
@@ -637,8 +695,14 @@
         this._frame = null;
         if (!this._active || document.hidden) return;
         const started = performance.now();
+        if(this._physicsPending) {
+          const data=this._physicsPending;this._physicsPending=null;
+          for(const p of data.positions){const n=this.nodeById[p.id];if(n&&!n.userPinned&&n!==this.dragNode&&n.id!==this.seedId){n.x=p.x;n.y=p.y;n._ox=n._oy=0;}}
+          this._dirty.positions=true;
+          if(data.done){this._dirty.labels=true;this.opts.onForcesSettled?.();}
+        }
         const relocation = this._stepRelocation(now);
-        this.svg.classList.toggle('layout-moving', !!this._relocation);
+        this.svg.classList.toggle('layout-moving', !!this._relocation || this._physicsRunning);
         const camera = this._stepCamera(now);
         this.svg.classList.toggle('camera-moving', !!this._camera);
         if (camera) Object.assign(this._dirty, { transform: true, positions: true });
@@ -648,7 +712,7 @@
         if (dirty.transform) this.vp.setAttribute('transform', 'translate(' + this.tx + ' ' + this.ty + ') scale(' + this.scale + ')');
         if (dirty.paint) this._paint();
         if (dirty.positions || motion || this._dirty.positions) { this._renderPositions(!dirty.positions); this._renderScale = this.scale; this._dirty.positions = false; }
-        if (dirty.labels || (motion && !this._motionActive && !this._relocation)) this._layoutLabels();
+        if ((!this._physicsRunning && dirty.labels) || (motion && !this._motionActive && !this._relocation && !this._physicsRunning)) this._layoutLabels();
         if (this._motionActive && !dirty.paint && !dirty.positions && performance.now() - started > 12) {
           // Protect slower devices: finish this decorative effect instead of
           // competing with input or accumulating expensive animation frames.

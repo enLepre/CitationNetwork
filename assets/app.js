@@ -46,13 +46,16 @@
   function ensureGraph() {
     if (graph) return;
     graph = new CitationGraph($("graph-canvas"), {
+      onForcesSettled: () => { if($('graph-layout-status')) $('graph-layout-status').textContent='Forces updated.'; },
       onSelect: node => renderDetail(node),
       onHover: (node, x, y) => renderTooltip(node, x, y)
     });
     try {
       const saved = JSON.parse(sessionStorage.getItem('citation-layout-controls') || '{}');
-      graph.spacing = Math.max(.8, Math.min(1.8, Number(saved.spacing) || 1));
-      graph.bondStrength = Math.max(.5, Math.min(2, Number(saved.bondStrength) || 1));
+      if(saved.forceVersion===2) {
+        for(const key of ['spacing','bondStrength','centerForce']) if(Number.isFinite(saved[key]))graph[key]=Math.max(0,Math.min(3,saved[key]));
+        if(Number.isFinite(saved.linkDistance))graph.linkDistance=Math.max(40,Math.min(300,saved.linkDistance));
+      }
       graph.setLinkMode(saved.links);
     } catch (_) {}
     window.CG = graph;
@@ -452,19 +455,18 @@
   let layoutTimer = null, layoutRequest = 0;
   function syncLayoutControls() {
     if (!$('graph-spacing') || !graph) return;
-    $('graph-spacing').disabled = !graph._dataReady;
-    $('graph-spacing').value = String(Math.round(graph.spacing * 100));
-    $('spacing-value').textContent = Math.round(graph.spacing * 100) + '%';
-    $('graph-bonds').disabled = !graph._dataReady;
-    $('graph-bonds').value = String(Math.round(graph.bondStrength*100));
-    $('bonds-value').textContent = Math.round(graph.bondStrength*100)+'%';
+    for(const [id,key,output,scale] of [['graph-center','centerForce','center-value',100],['graph-spacing','spacing','spacing-value',100],['graph-bonds','bondStrength','bonds-value',100],['graph-distance','linkDistance','distance-value',1]]) {
+      $(id).disabled=!graph._dataReady;$(id).value=String(Math.round(graph[key]*scale));
+      $(output).textContent=Math.round(graph[key]*scale)+(scale===100?'%':'');
+    }
+    $('reset-forces').disabled=!graph._dataReady;
     $('graph-links').value = graph.linkMode;
     const canSpread = !!graph.selected && graph._dataReady && (graph.adj[graph.selected]?.size || 0) > 0;
     $('spread-nearby').disabled = !canSpread;
     $('recenter-selected').disabled = !graph._dataReady || !graph.selected || graph.selected === graph.seedId;
   }
   function saveLayoutControls() {
-    try { sessionStorage.setItem('citation-layout-controls', JSON.stringify({spacing:graph.spacing,bondStrength:graph.bondStrength,links:graph.linkMode})); } catch (_) {}
+    try { sessionStorage.setItem('citation-layout-controls', JSON.stringify({forceVersion:2,...graph._forceSettings(),links:graph.linkMode})); } catch (_) {}
   }
   async function arrangeGraph(value, centerId = null, bonds = false) {
     if (!graph) return;
@@ -495,21 +497,19 @@
     $("zoom-in")?.addEventListener("click", () => graph && graph.zoomBy(1.25, undefined, undefined, true));
     $("zoom-out")?.addEventListener("click", () => graph && graph.zoomBy(0.8, undefined, undefined, true));
     $("zoom-fit")?.addEventListener("click", () => graph && graph.fit(true));
-    $('graph-spacing')?.addEventListener('input', event => {
-      const value = +event.target.value / 100;
-      $('spacing-value').textContent = event.target.value + '%';
-      clearTimeout(layoutTimer);
-      // Cancel obsolete work immediately; only the latest slider value is applied.
-      layoutRequest++; graph?.previewSpacing(value);
-      if (graph) saveLayoutControls();
-      layoutTimer = setTimeout(() => arrangeGraph(value), 180);
-    });
-    $('graph-bonds')?.addEventListener('input', event => {
-      const value=+event.target.value/100;
-      $('bonds-value').textContent=event.target.value+'%';
-      clearTimeout(layoutTimer); layoutRequest++;
-      graph?.previewBonds(value); if(graph) saveLayoutControls();
-      layoutTimer=setTimeout(()=>arrangeGraph(graph.spacing,null,true),180);
+    for(const [id,key,output,scale] of [['graph-center','centerForce','center-value',100],['graph-spacing','spacing','spacing-value',100],['graph-bonds','bondStrength','bonds-value',100],['graph-distance','linkDistance','distance-value',1]]) {
+      $(id)?.addEventListener('input',event=>{
+        const value=+event.target.value/scale;
+        $(output).textContent=event.target.value+(scale===100?'%':'');
+        clearTimeout(layoutTimer);layoutRequest++;
+        graph?.updateForces({[key]:value});if(graph)saveLayoutControls();
+        $('graph-layout-status').textContent='Adjusting forces…';
+      });
+    }
+    $('reset-forces')?.addEventListener('click',()=>{
+      layoutRequest++;
+      graph?.updateForces({spacing:1,bondStrength:1,centerForce:1,linkDistance:145});
+      if(graph)saveLayoutControls();syncLayoutControls();
     });
     $('graph-links')?.addEventListener('change', event => {
       graph?.setLinkMode(event.target.value); if (graph) saveLayoutControls(); syncLayoutControls();
@@ -937,7 +937,7 @@
       if (graph?.nodes.length && !loading) sessionStorage.setItem('citation-graph-view', JSON.stringify({
         seedId: CURRENT.seedId, density: citeLimit, width: graph.W, height: graph.H,
         scale: graph.scale, tx: graph.tx, ty: graph.ty,
-        spacing: graph.spacing, bondStrength: graph.bondStrength, positions: graph.nodes.map(n => ({id:n.id,x:n.x+(n._ox||0),y:n.y+(n._oy||0),userPinned:!!n.userPinned})), cards: paperCards.map(p=>p.id)
+        forceVersion:2, ...graph._forceSettings(), positions: graph.nodes.map(n => ({id:n.id,x:n.x+(n._ox||0),y:n.y+(n._oy||0),userPinned:!!n.userPinned})), cards: paperCards.map(p=>p.id)
       }));
       if (PAGE === 'search') sessionStorage.setItem('citation-search-view', JSON.stringify({
         query: $('big-input').value, mode: $('search-mode').value, sort: $('search-sort').value,

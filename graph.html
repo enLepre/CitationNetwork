@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f5f2ec">
 <title>Graph — Citation Network</title>
 <script blocking="render" src="assets/navigation.js?v=search-14"></script>
-<link rel="stylesheet" href="assets/styles.css?v=icons-20">
+<link rel="stylesheet" href="assets/styles.css?v=physics-21">
 
 </head>
 <body data-page="graph">
@@ -48,11 +48,14 @@
         <details class="graph-options" id="graph-options">
           <summary aria-label="Graph layout and connections" title="Layout & connections"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="var(--bg)"/><circle cx="15" cy="17" r="2.5" fill="var(--bg)"/></svg></summary>
           <div class="graph-options-panel">
-            <label class="spacing-label" for="graph-spacing">Spacing <output id="spacing-value">100%</output></label>
-            <input id="graph-spacing" type="range" min="80" max="180" step="5" value="100" disabled>
-            <label class="spacing-label" for="graph-bonds">Bond strength <output id="bonds-value">100%</output></label>
-            <input id="graph-bonds" type="range" min="50" max="200" step="5" value="100" aria-describedby="bond-hint" disabled>
-            <p id="bond-hint" class="control-hint">Stronger bonds pull connected papers closer.</p>
+            <label class="spacing-label" for="graph-center">Center force <output id="center-value">100%</output></label>
+            <input id="graph-center" class="force-slider" type="range" min="0" max="300" step="5" value="100" disabled>
+            <label class="spacing-label" for="graph-spacing">Repel force <output id="spacing-value">100%</output></label>
+            <input id="graph-spacing" class="force-slider" type="range" min="0" max="300" step="5" value="100" disabled>
+            <label class="spacing-label" for="graph-bonds">Link force <output id="bonds-value">100%</output></label>
+            <input id="graph-bonds" class="force-slider" type="range" min="0" max="300" step="5" value="100" disabled>
+            <label class="spacing-label" for="graph-distance">Link distance <output id="distance-value">145</output></label>
+            <input id="graph-distance" class="force-slider" type="range" min="40" max="300" step="5" value="145" disabled>
             <div class="graph-legend" role="group" aria-label="Paper groups">
               <button type="button" id="toggle-ref" aria-pressed="true"><span class="legend-dot ref" aria-hidden="true"></span>References</button>
               <button type="button" id="toggle-cite" aria-pressed="true"><span class="legend-dot cite" aria-hidden="true"></span>Citing</button>
@@ -62,6 +65,7 @@
             <select id="graph-links"><option value="all">All connections</option><option value="selected">Selected papers</option><option value="shared">Shared connections</option></select>
             <button id="spread-nearby" type="button" disabled>Spread nearby</button>
             <button id="recenter-selected" type="button" disabled>Re-center graph</button>
+            <button id="reset-forces" type="button" disabled>Reset forces</button>
             <p id="graph-layout-status" role="status" aria-live="polite"></p>
           </div>
         </details>
@@ -73,11 +77,11 @@
   <span class="tmsg"></span>
   <input class="tsub" id="toast-url" readonly="" hidden="">
 </div>
-<script src="assets/layout.js?v=search-14" defer></script>
+<script src="assets/layout.js?v=physics-21" defer></script>
 <script src="assets/sample.js?v=search-14" defer></script>
-<script src="assets/graph.js?v=search-14" defer></script>
+<script src="assets/graph.js?v=physics-21" defer></script>
 <script src="assets/openalex.js?v=search-14" defer></script>
 <script src="assets/tweaks.js?v=plum-18" defer></script>
-<script src="assets/app.js?v=center-19" defer></script>
+<script src="assets/app.js?v=physics-21" defer></script>
 </body>
 </html>

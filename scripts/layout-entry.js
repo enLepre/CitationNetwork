@@ -1,18 +1,29 @@
 import { forceSimulation, forceManyBody, forceLink, forceCollide, forceX, forceY } from 'd3-force';
 
-// Shared by the worker and the time-sliced fallback. No DOM access here.
-export async function layout({ nodes, edges, width, height, spacing = 1, bondStrength = 1, anchored = false }, cancelled = () => false, yieldToUI = true) {
-  const cx = width / 2, cy = height / 2;
-  const sim = forceSimulation(nodes)
-    .stop()
-    .alphaDecay(0.035)
-    .velocityDecay(0.35)
-    .force('charge', forceManyBody().strength(-700 * spacing * spacing).theta(0.9))
-    .force('links', forceLink(edges.map(e => ({ source: e.s, target: e.t })))
-      .id(n => n.id).distance(e => (e.source.role === 'seed' || e.target.role === 'seed' ? 185 : 145) * spacing / Math.sqrt(bondStrength)).strength(0.09 * bondStrength))
-    .force('collision', forceCollide(n => (n.rad + 18 + Math.min(14, (n.labelWidth || 70) * .12)) * (n.localSpacing || spacing)).iterations(3))
-    .force('x', forceX(n => n.anchorX ?? cx).strength(anchored ? .075 : .02))
-    .force('y', forceY(n => n.anchorY ?? cy).strength(anchored ? .075 : .02));
+// Independent forces, shared by the initial layout and interactive simulation.
+export function configure(sim, { spacing = 1, bondStrength = 1, linkDistance = 145, centerForce = 1 }) {
+  sim.force('charge').strength(-700 * spacing);
+  sim.force('links').distance(linkDistance).strength(.09 * bondStrength);
+  sim.force('x').strength(.02 * centerForce);
+  sim.force('y').strength(.02 * centerForce);
+  return sim;
+}
+export function createSimulation(input) {
+  const {nodes,edges,width,height,anchored=false}=input;
+  const cx=input.centerX ?? width/2,cy=input.centerY ?? height/2;
+  const sim=forceSimulation(nodes).stop().alphaDecay(.035).velocityDecay(.38)
+    .force('charge',forceManyBody().theta(.9))
+    .force('links',forceLink(edges.map(e=>({source:e.s,target:e.t}))).id(n=>n.id))
+    .force('collision',forceCollide(n=>(n.rad+12)*(n.localSpacing||1)).iterations(2))
+    .force('x',forceX(n=>anchored ? n.anchorX ?? cx : cx))
+    .force('y',forceY(n=>anchored ? n.anchorY ?? cy : cy));
+  configure(sim,input);
+  if(anchored) {sim.force('x').strength(.075);sim.force('y').strength(.075);}
+  return sim;
+}
+export async function layout(input, cancelled = () => false, yieldToUI = true) {
+  const {nodes,anchored=false}=input;
+  const sim=createSimulation(input);
   const maxTicks = anchored ? 110 : 180;
   let quietTicks = 0;
   for (let i = 0; i < maxTicks;) {

@@ -34,7 +34,7 @@ async function setup(page, count = 80) {
     await CG.setData(papers,edges,'P0');
   },count);
 }
-async function rest(page) { await page.waitForFunction(()=>!CG._motionActive);await frame(page); }
+async function rest(page) { await page.waitForFunction(()=>!CG._motionActive&&!CG._physicsRunning);await frame(page); }
 async function idle(page) {
   return page.evaluate(async()=>{let writes=0;const observer=new MutationObserver(records=>writes+=records.length);observer.observe(CG.svg,{subtree:true,attributes:true});await new Promise(r=>setTimeout(r,250));observer.disconnect();return writes;});
 }
@@ -59,12 +59,13 @@ async function idle(page) {
     assert(Math.abs(await page.evaluate(()=>CG.scale)-zoomStart*1.25*1.25)<.0001,'rapid zooms retain the cumulative target');
     await page.evaluate(()=>CG.fit(true));await page.waitForFunction(()=>!CG._camera);await frame(page);
     assert.equal(await idle(page),0,'camera animation stops completely');
+    const neighborPositions=await page.evaluate(()=>Object.fromEntries(CG.nodes.map(n=>[n.id,[n.x,n.y]])));
     const p=await point(page,'P3');
     await page.mouse.move(p.x,p.y);await page.mouse.down();
     await page.mouse.move(p.x+60,p.y+30,{steps:8});await page.waitForTimeout(100);
-    assert(await page.evaluate(()=>CG.nodes.some(n=>n.id!=='P3'&&Math.hypot(n._ox||0,n._oy||0)>.1)),'connected neighbors should respond to dragging');
+    assert(await page.evaluate(before=>CG.nodes.some(n=>n.id!=='P3'&&Math.hypot(n.x-before[n.id][0],n.y-before[n.id][1])>.1),neighborPositions),'connected neighbors should respond to dragging');
     const drop=await page.evaluate(()=>[CG.nodeById.P3.x,CG.nodeById.P3.y]);
-    await page.mouse.up();assert(await page.evaluate(()=>CG._motionActive));
+    await page.mouse.up();assert(await page.evaluate(()=>CG._physicsRunning));
     await rest(page);
     assert.deepEqual(await page.evaluate(()=>[CG.nodeById.P3.x,CG.nodeById.P3.y]),drop,'recoil must preserve the drop point');
     assert.equal(await page.evaluate(()=>CG.selected),null,'dragging must not open the paper');

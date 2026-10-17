@@ -107,6 +107,9 @@ async function labelStats(page) {
     assert(await page.locator('#spread-nearby').isDisabled());
     assert(await page.locator('#recenter-selected').isDisabled());
     assert.equal(await page.locator('#graph-layout-hint').count(),0);
+    await page.evaluate(()=>CG.updateForces());
+    await page.waitForFunction(()=>!CG._physicsRunning);
+    await frames(page);
     const baseline=await page.evaluate(()=>{
       CG.nodeById.Wr1.userPinned=true;
       const center=CG.nodeById[CG.seedId];
@@ -117,8 +120,10 @@ async function labelStats(page) {
       el.value='150';el.dispatchEvent(new Event('input',{bubbles:true}));
       return {moved:CG.nodeById.Wr2.x!==before,spacing:CG.spacing};
     });
-    assert(immediate.moved && immediate.spacing===1.5,'slider must move nodes immediately, before worker refinement');
-    await page.waitForFunction(()=>document.getElementById('graph-layout-status').textContent==='Spacing updated.');
+    assert(immediate.spacing===1.5,'slider updates force immediately');
+    await page.waitForFunction(()=>CG._physicsRunning);
+    await page.waitForFunction(()=>!CG._physicsRunning);
+    await page.waitForFunction(()=>document.getElementById('graph-layout-status').textContent==='Forces updated.');
     await page.waitForFunction(()=>CG.spacing===1.5&&!CG._relocation&&!CG._cancelWorker);
     const expanded=await page.evaluate(()=>{const c=CG.nodeById[CG.seedId];return {scale:CG.scale,pin:[CG.nodeById.Wr1.x,CG.nodeById.Wr1.y],radius:CG.nodes.reduce((sum,n)=>sum+Math.hypot(n.x-c.x,n.y-c.y),0)/CG.nodes.length};});
     assert.equal(expanded.scale,baseline.scale,'spacing must not be negated by automatic fitting');assert.deepEqual(expanded.pin,baseline.pin);
@@ -133,8 +138,8 @@ async function labelStats(page) {
       return samples;
     });
     assert(liveDrag.every((s,i)=>s.spacing===[1.55,1.6,1.65,1.7,1.65,1.6,1.55,1.5][i]&&!s.worker));
-    assert(liveDrag.every((s,i)=>!i||s.x!==liveDrag[i-1].x),'each slider frame must update the visible graph');
-    await page.waitForTimeout(200);await page.waitForFunction(()=>!CG._cancelWorker&&!CG._relocation);
+    assert(new Set(liveDrag.map(s=>s.x)).size>1,'graph moves while the slider is changing');
+    await page.waitForTimeout(200);await page.waitForFunction(()=>!CG._cancelWorker&&!CG._relocation&&!CG._physicsRunning);
     await page.evaluate(()=>{CG.select('Wr2');CG.select('Wr3');});
     await page.selectOption('#graph-links','selected');await frames(page);
     assert(await page.evaluate(()=>CG.edges.filter(e=>e.path.style.display!=='none'&&Number(e.path.style.opacity)>0).every(e=>CG.selectedIds.has(e.s)||CG.selectedIds.has(e.t))));
@@ -152,7 +157,7 @@ async function labelStats(page) {
     await page.screenshot({path:path.join(output,'layout-controls-mobile.png')});
     await page.emulateMedia({reducedMotion:'reduce'});
     await page.locator('#graph-spacing').evaluate(el=>{el.value='120';el.dispatchEvent(new Event('input',{bubbles:true}));});
-    await page.waitForTimeout(200);await page.waitForFunction(()=>CG.spacing===1.2&&!CG._cancelWorker);assert.equal(await page.evaluate(()=>!!CG._relocation),false);
+    await page.waitForTimeout(200);await page.waitForFunction(()=>CG.spacing===1.2&&!CG._cancelWorker&&!CG._physicsRunning);assert.equal(await page.evaluate(()=>!!CG._relocation),false);
     await page.evaluate(async()=>{const a=CG.arrange(1.8);const b=CG.arrange(.9);await Promise.all([a,b]);});assert.equal(await page.evaluate(()=>CG.spacing),.9,'latest spacing request wins');
     assert.equal(await idleWrites(page),0);assert.deepEqual(errors,[]);
     await page.evaluate(()=>{CG.select('Wr2');CG.select('Wr3');});

@@ -102,8 +102,8 @@ async function labelStats(page) {
  await page.click('#graph-options summary');
  const pinned=await page.evaluate(()=>{const n=CG.nodeById.Wr1;n.userPinned=true;return {x:n.x,y:n.y,scale:CG.scale};});
  const setBond=async value=>{
-  const immediate=await page.locator('#graph-bonds').evaluate((el,value)=>{const n=CG.nodes.find(n=>n.role==='cite'),x=n.x,y=n.y;el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));return n.x!==x||n.y!==y;},String(value));assert(immediate,'bonds preview immediately');
-  await page.waitForTimeout(200);await page.waitForFunction(()=>!CG._cancelWorker&&!CG._relocation&&document.getElementById('graph-layout-status').textContent==='Bonds updated.');
+  const immediate=await page.locator('#graph-bonds').evaluate((el,value)=>{const n=CG.nodes.find(n=>n.role==='cite'),x=n.x,y=n.y;el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));return CG.bondStrength===value/100;},String(value));assert(immediate,'link force updates immediately');
+  await page.waitForTimeout(200);await page.waitForFunction(()=>!CG._cancelWorker&&!CG._relocation&&!CG._physicsRunning&&document.getElementById('graph-layout-status').textContent==='Forces updated.');
   return page.evaluate(()=>CG.edges.reduce((sum,e)=>{const a=CG.nodeById[e.s],b=CG.nodeById[e.t];return sum+Math.hypot(a.x-b.x,a.y-b.y);},0)/CG.edges.length);
  };
  const weak=await setBond(50),strong=await setBond(200);assert(strong<weak*.9,'stronger bonds shorten connections');
