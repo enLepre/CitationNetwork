@@ -34,7 +34,7 @@
 
       this.nodes = []; this.edges = []; this.nodeById = {};
       this.scale = 1; this.tx = 0; this.ty = 0;
-      this.hovered = null; this.selected = null;
+      this.hovered = null; this.selected = null; this.selectedIds = new Set();
       this.dragNode = null; this.dragMoved = false; this.panning = false;
       this._pointerId = null;
       this.showRefs = true; this.showCites = true; this.showLinked = true; this.showLabels = true; this.linkOpacity = 1;
@@ -560,7 +560,7 @@
       const pal = this._palette();
       const focus = this.hovered || (this.selected && this.nodeById[this.selected]);
       const neigh = focus ? this.adj[focus.id] : null;
-      const isLit = id => !focus || focus.id === id || (neigh && neigh.has(id));
+      const isLit = id => !focus || this.selectedIds.has(id) || focus.id === id || (neigh && neigh.has(id));
 
       this.nodes.forEach(n => {
         const vis = this._visible(n);
@@ -569,7 +569,7 @@
         if (!vis) return;
         const lit = isLit(n.id);
         const col = this._color(n.role, pal);
-        const isSel = this.selected === n.id;
+        const isSel = this.selected === n.id || this.selectedIds.has(n.id);
         n.cEl.setAttribute("fill", col);
         n.cEl.setAttribute("stroke", pal.bg);
         n.gEl.style.opacity = lit ? 1 : 0.2;

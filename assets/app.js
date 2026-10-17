@@ -358,6 +358,66 @@
 
   /* ---------------- detail panel ---------------- */
   const detail = $("detail");
+  let paperCards = [];
+  function updatePaperCards() {
+    const old = new Map([...detail.children].map(card => [card.dataset.id, card.getBoundingClientRect().top]));
+    const existing = new Map([...detail.children].map(card => [card.dataset.id, card]));
+    detail.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+    detail.hidden = !paperCards.length;
+    renderTooltip(null);
+    for (const [index, paper] of paperCards.entries()) {
+      let card = existing.get(paper.id);
+      if (!card) {
+        card = document.createElement('article');
+        card.className = 'node-popup paper-card'; card.dataset.id = paper.id;
+        card.innerHTML = '<button class="popup-close" type="button" title="Close">×</button><h2><button class="card-title" type="button"></button></h2><div class="card-body"><p class="card-authors"></p><p class="popup-meta"><span class="card-year"></span><span class="card-venue"></span></p><a class="card-link" target="_blank" rel="noopener noreferrer"></a></div>';
+        card.querySelector('.card-title').addEventListener('click', () => graph.select(paper.id));
+        card.querySelector('.popup-close').addEventListener('click', () => closePaperCard(paper.id));
+      }
+      card.classList.toggle('is-front', index === 0);
+      card.style.zIndex = String(4 - index);
+      card.style.maxHeight = index === 0 ? Math.max(80, detail.parentElement.clientHeight - 40 - (paperCards.length - 1) * 44) + 'px' : '';
+      const title = card.querySelector('.card-title');
+      title.textContent = paper.title || 'Untitled paper'; title.title = title.textContent;
+      title.setAttribute('aria-expanded', String(index === 0));
+      card.querySelector('.popup-close').setAttribute('aria-label', 'Close ' + title.textContent);
+      card.querySelector('.card-authors').textContent = paper.authors || 'Authors unavailable';
+      card.querySelector('.card-year').textContent = paper.year || 'Year unavailable';
+      card.querySelector('.card-venue').textContent = paper.venue || 'Journal unavailable';
+      const link = card.querySelector('.card-link');
+      let url = null;
+      try { const parsed = new URL(paper.url); if (['https:', 'http:'].includes(parsed.protocol)) url = parsed.href; } catch (_) {}
+      link.hidden = !url; link.href = url || '#'; link.textContent = url || '';
+      card.querySelector('.card-body').hidden = index !== 0;
+      if (index === 0) {
+        for (const [selector, id] of [['.card-title','d-title'],['.popup-close','detail-close'],['.card-authors','d-authors'],['.card-year','d-year'],['.card-venue','d-venue'],['.card-link','d-link']]) card.querySelector(selector).id = id;
+      }
+      detail.appendChild(card);
+    }
+    for (const [id, card] of existing) if (!paperCards.some(p => p.id === id)) card.remove();
+    graph.selectedIds = new Set(paperCards.map(p => p.id));
+    graph.selected = selectedId = paperCards[0]?.id || null;
+    if (window.CitationPage) window.CitationPage.selectedId = selectedId;
+    graph._invalidate();
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      for (const card of detail.children) {
+        const previous = old.get(card.dataset.id);
+        card.getAnimations().forEach(animation => animation.cancel());
+        const offset = previous == null ? -16 : previous - card.getBoundingClientRect().top;
+        card.animate([{ transform: `translateY(${offset}px)`, opacity: previous == null ? 0 : 1 }, { transform: 'translateY(0)', opacity: 1 }], { duration: 240, easing: 'cubic-bezier(.2,.7,.2,1)' });
+      }
+    }
+  }
+  function closePaperCard(id) {
+    paperCards = paperCards.filter(p => p.id !== id);
+    updatePaperCards();
+    if (paperCards.length) detail.querySelector('.card-title').focus({ preventScroll: true });
+    else graph.nodeById[id]?.gEl.focus({ preventScroll: true });
+  }
+  if (PAGE === 'graph') new ResizeObserver(() => {
+    const front = detail.firstElementChild;
+    if (front) front.style.maxHeight = Math.max(80, detail.parentElement.clientHeight - 40 - (paperCards.length - 1) * 44) + 'px';
+  }).observe(detail.parentElement);
   function renderDetail(node) {
     if (!detail) return;
     selectedId = node?.id || null;
@@ -366,19 +426,8 @@
       try { sessionStorage.setItem('citation-selected', JSON.stringify({ seedId: CURRENT.seedId, paperId: node.id })); } catch (_) {}
     }
     if (PAGE === 'graph') {
-      detail.hidden = !node;
-      if (!node) return;
-      renderTooltip(null);
-      $('d-title').textContent = node.title || 'Untitled paper';
-      $('d-authors').textContent = node.authors || 'Authors unavailable';
-      $('d-year').textContent = node.year || 'Year unavailable';
-      $('d-venue').textContent = node.venue || 'Journal unavailable';
-      const link = $('d-link');
-      let url = null;
-      try { const parsed = new URL(node.url); if (['https:', 'http:'].includes(parsed.protocol)) url = parsed.href; } catch (_) {}
-      link.hidden = !url;
-      link.href = url || '#';
-      link.textContent = url || '';
+      paperCards = node ? [node, ...paperCards.filter(p => p.id !== node.id)].slice(0, 4) : [];
+      updatePaperCards();
       return;
     }
     if (!node) { detail.classList.add("closed"); return; }
@@ -607,7 +656,7 @@
   function closeDetail() {
     if (graph) {
       const node = graph.nodeById[graph.selected];
-      graph.select(null);
+      closePaperCard(graph.selected);
       node?.cEl?.closest('.gnode')?.focus({ preventScroll: true });
     } else renderDetail(null);
   }

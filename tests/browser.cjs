@@ -241,6 +241,20 @@ async function labelStats(page) {
       assert.equal(await page.evaluate(()=>CG.selected),null);
 
     }
+    const stackIds = await page.evaluate(() => { const ids=CG.nodes.slice(0,5).map(n=>n.id); ids.forEach(id=>CG.select(id)); return ids; });
+    assert.deepEqual(await page.locator('.paper-card').evaluateAll(cards=>cards.map(c=>c.dataset.id)),stackIds.slice(1).reverse());
+    assert.equal(await page.evaluate(()=>CG.selectedIds.size),4);
+    await page.waitForTimeout(300);
+    const cardBoxes = await page.locator('.paper-card').evaluateAll(cards=>cards.map(c=>{const r=c.getBoundingClientRect();return {y:r.y,bottom:r.bottom};}));
+    for(let i=1;i<4;i++) assert(cardBoxes[i].y >= cardBoxes[i-1].bottom-9);
+    await page.locator('.paper-card').nth(3).locator('.card-title').click();
+    assert.equal(await page.evaluate(()=>CG.selected),stackIds[1]);
+    assert.equal(await page.locator('.paper-card').count(),4);
+    await page.click('#detail-close');
+    assert.equal(await page.locator('.paper-card').count(),3);
+    assert.equal(await page.evaluate(id=>CG.selectedIds.has(id),stackIds[1]),false);
+    await page.screenshot({path:path.join(output,'stack-cards.png')});
+    await page.evaluate(()=>CG.select(null));
     await page.click('#zoom-fit'); await frames(page);
     const labels = await labelStats(page);assert(labels.visible>=1);assert.equal(labels.overlappingPairs,0);assert(labels.minScreenFontPx>=12.99);
     assert.equal(await idleWrites(page),0);
@@ -317,8 +331,12 @@ async function labelStats(page) {
     const mobileGraph = await page.locator('#graph-canvas').boundingBox();
     assert.equal(mobileGraph.width,390);assert.equal(mobileGraph.height,844-68);
     await page.evaluate(()=>CG.focusNode('Wseed'));assert(await page.locator('#detail').isVisible());
+    await page.emulateMedia({reducedMotion:'reduce'});
+    await page.evaluate(()=>{CG.select(null);CG.nodes.slice(0,5).forEach(n=>CG.select(n.id));});
+    assert.equal(await page.locator('.paper-card').count(),4);
+    assert.equal(await page.locator('#detail').evaluate(el=>el.getAnimations({subtree:true}).length),0);
     const mobilePopup=await page.locator('#detail').boundingBox();assert(mobilePopup.x>=0 && mobilePopup.x+mobilePopup.width<=390 && mobilePopup.y+mobilePopup.height<=844);
-    await page.waitForFunction(()=>!document.documentElement.dataset.slide); await frames(page); await page.screenshot({path:path.join(output,'after-mobile-popup.png')});await page.click('#detail-close');assert.equal(await page.locator('#detail').isVisible(),false);
+    await page.waitForFunction(()=>!document.documentElement.dataset.slide); await frames(page); await page.screenshot({path:path.join(output,'after-mobile-popup.png')});for(let i=0;i<4;i++) await page.click('#detail-close');assert.equal(await page.locator('#detail').isVisible(),false);
     await navigate(page,'paper');await page.waitForFunction(()=>window.CitationPage?.ready);
     assert.deepEqual(await page.locator('#notebook-menu').boundingBox(),mobileNav);
     assert(await page.locator('#d-title').isVisible());assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
