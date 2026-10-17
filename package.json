@@ -5,7 +5,7 @@
   "scripts": {
     "build": "node scripts/build.cjs",
     "test": "node --test tests/data.test.cjs",
-    "test:browser": "node tests/selection.cjs && node tests/motion.cjs && node tests/browser.cjs",
+    "test:browser": "node tests/search.cjs && node tests/selection.cjs && node tests/motion.cjs && node tests/browser.cjs",
     "start": "node scripts/serve.cjs"
   },
   "dependencies": {

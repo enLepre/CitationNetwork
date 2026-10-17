@@ -118,7 +118,7 @@ window.OpenAlex = (function () {
           });
           continue;
         }
-        if (!r.ok) throw new Error('OpenAlex request failed (' + r.status + ')');
+        if (!r.ok) { const error = new Error('OpenAlex request failed (' + r.status + ')'); error.status = r.status; throw error; }
         abort(signal);
         responseCache.set(url, { data, time: Date.now() });
         if (responseCache.size > 100) responseCache.delete(responseCache.keys().next().value);
@@ -138,17 +138,6 @@ window.OpenAlex = (function () {
     return m ? m[0].toLowerCase().replace(/[).,;]+$/, "") : null;
   }
 
-  // Resolve a work straight from its DOI. This is the ONLY reliable way to find
-  // a freshly published paper: text/relevance search can miss it for days while
-  // OpenAlex's search index settles, but the DOI single-entity lookup hits the
-  // record the moment it's ingested.
-  async function byDoi(doi, options = {}) {
-    try {
-      const w = await getJSON(`${API}/works/doi:${doi}?select=${SELECT}`, options);
-      return (w && w.id) ? toPaper(w) : null;
-    } catch (e) { if (isAbort(e)) throw e; return null; }
-  }
-
   // Resolve a work straight from its OpenAlex id (e.g. "W2766852927"). Used to
   // rebuild a shared graph from a link — the seed id is all we need to
   // regenerate the identical neighborhood live.
@@ -162,72 +151,97 @@ window.OpenAlex = (function () {
     return (w && w.id) ? toPaper(w) : null;
   }
 
-  // Two complementary queries, merged & de-duped:
-  //  1. relevance search (OpenAlex default ranking — good for well-cited work)
-  //  2. title-filter sorted by publication date (surfaces brand-new papers that
-  //     have ~0 citations and so never rank in the relevance query)
-  // Without (2), recently published papers are invisible even on an exact title
-  // match, because relevance_score is dominated by cited_by_count.
-  async function search(q, options = {}) {
-    if (!q || !q.trim()) return [];
-    const term = q.trim();
-    // DOI pasted (or a doi.org link)? Resolve it directly and return that one
-    // paper — don't dilute an exact match with fuzzy text hits.
-    const doi = doiFromQuery(term);
-    if (doi) {
-      const hit = await byDoi(doi, options);
-      if (hit) return [hit];
-      // DOI didn't resolve (typo / not yet ingested) — fall through to text search.
-    }
-    const enc = encodeURIComponent(term);
-    const [byRelevance, byTitleRecent] = await Promise.all([
-      getJSON(`${API}/works?search=${enc}&per-page=25&select=${SELECT_SEARCH}`, options),
-      getJSON(`${API}/works?filter=title.search:${enc}&sort=publication_date:desc&per-page=25&select=${SELECT_SEARCH}`, options)
-        .catch(error => { if (isAbort(error)) throw error; return { results: [] }; })
-    ]);
-    const map = new Map();
-    // Relevance batch first so it wins ties (preserves OpenAlex's ranking for
-    // topic / author queries, where titles rarely contain the query words).
-    [...(byRelevance.results || []), ...(byTitleRecent.results || [])].forEach(w => {
-      const p = toPaper(w);
-      if (!map.has(p.id)) map.set(p.id, p);
-    });
-    // Re-rank the merged list by TITLE-WORD overlap with the query. A precise
-    // title match scores ~1 and floats to the top even with 0 citations — which
-    // is exactly the recent-paper case relevance search buries. When titles
-    // don't contain the query words (author / topic search) every score is 0
-    // and the stable sort leaves OpenAlex's original relevance order intact.
-    return rankByTitle([...map.values()], term);
-  }
-
-  // Fraction of query words (length > 2) that appear in a paper's title.
-  function titleScore(p, qwords) {
-    if (!qwords.length) return 0;
-    const t = (p.title || "").toLowerCase();
-    return qwords.filter(w => t.includes(w)).length / qwords.length;
-  }
-  function queryWords(q) {
-    return q.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(w => w.length > 2);
+  const normalize = text => String(text || '').normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ');
+  const stopWords = new Set(['a', 'an', 'the', 'of', 'and', 'in', 'on', 'for', 'to', 'with']);
+  function queryWords(q) { return [...new Set(normalize(q).split(' ').filter(w => w && !stopWords.has(w)))]; }
+  function titleScore(p, q) {
+    const title = normalize(p.title), query = normalize(q);
+    if (title === query) return 4;
+    if (query && (' ' + title + ' ').includes(' ' + query + ' ')) return 3;
+    const words = queryWords(q), tokens = new Set(queryWords(title));
+    const overlap = words.filter(w => tokens.has(w)).length;
+    const coverage = words.length ? overlap / words.length : 0;
+    // Only promote strong title matches; broad topic results retain provider relevance.
+    return coverage >= 0.6 ? coverage + overlap / Math.max(tokens.size, 1) : 0;
   }
   function rankByTitle(list, q) {
-    const qw = queryWords(q);
-    return list
-      .map((p, i) => ({ p, i, s: titleScore(p, qw) }))
-      .sort((a, b) => (b.s - a.s) || (a.i - b.i)) // score desc, else keep original order
-      .map(o => o.p);
+    return list.map((p, i) => ({ p, i, score: titleScore(p, q) }))
+      .sort((a, b) => b.score - a.score || a.i - b.i).map(item => item.p);
   }
-
-  // Resolve a free-text query to its best title match. Ranking favors how well
-  // the title matches the query, then RECENCY — never citation count, which
-  // would always bury a newly published paper under older, well-cited ones.
+  const paramsFor = params => Object.entries(params).filter(([,v]) => v != null && v !== '').map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+  function searchFilter(options) {
+    const filters = [];
+    if (options.yearFrom) filters.push(`from_publication_date:${options.yearFrom}-01-01`);
+    if (options.yearTo) filters.push(`to_publication_date:${options.yearTo}-12-31`);
+    if (options.authorId) filters.push(`authorships.author.id:${options.authorId}`);
+    return filters.join(',');
+  }
+  async function searchAuthors(q, options = {}) {
+    const page = options.page || 1;
+    const data = await getJSON(`${API}/authors?${paramsFor({ search: q.trim(), 'per-page': 20, page, select: 'id,display_name,works_count,last_known_institutions,orcid' })}`, options);
+    return { results: (data.results || []).map(a => ({ id: shortId(a.id), name: a.display_name, works: a.works_count, institution: (a.last_known_institutions || []).map(i => i.display_name).join(' · '), orcid: a.orcid })), hasMore: data.meta ? page * 20 < data.meta.count : (data.results || []).length === 20 };
+  }
+  async function searchPage(q, options = {}) {
+    const term = q.trim(), page = options.page || 1, size = 25;
+    if (!term && !options.authorId) return { results: [], hasMore: false };
+    const doi = doiFromQuery(term);
+    if (doi && !options.authorId) {
+      // An identifier is an exact lookup, never a broad text query.
+      const w = await getJSON(`${API}/works/https://doi.org/${encodeURIComponent(doi)}?select=${SELECT_SEARCH}`, options).catch(error => {
+        if (error.status === 404) return null;
+        throw error;
+      });
+      const paper = w?.id ? toPaper(w) : null;
+      const matchesYear = paper && (!options.yearFrom || paper.year >= +options.yearFrom) && (!options.yearTo || paper.year <= +options.yearTo);
+      return { results: matchesYear ? [paper] : [], hasMore: false, exact: true };
+    }
+    const common = { 'per-page': size, page, select: SELECT_SEARCH, filter: searchFilter(options) };
+    if (options.authorId) {
+      const data = await getJSON(`${API}/works?${paramsFor({ ...common, sort: 'publication_date:desc' })}`, options);
+      return { results: (data.results || []).map(toPaper), hasMore: data.meta ? page * size < data.meta.count : (data.results || []).length === size };
+    }
+    const sources = options.mode === 'title' ? ['search.title'] : ['search.title', 'search'];
+    const batches = new Map(), failures = [], more = new Map();
+    function snapshot() {
+      const unique = new Map();
+      // Broad relevance breaks ties independently of which response arrived first.
+      for (const source of ['search', 'search.title', 'fuzzy']) for (const paper of batches.get(source) || []) if (!unique.has(paper.id)) unique.set(paper.id, paper);
+      return { results: rankByTitle([...unique.values()], term), hasMore: [...more.values()].some(Boolean), partial: failures.length > 0, fuzzy: batches.has('fuzzy') };
+    }
+    await Promise.all(sources.map(async source => {
+      try {
+        const data = await getJSON(`${API}/works?${paramsFor({ ...common, [source]: term })}`, options);
+        batches.set(source, (data.results || []).map(toPaper));
+        more.set(source, data.meta ? page * size < data.meta.count : (data.results || []).length === size);
+        abort(options.signal);
+        options.onUpdate?.(snapshot());
+      } catch (error) { if (isAbort(error) || options.signal?.aborted) throw error; failures.push(error); }
+    }));
+    if (!batches.size) throw failures[0];
+    let result = snapshot();
+    // Recover spelling variants only when no strong title match was found.
+    const words = queryWords(term);
+    if (!failures.length && words.length && words.length <= 12 && !result.results.some(p => titleScore(p, term) >= 1)) {
+      try {
+        const fuzzy = words.map(w => /^\p{L}{4,}$/u.test(w) ? w + '~1' : w).join(' ');
+        if (fuzzy !== words.join(' ')) {
+          const data = await getJSON(`${API}/works?${paramsFor({ ...common, 'search.title': fuzzy })}`, options);
+          if (data.results?.length) {
+            batches.set('fuzzy', data.results.map(toPaper));
+            more.set('fuzzy', data.meta ? page * size < data.meta.count : data.results.length === size);
+          }
+          result = snapshot();
+        }
+      } catch (error) { if (isAbort(error) || options.signal?.aborted) throw error; }
+    }
+    abort(options.signal);
+    return result;
+  }
+  async function search(q, options = {}) { return (await searchPage(q, options)).results; }
   async function resolveTop(q, options = {}) {
     const results = await search(q, options);
-    if (!results.length) throw new Error("No matching paper found.");
-    // search() already ranks DOI / title matches first, so the head of the list
-    // is the best match. Break exact-score ties toward the more recent paper.
-    const qw = queryWords(q);
-    const yr = p => (typeof p.year === "number" ? p.year : 0);
-    return results.slice().sort((a, b) => (titleScore(b, qw) - titleScore(a, qw)) || (yr(b) - yr(a)))[0];
+    if (!results.length) throw new Error('No matching paper found.');
+    return results[0];
   }
 
   async function fetchByIds(ids, options = {}) {
@@ -363,5 +377,5 @@ window.OpenAlex = (function () {
     return network(papers, seed, citeRes, refPapers, linkedShown);
   }
 
-  return { search, resolveTop, byId, fetchByIds, abstractFor, citing, sourceImpact, buildNetwork, toPaper };
+  return { search, searchPage, searchAuthors, resolveTop, byId, fetchByIds, abstractFor, citing, sourceImpact, buildNetwork, toPaper };
 })();

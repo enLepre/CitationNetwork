@@ -5,8 +5,8 @@
 <meta name="description" content="Explore the references, citing papers and shared foundations around a paper.">
 <meta name="theme-color" content="#f5f2ec">
 <title>Citation Network</title>
-<script blocking="render" src="assets/navigation.js?v=overlap-7"></script>
-<link rel="stylesheet" href="assets/styles.css?v=overlap-7">
+<script blocking="render" src="assets/navigation.js?v=search-8"></script>
+<link rel="stylesheet" href="assets/styles.css?v=search-8">
 
 </head>
 <body data-page="search">
@@ -34,32 +34,33 @@
 
       <div class="bigsearch">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
-        <input id="big-input" type="text" aria-label="Paper title, author, or DOI" placeholder="Paper title, author, or DOI…">
+        <input id="big-input" type="text" aria-label="Search papers" placeholder="Paper title, topic, or DOI…" maxlength="500" autocomplete="off">
         <button id="big-go" type="button" aria-label="Search papers" title="Search papers"><span aria-hidden="true">→</span></button>
       </div>
+      <div class="search-options">
+        <label>Search <select id="search-mode"><option value="papers">Papers</option><option value="title">Titles only</option><option value="authors">Authors</option></select></label>
+        <label>From <input id="search-from" type="number" min="1500" max="2100" placeholder="Any year" aria-label="Published from year"></label>
+        <label>To <input id="search-to" type="number" min="1500" max="2100" placeholder="Any year" aria-label="Published through year"></label>
+      </div>
+      <p class="search-hint" id="search-hint">Find a paper by title, topic, or DOI. Choose Authors to find someone’s publications.</p>
+      <button id="author-back" class="search-back" type="button" hidden>← Back to authors</button>
+      <p id="search-status" role="status" aria-live="polite"></p>
+      <div id="search-results" aria-label="Search results"></div>
+      <button id="search-more" class="btn" type="button" hidden>Load more</button>
+      <button id="search-retry" class="btn" type="button" hidden>Try again</button>
+      <p id="search-source" class="search-hint" hidden>Results from OpenAlex · choose a paper to explore its connections</p>
+
 
     </div>
   </main>
 </div>
 </div>
-<div class="picker" id="picker" hidden="">
-  <div class="picker-backdrop" id="picker-backdrop"></div>
-  <div class="picker-card">
-    <div class="picker-search">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
-      <input id="picker-input" type="text" placeholder="Search papers by title, author, or DOI…">
-      <button class="picker-x" id="picker-close" title="Close">✕</button>
-    </div>
-    <div class="picker-results" id="picker-results"></div>
-    <div class="picker-foot"><span class="src">Results from OpenAlex · pick the paper to seed your graph</span></div>
-  </div>
-</div>
 <div class="toast" id="toast" hidden="">
   <span class="tmsg"></span>
   <input class="tsub" id="toast-url" readonly="" hidden="">
 </div>
-<script src="assets/openalex.js?v=overlap-7" defer></script>
-<script src="assets/tweaks.js?v=overlap-7" defer></script>
-<script src="assets/app.js?v=overlap-7" defer></script>
+<script src="assets/openalex.js?v=search-8" defer></script>
+<script src="assets/tweaks.js?v=search-8" defer></script>
+<script src="assets/app.js?v=search-8" defer></script>
 </body>
 </html>

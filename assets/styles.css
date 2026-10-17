@@ -310,3 +310,36 @@ table.papers tr:focus-visible { outline: 2px solid var(--ink); outline-offset: -
   .paper-stack .paper-card.is-front { padding: 24px 20px; }
   .paper-card.is-front h2 { font-size: 21px; }
 }
+
+/* Inline scholarly search stays in the same workspace. */
+body.has-search #view-search { display: block; }
+body.has-search .search-wrap { margin: 0 auto; padding-top: 36px; }
+body.has-search .search-wrap h1 { font-size: 42px; }
+body.has-search .search-wrap .lede { font-size: 22px; }
+body.has-search .bigsearch { margin-top: 28px; }
+.search-options { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px 20px; margin-top: 20px; }
+.search-options label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-soft); }
+.search-options select, .search-options input { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 0; padding: 8px; font: inherit; }
+.search-options input { width: 94px; }
+.search-hint { font-size: 14px; line-height: 1.5; color: var(--ink-faint); margin: 16px 0; }
+#search-status { min-height: 24px; font-size: 15px; line-height: 1.5; color: var(--ink-soft); }
+#search-results { text-align: left; }
+#search-results .presult { padding: 22px 12px; }
+#search-results .presult > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.result-authors { font-size: 15px; line-height: 1.5; margin-top: 8px; color: var(--ink-soft); }
+#search-results .pm { margin-top: 5px; line-height: 1.5; }
+#search-more, #search-retry { margin: 24px auto 8px; }
+.search-back { background: none; color: var(--cite); border: 0; padding: 12px; margin-top: 12px; font: inherit; }
+.presult:focus-visible, .search-options :focus-visible { outline: 2px solid var(--cite); outline-offset: 2px; }
+@media (max-width: 760px) {
+  .search-options { gap: 12px; }
+  .search-options label { font-size: 13px; }
+  .search-options input { width: 80px; }
+  #search-results .presult { padding: 18px 4px; gap: 12px; }
+  #search-results .pc { font-size: 14px; }
+  body.has-search .search-wrap h1 { font-size: 36px; }
+}
+
+@media (max-width: 760px) {
+  .search-options label:first-child { width: 100%; justify-content: center; }
+}

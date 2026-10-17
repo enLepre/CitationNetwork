@@ -1,6 +1,6 @@
 /* ============================================================
    App wiring — live OpenAlex data
-   Router · search picker · graph loading · detail · list
+   Router · inline search · graph loading · detail · list
    ============================================================ */
 (function () {
   const roleLabel = { seed: "Seed paper", ref: "Reference", cite: "Citing paper", linked: "Co-cited" };
@@ -52,62 +52,90 @@
     if (window.applyAppearance) window.applyAppearance();
   }
 
-  /* ---------------- picker modal ---------------- */
-  const picker = $("picker");
-  let pickerSeq = 0;
-  function openPicker(prefill) {
-    cancelSearch();
-    if (!picker) return;
-    picker.hidden = false;
-    const inp = $("picker-input");
-    inp.value = prefill || "";
-    setTimeout(() => inp.focus(), 30);
-    if (prefill && prefill.trim()) doSearch(prefill);
-    else $("picker-results").innerHTML = `<div class="picker-msg">Type a paper title, author, or DOI to begin.</div>`;
-  }
-  let searchController = null;
+  /* ---------------- inline search ---------------- */
+  let searchTimer = null, searchController = null, searchSeq = 0;
+  let searchPageNumber = 1, searchRows = [], selectedAuthor = null, retryMore = false, searchKey = '';
   function cancelSearch() {
-    clearTimeout(searchTimer); pickerSeq++;
-    if (searchController) searchController.abort();
+    clearTimeout(searchTimer); searchSeq++;
+    searchController?.abort();
   }
-  function closePicker() { if (!picker) return; picker.hidden = true; cancelSearch(); }
-  $("picker-close")?.addEventListener("click", closePicker);
-  $("picker-backdrop")?.addEventListener("click", closePicker);
-  document.addEventListener("keydown", e => { if (e.key === "Escape" && picker && !picker.hidden) closePicker(); });
-
-  let searchTimer = null;
-  $("picker-input")?.addEventListener("input", e => {
+  function renderSearchRows(rows, authors) {
+    const box = $('search-results');
+    const focusedId = box.contains(document.activeElement) ? document.activeElement.dataset.id : null;
+    box.innerHTML = rows.map(p => authors ? `
+      <button type="button" class="presult author-result" data-id="${esc(p.id)}">
+        <div><div class="pt">${esc(p.name)}</div><div class="pm">${esc(p.institution || 'Affiliation unavailable')}</div><div class="pm">${esc(p.orcid ? 'ORCID ' + p.orcid.split('/').pop() : '')}</div></div>
+        <div class="pc">${fmt(p.works || 0)}<small>works</small></div>
+      </button>` : `
+      <button type="button" class="presult" data-id="${esc(p.id)}">
+        <div><div class="pt">${esc(p.title)}</div><div class="result-authors">${esc(p.authors)}</div><div class="pm">${esc(p.year)} · ${esc(p.venue)}</div></div>
+        <div class="pc">${fmt(p.cites)}<small>citations</small></div>
+      </button>`).join('');
+    const byId = new Map(rows.map(p => [p.id, p]));
+    box.querySelectorAll('.presult').forEach(button => button.addEventListener('click', () => {
+      const item = byId.get(button.dataset.id);
+      if (authors) { selectedAuthor = item; doSearch(); }
+      else { cancelSearch(); loadSeed(item); }
+    }));
+    if (focusedId) [...box.children].find(el => el.dataset.id === focusedId)?.focus({ preventScroll: true });
+  }
+  async function doSearch(loadMore = false) {
+    if (!$('big-input')) return;
     cancelSearch();
-    const q = e.target.value;
-    if (!q.trim()) { $("picker-results").innerHTML = `<div class="picker-msg">Type a paper title, author, or DOI to begin.</div>`; return; }
-    searchTimer = setTimeout(() => doSearch(q), 350);
-  });
-  $("picker-input")?.addEventListener("keydown", e => { if (e.key === "Enter") { clearTimeout(searchTimer); doSearch(e.target.value); } });
-
-  async function doSearch(q) {
-    cancelSearch();
-    if (!q.trim()) return;
-    const seq = pickerSeq;
+    const seq = searchSeq, term = $('big-input').value.trim();
+    const status = $('search-status'), box = $('search-results'), more = $('search-more');
+    more.hidden = true; $('search-retry').hidden = true; box.setAttribute('aria-busy', 'false');
+    if (!term) {
+      searchRows = []; selectedAuthor = null; box.replaceChildren(); status.textContent = '';
+      $('author-back').hidden = true; $('search-source').hidden = true;
+      document.body.classList.remove('has-search'); return;
+    }
+    const from = $('search-from'), to = $('search-to');
+    if (!from.validity.valid || !to.validity.valid || (from.value && to.value && +from.value > +to.value)) {
+      status.textContent = 'Enter a valid year range, with the start year before the end year.'; return;
+    }
+    const key = JSON.stringify([term, $('search-mode').value, from.value, to.value, selectedAuthor?.id]);
+    if (key !== searchKey) loadMore = false;
+    const authors = $('search-mode').value === 'authors' && !selectedAuthor;
+    const page = loadMore ? searchPageNumber + 1 : 1;
+    const previous = loadMore ? searchRows.slice() : [];
     searchController = new AbortController();
-    const box = $("picker-results");
-    box.innerHTML = `<div class="picker-msg"><div class="spin-inline"></div>Searching OpenAlex…</div>`;
+    const options = { signal: searchController.signal, page, mode: $('search-mode').value,
+      yearFrom: from.value, yearTo: to.value, authorId: selectedAuthor?.id };
+    document.body.classList.add('has-search');
+    box.setAttribute('aria-busy', 'true');
+    $('author-back').hidden = !selectedAuthor;
+    status.textContent = loadMore ? 'Loading more results…' : selectedAuthor ? `Finding papers by ${selectedAuthor.name}…` : searchRows.length ? 'Updating results… Previous results remain below.' : 'Searching…';
+    retryMore = loadMore;
+    const apply = result => {
+      if (seq !== searchSeq) return;
+      const unique = new Map(previous.map(p => [p.id, p]));
+      result.results.forEach(p => unique.set(p.id, p));
+      searchRows = [...unique.values()]; searchKey = key;
+      renderSearchRows(searchRows, authors);
+      $('search-source').hidden = !searchRows.length;
+      $('search-source').textContent = authors ? 'Results from OpenAlex · choose an author to see their publications' : 'Results from OpenAlex · choose a paper to explore its connections';
+    };
+    options.onUpdate = result => {
+      if (seq !== searchSeq || !result.results.length) return;
+      apply(result); status.textContent = `${searchRows.length} papers found · checking additional matches…`;
+    };
     try {
-      const results = await OpenAlex.search(q, { signal: searchController.signal });
-      if (seq !== pickerSeq) return; // stale
-      if (!results.length) { box.innerHTML = `<div class="picker-msg">No papers found for “${esc(q)}”. Try a different title or a DOI.</div>`; return; }
-      box.innerHTML = results.map((p, i) => `
-        <button type="button" class="presult" data-i="${i}">
-          <div>
-            <div class="pt">${esc(p.title)}</div>
-            <div class="pm">${p.year} · ${esc(p.venue)}</div>
-          </div>
-          <div class="pc">${fmt(p.cites)}<small>citations</small></div>
-        </button>`).join("");
-      box.querySelectorAll(".presult").forEach(row =>
-        row.addEventListener("click", () => { closePicker(); loadSeed(results[+row.dataset.i]); }));
-    } catch (err) {
-      if (err.name === "AbortError" || seq !== pickerSeq) return;
-      box.innerHTML = `<div class="picker-msg">Couldn’t reach OpenAlex.<br>${esc(err.message || "Network error")}</div>`;
+      const result = authors ? await OpenAlex.searchAuthors(term, options) : await OpenAlex.searchPage(term, options);
+      if (seq !== searchSeq) return;
+      apply(result); searchPageNumber = page;
+      more.hidden = !result.hasMore;
+      status.textContent = searchRows.length
+        ? `${searchRows.length} ${authors ? (searchRows.length === 1 ? 'author' : 'authors') + ' — choose a person to see their papers' : (searchRows.length === 1 ? 'paper' : 'papers') + (selectedAuthor ? ' by ' + selectedAuthor.name : '')}${result.fuzzy ? ' · includes spelling alternatives' : ''}${result.partial ? ' · some results are unavailable; try again for the complete search' : ''}`
+        : authors ? 'No authors found. Try a full name or a different spelling.' : result.exact ? 'That DOI was not found, or is outside your year range.' : 'No papers found. Try fewer words, a DOI, or a wider year range.';
+      $('search-retry').hidden = !result.partial;
+      if (result.partial) retryMore = false;
+    } catch (error) {
+      if (seq !== searchSeq || options.signal.aborted) return;
+      status.textContent = `Search is temporarily unavailable. ${searchRows.length ? 'Previous results are still shown. ' : ''}Please try again.`;
+      $('search-retry').hidden = false;
+    } finally {
+      if (seq === searchSeq) box.setAttribute('aria-busy', 'false');
     }
   }
 
@@ -296,10 +324,39 @@
 
   /* ---------------- search screen ---------------- */
   function buildSearch() {
-    if (!$("big-input")) return;
-    const go = () => openPicker($("big-input").value);
-    $("big-go").addEventListener("click", go);
-    $("big-input").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+    const input = $('big-input');
+    if (!input) return;
+    const schedule = () => {
+      cancelSearch(); selectedAuthor = null;
+      if (!input.value.trim()) { doSearch(); return; }
+      searchTimer = setTimeout(() => doSearch(), 450);
+    };
+    input.addEventListener('input', event => { if (!event.isComposing) schedule(); });
+    input.addEventListener('compositionend', schedule);
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); doSearch(); }
+      if (event.key === 'ArrowDown') { const first = $('search-results').querySelector('button'); if (first) { event.preventDefault(); first.focus(); } }
+    });
+    $('big-go').addEventListener('click', () => doSearch());
+    $('search-more').addEventListener('click', () => doSearch(true));
+    $('search-retry').addEventListener('click', () => doSearch(retryMore));
+    $('author-back').addEventListener('click', () => { selectedAuthor = null; doSearch(); });
+    $('search-mode').addEventListener('change', () => {
+      selectedAuthor = null;
+      const authors = $('search-mode').value === 'authors';
+      input.placeholder = authors ? 'Author’s name…' : 'Paper title, topic, or DOI…';
+      input.setAttribute('aria-label', authors ? 'Search authors' : 'Search papers');
+      $('search-hint').textContent = authors ? 'Choose an author to explore their publications. Year filters apply to their papers.' : 'Find a paper by title, topic, or DOI. Choose Authors to find someone’s publications.';
+      doSearch();
+    });
+    for (const id of ['search-from', 'search-to']) $(id).addEventListener('change', () => doSearch());
+    $('search-results').addEventListener('keydown', event => {
+      if (!['ArrowDown', 'ArrowUp', 'Escape'].includes(event.key)) return;
+      const buttons = [...$('search-results').querySelectorAll('button')], index = buttons.indexOf(document.activeElement);
+      event.preventDefault();
+      if (event.key === 'Escape' || (event.key === 'ArrowUp' && index <= 0)) input.focus();
+      else buttons[Math.min(buttons.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1))]?.focus();
+    });
   }
 
   /* ---------------- graph controls ---------------- */

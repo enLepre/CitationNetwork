@@ -85,3 +85,51 @@ test('transient rate limiting retries; cancellation interrupts a retry delay', a
   setTimeout(() => controller.abort(), 10);
   await assert.rejects(pending, { name: 'AbortError' });
 });
+
+test('exact Unicode titles beat longer titles; short scientific terms and whole words matter', async () => {
+  const items = ['AI in catalysis: a review', 'Chair designs for catalysis', 'AI in catalysis', 'Étude du café'].map((title,i)=>({...raw('W'+i),display_name:title}));
+  const api = client(async()=>ok({results:items}));
+  assert.equal((await api.search('AI in catalysis'))[0].id,'W2');
+  assert.equal((await api.search('Étude du café'))[0].id,'W3');
+  const results = await api.search('AI');
+  assert(results.findIndex(p=>p.id==='W0')<results.findIndex(p=>p.id==='W1'));
+});
+
+test('fast results appear before the slower source and survive its failure', async () => {
+  let fail;
+  const slow = new Promise((_,reject)=>{fail=reject;});
+  const updates=[];
+  const api=client(async url=>url.includes('search.title=')?ok({results:[{...raw('W1'),display_name:'Catalysis'}]}):slow);
+  const pending=api.searchPage('Catalysis',{onUpdate:r=>updates.push(r)});
+  await new Promise(r=>setTimeout(r,5));
+  assert.equal(updates[0].results[0].id,'W1');
+  fail(new Error('network failed'));
+  const result=await pending;assert(result.partial);assert.equal(result.results.length,1);
+});
+
+test('author search resolves identities and retrieves papers by author ID with years and pagination', async () => {
+  const urls=[];
+  const api=client(async url=>{
+    urls.push(new URL(url));
+    return url.includes('/authors?')?ok({meta:{count:1},results:[{id:'https://openalex.org/A1',display_name:'Jane Doe',last_known_institutions:[{display_name:'University'}],works_count:30}]}):ok({meta:{count:60},results:[raw('W1')]});
+  });
+  const authors=await api.searchAuthors('Jane Doe');assert.equal(authors.results[0].institution,'University');
+  const works=await api.searchPage('Jane Doe',{authorId:'A1',yearFrom:'2020',yearTo:'2025',page:2});
+  assert(works.hasMore);assert.equal(urls[1].searchParams.get('page'),'2');
+  assert.equal(urls[1].searchParams.get('filter'),'from_publication_date:2020-01-01,to_publication_date:2025-12-31,authorships.author.id:A1');
+  assert.equal(urls[1].searchParams.get('search'),null);
+});
+
+test('weak searches recover spelling alternatives, but exact matches do not add requests', async () => {
+  const urls=[];
+  const api=client(async url=>{urls.push(new URL(url));return ok({results:url.includes('~1')?[{...raw('W1'),display_name:'Catalysis'}]:[]});});
+  const result=await api.searchPage('catalyssi');assert(result.fuzzy);assert.equal(result.results[0].id,'W1');assert.equal(urls.length,3);
+});
+
+test('DOI lookup stays exact, handles missing records, and does not hide network failures', async () => {
+  let calls=0;
+  const api=client(async url=>{calls++;assert(url.includes('/works/https://doi.org/10.1000%2Ftest'));return ok(raw('W1'));});
+  assert.equal((await api.search('https://doi.org/10.1000/test'))[0].id,'W1');assert.equal(calls,1);
+  const missing=client(async()=>({ok:false,status:404}));assert.equal((await missing.search('10.1000/missing')).length,0);
+  const broken=client(async()=>{throw new Error('offline');});await assert.rejects(broken.search('10.1000/missing'),/offline/);
+});
