@@ -569,7 +569,7 @@
       if (!card) {
         card = document.createElement('article');
         card.className = 'node-popup paper-card'; card.dataset.id = paper.id;
-        card.innerHTML = '<button class="popup-close" type="button" title="Close">×</button><h2><button class="card-title" type="button"></button></h2><div class="card-body"><p class="card-authors"></p><p class="popup-meta"><span class="card-year"></span><span class="card-venue"></span></p><a class="card-link" target="_blank" rel="noopener noreferrer"></a></div>';
+        card.innerHTML = '<button class="popup-close" type="button" title="Close">×</button><h2><button class="card-title" type="button"></button></h2><div class="card-body"><p class="card-authors"></p><p class="popup-meta"><span class="card-year"></span><span class="card-venue"></span></p><p class="card-citations"></p><a class="card-link" target="_blank" rel="noopener noreferrer"></a></div>';
         card.querySelector('.card-title').addEventListener('click', () => graph.select(paper.id));
         card.querySelector('.popup-close').addEventListener('click', () => closePaperCard(paper.id));
       }
@@ -583,6 +583,8 @@
       card.querySelector('.card-authors').textContent = paper.authors || 'Authors unavailable';
       card.querySelector('.card-year').textContent = paper.year || 'Year unavailable';
       card.querySelector('.card-venue').textContent = paper.venue || 'Journal unavailable';
+      const citations = Number.isFinite(paper.cites) ? paper.cites : null;
+      card.querySelector('.card-citations').textContent = citations == null ? 'Citation count unavailable' : new Intl.NumberFormat('en').format(citations) + (citations === 1 ? ' citation' : ' citations');
       const link = card.querySelector('.card-link');
       let url = null;
       try { const parsed = new URL(paper.url); if (['https:', 'http:'].includes(parsed.protocol)) url = parsed.href; } catch (_) {}
