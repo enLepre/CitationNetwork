@@ -319,6 +319,18 @@ async function labelStats(page) {
     await page.click('#detail-close');assert.equal(await page.locator('#detail').isVisible(),false);
     await page.click('[data-sort="year"]');const years=await page.locator('#papers-body tr[data-id] td:nth-child(4)').allTextContents();assert(+years[0]>=+years[years.length-1]);
     await page.selectOption('#type-filter','Article');assert.equal(await page.locator('#papers-body tr[data-id]').count(),302);
+    assert.equal(await page.locator('[data-sort="role"]').count(),0);
+    for(const role of ['ref','cite','linked']) {
+      await page.selectOption('#role-filter',role);
+      const expected=await page.evaluate(role=>CitationPage.network.papers.filter(p=>p.role===role&&p.type==='Article').length,role);
+      assert.equal(await page.locator('#papers-body tr[data-id]').count(),expected);
+      assert.equal(await page.locator('#papers-body .rolepill:not(.'+role+')').count(),0);
+    }
+    const filteredDownload=page.waitForEvent('download');await page.click('#export-bib');
+    const filteredFile=await (await filteredDownload).path();
+    const bib=fs.readFileSync(filteredFile,'utf8');assert.equal((bib.match(/^@/gm)||[]).length,await page.locator('#papers-body tr[data-id]').count());
+    assert(!bib.includes('Connected research paper Wr'),'export excludes filtered references');
+    await page.selectOption('#role-filter','');assert.equal(await page.locator('#papers-body tr[data-id]').count(),302);
     const downloadPromise=page.waitForEvent('download');await page.click('#export-bib');assert((await downloadPromise).suggestedFilename().endsWith('.bib'));
     report.checks.push('List loads independently without graph assets; clicking or keyboard-selecting a row opens its summary on the right, with sorting and export preserved');
     const beforeHome=urls.length;await page.click('[data-view=search]');await page.waitForURL('**/index.html');

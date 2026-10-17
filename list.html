@@ -50,8 +50,11 @@
             <span>Type</span>
             <select id="type-filter"><option value="">All types</option></select>
           </label>
+          <label class="type-filter">
+            <span>Role</span>
+            <select id="role-filter"><option value="">All roles</option><option value="ref">References</option><option value="cite">Citing</option><option value="linked">Co-cited</option></select>
+          </label>
           <div class="list-sort">
-            <button data-sort="role" class="active">Role</button>
             <button data-sort="year">Year</button>
             <button data-sort="cites">Citations</button>
             <button data-sort="links">Links</button>
@@ -105,6 +108,6 @@
 </div>
 <script src="assets/openalex.js?v=search-14" defer></script>
 <script src="assets/tweaks.js?v=search-14" defer></script>
-<script src="assets/app.js?v=citations-15" defer></script>
+<script src="assets/app.js?v=roles-16" defer></script>
 </body>
 </html>

@@ -12,8 +12,9 @@
   let graph = null;
   let citeLimit = 80;
   let lastSeed = null;          // paper object used for retry
-  let sortKey = "role";
-  let sortDir = "asc";          // "asc" | "desc" — toggled by clicking the active sort
+  let sortKey = "cites";
+  let sortDir = "desc";          // "asc" | "desc" — toggled by clicking the active sort
+  let roleFilter = "";
   let typeFilter = "";          // "" = all paper types
   let loadController = null;
   let netSeq = 0;               // bumped each load; guards stale background patches
@@ -725,6 +726,7 @@
   }
 
   /* ---------------- list view ---------------- */
+  const matchesListFilters = p => (!typeFilter || p.type === typeFilter) && (!roleFilter || p.role === roleFilter);
   function renderList() {
     const tb = $("papers-body");
     const exp = $("export-bib");
@@ -739,13 +741,14 @@
       if (sortKey === "year") return (a.year || 0) - (b.year || 0);
       if (sortKey === "cites") return a.cites - b.cites;
       if (sortKey === "links") return linkCount(a) - linkCount(b);
-      const o = { seed: 0, ref: 1, linked: 2, cite: 3 }; // role
-      return (o[a.role] - o[b.role]) || (b.cites - a.cites);
+      return 0;
     };
     const dir = sortDir === "asc" ? 1 : -1;
     const rows = CURRENT.papers.slice()
-      .filter(p => !typeFilter || p.type === typeFilter)
+      .filter(matchesListFilters)
       .sort((a, b) => base(a, b) * dir);
+    if (exp) exp.disabled = !rows.length;
+    if (roleFilter || typeFilter) $('list-seed').textContent = rows.length + ' of ' + CURRENT.papers.length + ' papers · ' + CURRENT.edges.length + ' links';
     const existingRows = new Map([...tb.querySelectorAll('tr[data-id]')].map(row=>[row.dataset.id,row]));
     tb.querySelectorAll('tr:not([data-id])').forEach(row=>row.remove());
     const keep = new Set(rows.map(p=>p.id));
@@ -768,7 +771,7 @@
       row.classList.toggle('selected',p.id===selectedId);
       if(tb.children[index]!==row) tb.insertBefore(row,tb.children[index]||null);
     });
-    if (!rows.length) tb.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--ink-faint);font-family:var(--mono);font-size:13px">No papers of this type in the graph.</td></tr>`;
+    if (!rows.length) tb.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--ink-faint);font-family:var(--mono);font-size:13px">No papers match these filters.</td></tr>`;
     if(!tb._wired) {
       tb._wired=true;
       const select = event => {
@@ -787,21 +790,24 @@
     });
   }
 
+  $("role-filter")?.addEventListener("change", e => { roleFilter = e.target.value; renderList(); });
+
   // Fill the type dropdown with the paper types present in the current graph.
   function populateTypeFilter() {
     const sel = $("type-filter");
     if (!sel) return;
     const types = [...new Set(CURRENT.papers.map(p => p.type).filter(Boolean))].sort();
-    typeFilter = "";
+    if (!types.includes(typeFilter)) typeFilter = "";
     sel.innerHTML = `<option value="">All types</option>` +
       types.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
+    sel.value = typeFilter;
   }
 
   document.querySelectorAll(".list-sort button").forEach(b =>
     b.addEventListener("click", () => {
       const k = b.dataset.sort;
       if (k === sortKey) sortDir = sortDir === "asc" ? "desc" : "asc";
-      else { sortKey = k; sortDir = (k === "role") ? "asc" : "desc"; }
+      else { sortKey = k; sortDir = "desc"; }
       renderList();
     }));
   document.getElementById("type-filter")?.addEventListener("change", e => { typeFilter = e.target.value; renderList(); });
@@ -861,8 +867,8 @@
   const exportBtn = $("export-bib");
   if (exportBtn) exportBtn.addEventListener("click", () => {
     if (!CURRENT.seedId || !CURRENT.papers.length) return;
-    // Export exactly what the list currently shows (respects the type filter).
-    const papers = CURRENT.papers.filter(p => !typeFilter || p.type === typeFilter);
+    // Export exactly what the list currently shows (respects both role and type filters).
+    const papers = CURRENT.papers.filter(matchesListFilters);
     if (!papers.length) return;
     const bib = buildBib(papers);
     const seed = CURRENT.byId[CURRENT.seedId];
