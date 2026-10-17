@@ -51,6 +51,7 @@
     try {
       const saved = JSON.parse(sessionStorage.getItem('citation-layout-controls') || '{}');
       graph.spacing = Math.max(.8, Math.min(1.8, Number(saved.spacing) || 1));
+      graph.bondStrength = Math.max(.5, Math.min(2, Number(saved.bondStrength) || 1));
       graph.setLinkMode(saved.links);
     } catch (_) {}
     window.CG = graph;
@@ -455,6 +456,9 @@
     $('graph-spacing').disabled = !graph._dataReady;
     $('graph-spacing').value = String(Math.round(graph.spacing * 100));
     $('spacing-value').textContent = Math.round(graph.spacing * 100) + '%';
+    $('graph-bonds').disabled = !graph._dataReady;
+    $('graph-bonds').value = String(Math.round(graph.bondStrength*100));
+    $('bonds-value').textContent = Math.round(graph.bondStrength*100)+'%';
     $('graph-links').value = graph.linkMode;
     const canSpread = !!graph.selected && graph._dataReady && (graph.adj[graph.selected]?.size || 0) > 0;
     $('spread-nearby').disabled = !canSpread;
@@ -465,17 +469,17 @@
       : canSpread ? 'Spread the active paper’s neighbors. Dragged papers stay in place.' : 'Select a paper to spread its neighbors.';
   }
   function saveLayoutControls() {
-    try { sessionStorage.setItem('citation-layout-controls', JSON.stringify({spacing:graph.spacing,links:graph.linkMode})); } catch (_) {}
+    try { sessionStorage.setItem('citation-layout-controls', JSON.stringify({spacing:graph.spacing,bondStrength:graph.bondStrength,links:graph.linkMode})); } catch (_) {}
   }
-  async function arrangeGraph(value, centerId = null) {
+  async function arrangeGraph(value, centerId = null, bonds = false) {
     if (!graph) return;
     const request = ++layoutRequest;
-    $('graph-layout-status').textContent = 'Adjusting spacing…';
+    $('graph-layout-status').textContent = bonds ? 'Adjusting bonds…' : 'Adjusting spacing…';
     try {
       const changed = await graph.arrange(value, centerId);
       if (request !== layoutRequest) return;
       if (changed) saveLayoutControls();
-      $('graph-layout-status').textContent = changed ? 'Spacing updated.' : '';
+      $('graph-layout-status').textContent = changed ? (bonds ? 'Bonds updated.' : 'Spacing updated.') : '';
     } catch (_) {
       if (request === layoutRequest) $('graph-layout-status').textContent = 'Could not adjust spacing. Please try again.';
     } finally { if (request === layoutRequest) syncLayoutControls(); }
@@ -504,6 +508,13 @@
       layoutRequest++; graph?.previewSpacing(value);
       if (graph) saveLayoutControls();
       layoutTimer = setTimeout(() => arrangeGraph(value), 180);
+    });
+    $('graph-bonds')?.addEventListener('input', event => {
+      const value=+event.target.value/100;
+      $('bonds-value').textContent=event.target.value+'%';
+      clearTimeout(layoutTimer); layoutRequest++;
+      graph?.previewBonds(value); if(graph) saveLayoutControls();
+      layoutTimer=setTimeout(()=>arrangeGraph(graph.spacing,null,true),180);
     });
     $('graph-links')?.addEventListener('change', event => {
       graph?.setLinkMode(event.target.value); if (graph) saveLayoutControls(); syncLayoutControls();
@@ -916,7 +927,7 @@
       if (graph?.nodes.length && !loading) sessionStorage.setItem('citation-graph-view', JSON.stringify({
         seedId: CURRENT.seedId, density: citeLimit, width: graph.W, height: graph.H,
         scale: graph.scale, tx: graph.tx, ty: graph.ty,
-        spacing: graph.spacing, positions: graph.nodes.map(n => ({id:n.id,x:n.x+(n._ox||0),y:n.y+(n._oy||0),userPinned:!!n.userPinned})), cards: paperCards.map(p=>p.id)
+        spacing: graph.spacing, bondStrength: graph.bondStrength, positions: graph.nodes.map(n => ({id:n.id,x:n.x+(n._ox||0),y:n.y+(n._oy||0),userPinned:!!n.userPinned})), cards: paperCards.map(p=>p.id)
       }));
       if (PAGE === 'search') sessionStorage.setItem('citation-search-view', JSON.stringify({
         query: $('big-input').value, mode: $('search-mode').value, from: $('search-from').value, to: $('search-to').value,

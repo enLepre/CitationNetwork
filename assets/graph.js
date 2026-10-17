@@ -12,7 +12,7 @@
     if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
     return n;
   };
-  const workerUrl = new URL("layout-worker.js?v=performance-12", document.currentScript.src);
+  const workerUrl = new URL("layout-worker.js?v=bonds-13", document.currentScript.src);
 
   class CitationGraph {
     constructor(svg, opts) {
@@ -38,7 +38,7 @@
       this.dragNode = null; this.dragMoved = false; this.panning = false;
       this._pointerId = null;
       this.showRefs = true; this.showCites = true; this.showLinked = true; this.showLabels = true; this.linkOpacity = 1;
-      this._nodeScale = 1; this.spacing = 1; this.linkMode = 'all';
+      this._nodeScale = 1; this.spacing = 1; this.bondStrength = 1; this.linkMode = 'all';
       this._motion = new Map();
       this._motionActive = false;
       this._reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -72,6 +72,7 @@
     async setData(papers, edges, seedId, { preserve = false, view = null } = {}) {
       this._dataReady = false;
       if (view?.spacing) this.spacing = view.spacing;
+      if (view?.bondStrength) this.bondStrength = view.bondStrength;
       const saved = view?.seedId === seedId ? Object.fromEntries(view.positions.map(p=>[p.id,p])) : {};
       const previous = preserve && this.seedId === seedId ? this.nodeById : saved;
       const selected = preserve ? this.selected : null;
@@ -201,7 +202,7 @@
 
     async _layout(seq, overrides = {}) {
       const input = {
-        width: this.W, height: this.H, spacing: this.spacing,
+        width: this.W, height: this.H, spacing: this.spacing, bondStrength: this.bondStrength,
         nodes: this.nodes.map(n => ({ id: n.id, role: n.role, rad: n.rad, x: n.x, y: n.y, labelWidth: n.labelWidth || Math.min(140, (n.short || '').length * 7 + 40),
           ...(n.fixed ? { fx: n.x, fy: n.y } : {}) })),
         edges: this.edges.map(({ s, t }) => ({ s, t })),
@@ -251,6 +252,29 @@
         n.y = center.y + (n.y - center.y) * ratio;
       }
       this.spacing = spacing;
+      this._invalidate({positions:true});
+    }
+
+    // Immediate edge-based preview; the worker resolves collisions after a pause.
+    previewBonds(value) {
+      if (!this._dataReady || this.dragNode) return;
+      value = Math.max(.5, Math.min(2, value));
+      this.cancelLayout();
+      const pull = Math.log(value / this.bondStrength) * .35;
+      const shifts = new Map();
+      for (const e of this.edges) {
+        const a=this.nodeById[e.s], b=this.nodeById[e.t];
+        if (!this._visible(a) || !this._visible(b)) continue;
+        for (const [n,other] of [[a,b],[b,a]]) {
+          if (n.userPinned || n.id===this.seedId) continue;
+          const shift=shifts.get(n) || {x:0,y:0};
+          shift.x+=(other.x-n.x)*pull/Math.max(1,n.degree);
+          shift.y+=(other.y-n.y)*pull/Math.max(1,n.degree);
+          shifts.set(n,shift);
+        }
+      }
+      for(const [n,shift] of shifts) {n.x+=shift.x;n.y+=shift.y;}
+      this.bondStrength=value;
       this._invalidate({positions:true});
     }
 

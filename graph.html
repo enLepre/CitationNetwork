@@ -5,8 +5,8 @@
 <meta name="description" content="Explore the references, citing papers and shared foundations around a paper.">
 <meta name="theme-color" content="#f5f2ec">
 <title>Graph — Citation Network</title>
-<script blocking="render" src="assets/navigation.js?v=performance-12"></script>
-<link rel="stylesheet" href="assets/styles.css?v=performance-12">
+<script blocking="render" src="assets/navigation.js?v=bonds-13"></script>
+<link rel="stylesheet" href="assets/styles.css?v=bonds-13">
 
 </head>
 <body data-page="graph">
@@ -50,6 +50,14 @@
           <div class="graph-options-panel">
             <label class="spacing-label" for="graph-spacing">Spacing <output id="spacing-value">100%</output></label>
             <input id="graph-spacing" type="range" min="80" max="180" step="5" value="100" disabled>
+            <label class="spacing-label" for="graph-bonds">Bond strength <output id="bonds-value">100%</output></label>
+            <input id="graph-bonds" type="range" min="50" max="200" step="5" value="100" aria-describedby="bond-hint" disabled>
+            <p id="bond-hint" class="control-hint">Stronger bonds pull connected papers closer.</p>
+            <div class="graph-legend" role="group" aria-label="Paper groups">
+              <button type="button" id="toggle-ref" aria-pressed="true"><span class="legend-dot ref" aria-hidden="true"></span>References</button>
+              <button type="button" id="toggle-cite" aria-pressed="true"><span class="legend-dot cite" aria-hidden="true"></span>Citing</button>
+              <button type="button" id="toggle-linked" aria-pressed="true"><span class="legend-dot linked" aria-hidden="true"></span>Co-cited</button>
+            </div>
             <label for="graph-links">Connections</label>
             <select id="graph-links"><option value="all">All connections</option><option value="selected">Selected papers</option><option value="shared">Shared connections</option></select>
             <button id="spread-nearby" type="button" disabled>Spread nearby</button>
@@ -65,11 +73,11 @@
   <span class="tmsg"></span>
   <input class="tsub" id="toast-url" readonly="" hidden="">
 </div>
-<script src="assets/layout.js?v=performance-12" defer></script>
-<script src="assets/sample.js?v=performance-12" defer></script>
-<script src="assets/graph.js?v=performance-12" defer></script>
-<script src="assets/openalex.js?v=performance-12" defer></script>
-<script src="assets/tweaks.js?v=performance-12" defer></script>
-<script src="assets/app.js?v=performance-12" defer></script>
+<script src="assets/layout.js?v=bonds-13" defer></script>
+<script src="assets/sample.js?v=bonds-13" defer></script>
+<script src="assets/graph.js?v=bonds-13" defer></script>
+<script src="assets/openalex.js?v=bonds-13" defer></script>
+<script src="assets/tweaks.js?v=bonds-13" defer></script>
+<script src="assets/app.js?v=bonds-13" defer></script>
 </body>
 </html>
