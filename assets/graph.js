@@ -12,7 +12,7 @@
     if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
     return n;
   };
-  const workerUrl = new URL("layout-worker.js?v=bonds-13", document.currentScript.src);
+  const workerUrl = new URL("layout-worker.js?v=search-14", document.currentScript.src);
 
   class CitationGraph {
     constructor(svg, opts) {

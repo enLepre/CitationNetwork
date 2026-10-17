@@ -246,6 +246,17 @@ window.OpenAlex = (function () {
     return list.map((p, i) => ({ p, i, score: titleScore(p, q) }))
       .sort((a, b) => b.score - a.score || a.i - b.i).map(item => item.p);
   }
+  function sortResults(rows, order) {
+    if (!['newest','oldest','citations'].includes(order)) return rows;
+    return rows.slice().sort((a,b)=>{
+      if(order==='citations') return (b.cites||0)-(a.cites||0);
+      const ay=Number(a.year),by=Number(b.year);
+      if(!Number.isFinite(ay)) return Number.isFinite(by)?1:0;
+      if(!Number.isFinite(by)) return -1;
+      return order==='oldest'?ay-by:by-ay;
+    });
+  }
+  const searchOrder = order => ({newest:'publication_date:desc',oldest:'publication_date:asc',citations:'cited_by_count:desc'}[order]);
   const paramsFor = params => Object.entries(params).filter(([,v]) => v != null && v !== '').map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
   function searchFilter(options) {
     const filters = [];
@@ -273,9 +284,9 @@ window.OpenAlex = (function () {
       const matchesYear = paper && (!options.yearFrom || paper.year >= +options.yearFrom) && (!options.yearTo || paper.year <= +options.yearTo);
       return { results: matchesYear ? [paper] : [], hasMore: false, exact: true };
     }
-    const common = { 'per-page': size, page, select: SELECT_SEARCH, filter: searchFilter(options) };
+    const common = { 'per-page': size, page, select: SELECT_SEARCH, filter: searchFilter(options), sort: searchOrder(options.sort) };
     if (options.authorId) {
-      const data = await getJSON(`${API}/works?${paramsFor({ ...common, sort: 'publication_date:desc' })}`, options);
+      const data = await getJSON(`${API}/works?${paramsFor({ ...common, sort: searchOrder(options.sort) || 'publication_date:desc' })}`, options);
       return { results: (data.results || []).map(toPaper), hasMore: data.meta ? page * size < data.meta.count : (data.results || []).length === size };
     }
     const sources = options.mode === 'title' ? ['search.title'] : ['search.title', 'search'];
@@ -284,7 +295,7 @@ window.OpenAlex = (function () {
       const unique = new Map();
       // Broad relevance breaks ties independently of which response arrived first.
       for (const source of ['search', 'search.title', 'fuzzy']) for (const paper of batches.get(source) || []) if (!unique.has(paper.id)) unique.set(paper.id, paper);
-      return { results: rankByTitle([...unique.values()], term), hasMore: [...more.values()].some(Boolean), partial: failures.length > 0, fuzzy: batches.has('fuzzy') };
+      return { results: searchOrder(options.sort) ? sortResults([...unique.values()],options.sort) : rankByTitle([...unique.values()], term), hasMore: [...more.values()].some(Boolean), partial: failures.length > 0, fuzzy: batches.has('fuzzy') };
     }
     await Promise.all(sources.map(async source => {
       try {
@@ -455,5 +466,5 @@ window.OpenAlex = (function () {
     return network(papers, seed, citeRes, refPapers, linkedShown);
   }
 
-  return { cachedNetwork, saveNetwork, flushCache, search, searchPage, searchAuthors, resolveTop, byId, fetchByIds, abstractFor, citing, sourceImpact, buildNetwork, toPaper };
+  return { sortResults, cachedNetwork, saveNetwork, flushCache, search, searchPage, searchAuthors, resolveTop, byId, fetchByIds, abstractFor, citing, sourceImpact, buildNetwork, toPaper };
 })();

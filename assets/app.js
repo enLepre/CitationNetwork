@@ -68,7 +68,7 @@
   const motion = (element, frames, duration = 240) => window.CitationMotion.animate(element, frames, duration);
   function enterSearch() {
     if (document.body.classList.contains('has-search')) return;
-    const elements = [...document.querySelectorAll('.search-wrap > h1, .search-wrap > .lede, .bigsearch, .search-options, #search-hint')];
+    const elements = [...document.querySelectorAll('.search-wrap > h1, .search-wrap > .lede, .bigsearch, .search-options')];
     const before = elements.map(el => el.getBoundingClientRect());
     try { sessionStorage.setItem('citation-search-compact', '1'); } catch (_) {}
     document.body.classList.add('has-search');
@@ -132,18 +132,15 @@
       $('author-back').hidden = true; $('search-source').hidden = true;
       box._pendingRows = null; return;
     }
-    const from = $('search-from'), to = $('search-to');
-    if (!from.validity.valid || !to.validity.valid || (from.value && to.value && +from.value > +to.value)) {
-      status.textContent = 'Enter a valid year range, with the start year before the end year.'; return;
-    }
-    const key = JSON.stringify([term, $('search-mode').value, from.value, to.value, selectedAuthor?.id]);
+    const key = JSON.stringify([term, $('search-mode').value, $('search-sort').value, selectedAuthor?.id]);
     if (key !== searchKey) loadMore = false;
     const authors = $('search-mode').value === 'authors' && !selectedAuthor;
+    $('search-sort').disabled = authors;
     const page = loadMore ? searchPageNumber + 1 : 1;
     const previous = loadMore ? searchRows.slice() : [];
     searchController = new AbortController();
     const options = { signal: searchController.signal, page, mode: $('search-mode').value,
-      yearFrom: from.value, yearTo: to.value, authorId: selectedAuthor?.id };
+      sort: $('search-sort').value, authorId: selectedAuthor?.id };
     enterSearch();
     box.setAttribute('aria-busy', 'true');
     $('author-back').hidden = !selectedAuthor;
@@ -154,7 +151,7 @@
       const unique = new Map(previous.map(p => [p.id, p]));
       result.results.forEach(p => unique.set(p.id, p));
       const protect = searchKey === key;
-      searchRows = [...unique.values()]; searchKey = key;
+      searchRows = authors ? [...unique.values()] : OpenAlex.sortResults([...unique.values()], $('search-sort').value); searchKey = key;
       renderSearchRows(searchRows, authors, protect);
       $('search-source').hidden = !searchRows.length;
       $('search-source').textContent = authors ? 'Results from OpenAlex · choose an author to see their publications' : 'Results from OpenAlex · choose a paper to explore its connections';
@@ -170,7 +167,7 @@
       more.hidden = !result.hasMore;
       status.textContent = searchRows.length
         ? `${searchRows.length} ${authors ? (searchRows.length === 1 ? 'author' : 'authors') + ' — choose a person to see their papers' : (searchRows.length === 1 ? 'paper' : 'papers') + (selectedAuthor ? ' by ' + selectedAuthor.name : '')}${result.fuzzy ? ' · includes spelling alternatives' : ''}${result.partial ? ' · some results are unavailable; try again for the complete search' : ''}`
-        : authors ? 'No authors found. Try a full name or a different spelling.' : result.exact ? 'That DOI was not found, or is outside your year range.' : 'No papers found. Try fewer words, a DOI, or a wider year range.';
+        : authors ? 'No authors found. Try a full name or a different spelling.' : result.exact ? 'That DOI was not found.' : 'No papers found. Try fewer words or a DOI.';
       $('search-retry').hidden = !result.partial;
       if (result.partial) retryMore = false;
     } catch (error) {
@@ -394,7 +391,7 @@
       const saved = JSON.parse(sessionStorage.getItem('citation-search-view') || 'null');
       if (saved && Array.isArray(saved.rows) && typeof saved.query === 'string' && ['papers','title','authors'].includes(saved.mode)) {
         input.value = saved.query; $('search-mode').value = saved.mode;
-        $('search-from').value = saved.from; $('search-to').value = saved.to;
+        $('search-sort').value = ['newest','oldest','citations'].includes(saved.sort) ? saved.sort : 'relevance';
         selectedAuthor = saved.author; searchRows = saved.rows; searchPageNumber = saved.page; searchKey = saved.key;
         document.body.classList.add('has-search');
         renderSearchRows(searchRows, saved.mode === 'authors' && !selectedAuthor, false);
@@ -402,7 +399,7 @@
         $('view-search').scrollTop = saved.scroll || 0;
         $('search-source').hidden = !searchRows.length;
         $('author-back').hidden = !selectedAuthor; $('search-more').hidden = !saved.more;
-        if (saved.mode === 'authors') { input.placeholder = 'Author’s name…'; input.setAttribute('aria-label', 'Search authors'); $('search-hint').textContent = 'Choose an author to explore their publications. Year filters apply to their papers.'; }
+        if (saved.mode === 'authors') { input.placeholder = 'Author’s name…'; input.setAttribute('aria-label', 'Search authors'); }
       }
     } catch (_) {}
     const schedule = () => {
@@ -431,10 +428,11 @@
       const authors = $('search-mode').value === 'authors';
       input.placeholder = authors ? 'Author’s name…' : 'Paper title, topic, or DOI…';
       input.setAttribute('aria-label', authors ? 'Search authors' : 'Search papers');
-      $('search-hint').textContent = authors ? 'Choose an author to explore their publications. Year filters apply to their papers.' : 'Find a paper by title, topic, or DOI. Choose Authors to find someone’s publications.';
+      $('search-sort').disabled = authors;
       doSearch();
     });
-    for (const id of ['search-from', 'search-to']) $(id).addEventListener('change', () => doSearch());
+    $('search-sort').disabled = $('search-mode').value === 'authors' && !selectedAuthor;
+    $('search-sort').addEventListener('change', () => doSearch());
     $('search-results').addEventListener('keydown', event => {
       if (!['ArrowDown', 'ArrowUp', 'Escape'].includes(event.key)) return;
       const buttons = [...$('search-results').querySelectorAll('button')], index = buttons.indexOf(document.activeElement);
@@ -930,7 +928,7 @@
         spacing: graph.spacing, bondStrength: graph.bondStrength, positions: graph.nodes.map(n => ({id:n.id,x:n.x+(n._ox||0),y:n.y+(n._oy||0),userPinned:!!n.userPinned})), cards: paperCards.map(p=>p.id)
       }));
       if (PAGE === 'search') sessionStorage.setItem('citation-search-view', JSON.stringify({
-        query: $('big-input').value, mode: $('search-mode').value, from: $('search-from').value, to: $('search-to').value,
+        query: $('big-input').value, mode: $('search-mode').value, sort: $('search-sort').value,
         author: selectedAuthor, rows: searchRows, page: searchPageNumber, key: searchKey, scroll: $('view-search').scrollTop,
         more: !$('search-more').hidden, status: $('search-results').getAttribute('aria-busy') === 'true' ? 'Previous results — press Enter to update.' : $('search-status').textContent
       }));

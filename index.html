@@ -5,8 +5,8 @@
 <meta name="description" content="Explore the references, citing papers and shared foundations around a paper.">
 <meta name="theme-color" content="#f5f2ec">
 <title>Citation Network</title>
-<script blocking="render" src="assets/navigation.js?v=bonds-13"></script>
-<link rel="stylesheet" href="assets/styles.css?v=bonds-13">
+<script blocking="render" src="assets/navigation.js?v=search-14"></script>
+<link rel="stylesheet" href="assets/styles.css?v=search-14">
 
 </head>
 <body data-page="search">
@@ -38,11 +38,9 @@
         <button id="big-go" type="button" aria-label="Search papers" title="Search papers"><span aria-hidden="true">→</span></button>
       </div>
       <div class="search-options">
-        <label>Search <select id="search-mode"><option value="papers">Papers</option><option value="title">Titles only</option><option value="authors">Authors</option></select></label>
-        <label>From <input id="search-from" type="number" min="1500" max="2100" placeholder="Any year" aria-label="Published from year"></label>
-        <label>To <input id="search-to" type="number" min="1500" max="2100" placeholder="Any year" aria-label="Published through year"></label>
+        <select id="search-mode" aria-label="Search type"><option value="papers">Papers</option><option value="title">Titles only</option><option value="authors">Authors</option></select>
+        <select id="search-sort" aria-label="Sort papers"><option value="relevance">Relevance</option><option value="newest">Year · newest first</option><option value="oldest">Year · oldest first</option><option value="citations">Most cited</option></select>
       </div>
-      <p class="search-hint" id="search-hint">Find a paper by title, topic, or DOI. Choose Authors to find someone’s publications.</p>
       <button id="author-back" class="search-back" type="button" hidden>← Back to authors</button>
       <p id="search-status" role="status" aria-live="polite"></p>
       <div id="search-results" aria-label="Search results"></div>
@@ -59,8 +57,8 @@
   <span class="tmsg"></span>
   <input class="tsub" id="toast-url" readonly="" hidden="">
 </div>
-<script src="assets/openalex.js?v=bonds-13" defer></script>
-<script src="assets/tweaks.js?v=bonds-13" defer></script>
-<script src="assets/app.js?v=bonds-13" defer></script>
+<script src="assets/openalex.js?v=search-14" defer></script>
+<script src="assets/tweaks.js?v=search-14" defer></script>
+<script src="assets/app.js?v=search-14" defer></script>
 </body>
 </html>

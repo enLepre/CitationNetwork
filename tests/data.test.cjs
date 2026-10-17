@@ -145,3 +145,14 @@ test('response cache batches writes and limits the saved payload', async () => {
   api.flushCache(); assert.equal(writes,1);api.flushCache();assert.equal(writes,1);
   assert([...values.values()].every(v=>v.length<500100));
 });
+
+
+test('paper ordering reaches the API and preserves merged ordering and missing years', async()=>{
+ const urls=[];
+ const api=client(async url=>{urls.push(new URL(url));return ok({results:[{...raw('W1'),publication_year:2000,cited_by_count:90},{...raw('W2'),publication_year:2025,cited_by_count:10},{...raw('W3'),publication_year:null,cited_by_count:3}]});});
+ for(const [sort,expected,param] of [['newest',['W2','W1','W3'],'publication_date:desc'],['oldest',['W1','W2','W3'],'publication_date:asc'],['citations',['W1','W2','W3'],'cited_by_count:desc']]) {
+   const result=await api.searchPage('Paper',{sort,page:2});
+   assert.deepEqual(Array.from(result.results,p=>p.id),expected);
+   assert(urls.slice(-2).every(u=>u.searchParams.get('sort')===param&&u.searchParams.get('page')==='2'));
+ }
+});

@@ -26,6 +26,7 @@ const paper=(id,title)=>({id:'https://openalex.org/'+id,display_name:title,publi
       let data;
       if(u.pathname==='/authors') data={meta:{count:1},results:[{id:'https://openalex.org/A1',display_name:'Jane Researcher',works_count:26,last_known_institutions:[{display_name:'University of Science'}]}]};
       else if((u.searchParams.get('filter')||'').includes('authorships.author.id:')) data={meta:{count:1},results:[paper('Wauthor','Selected author’s publication')]};
+      else if(query==='sorting') data={meta:{count:3},results:[{...paper('Wold','Sorting old'),publication_year:1999,cited_by_count:500},{...paper('Wnew','Sorting new'),publication_year:2025,cited_by_count:10},{...paper('Wmid','Sorting middle'),publication_year:2015,cited_by_count:100}]};
       else if(u.searchParams.get('page')==='2') data={meta:{count:26},results:[paper('W26','Catalysis: additional result')]};
       else if(query==='catalyssi') data={results:[]};
       else if(query.includes('~1')) data={results:[paper('Wtypo','Catalysis')]};
@@ -61,18 +62,26 @@ const paper=(id,title)=>({id:'https://openalex.org/'+id,display_name:title,publi
     await page.fill('#big-input','Jane Researcher');await page.selectOption('#search-mode','authors');await page.waitForSelector('.author-result');
     assert((await page.locator('.author-result').textContent()).includes('University of Science'));
     await page.click('.author-result');await page.waitForFunction(()=>document.querySelector('.pt')?.textContent==='Selected author’s publication');
-    await page.fill('#search-from','2020');await page.fill('#search-to','2025');await page.locator('#big-input').focus();
+    await page.selectOption('#search-sort','citations');
     await page.waitForFunction(()=>document.querySelector('#search-results').getAttribute('aria-busy')==='false');
-    assert(urls.some(u=>(u.searchParams.get('filter')||'').includes('from_publication_date:2020-01-01,to_publication_date:2025-12-31,authorships.author.id:A1')));
+    assert(urls.some(u=>(u.searchParams.get('filter')||'')==='authorships.author.id:A1'&&u.searchParams.get('sort')==='cited_by_count:desc'));
     await page.click('#author-back');await page.waitForSelector('.author-result');
     await page.setViewportSize({width:390,height:844});await page.waitForFunction(()=>!document.querySelector('#search-results').getAnimations({subtree:true}).length);await page.screenshot({path:path.join(root,'test-results/search-mobile.png')});
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
-    await page.fill('#search-from','2030');await page.locator('#big-input').focus();assert((await page.locator('#search-status').textContent()).includes('valid year range'));
+    assert.equal(await page.locator('#search-from, #search-to, #search-hint').count(),0);
+    assert(await page.locator('#search-sort').isDisabled());
     const anchor=await page.locator('#big-input').boundingBox();
     await page.fill('#big-input','');assert.equal(await page.locator('.presult').count(),0);
     assert.equal((await page.locator('#big-input').boundingBox()).y,anchor.y,'Clearing search retains its position');
+    await page.selectOption('#search-mode','papers');await page.fill('#big-input','sorting');await page.click('#big-go');
+    for(const [sort,id,api] of [['newest','Wnew','publication_date:desc'],['oldest','Wold','publication_date:asc'],['citations','Wold','cited_by_count:desc']]) {
+      await page.selectOption('#search-sort',sort);await page.waitForFunction(()=>document.querySelector('#search-results').getAttribute('aria-busy')==='false');
+      assert.equal(await page.locator('.presult').first().getAttribute('data-id'),id);
+      assert(urls.some(u=>u.searchParams.get('sort')===api));
+    }
+    await page.reload();assert.equal(await page.locator('#search-sort').inputValue(),'citations');assert.equal(await page.locator('.presult').first().getAttribute('data-id'),'Wold');
     assert.deepEqual(errors,[]);
     console.log('Search entry maximum frame step: '+jump.toFixed(1)+'px (previous audit: 273.5px).');
-    console.log('PASS: inline results, metadata, pagination, keyboard, stale-request cancellation, retained results, retry, typo recovery, author identity, year filters and mobile layout');
+    console.log('PASS: inline results, metadata, pagination, keyboard, stale-request cancellation, retained results, retry, typo recovery, author identity, sorting and mobile layout');
   } finally {await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;server.close();});
