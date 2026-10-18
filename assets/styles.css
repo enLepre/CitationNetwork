@@ -467,3 +467,7 @@ body.has-search .bigsearch { margin-top: 28px; }
 .force-control:focus-within .force-tooltip, .force-control.is-adjusting .force-tooltip { display: block; }
 .force-control.is-adjusting .force-tooltip output { display: inline; }
 .force-control .force-slider:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.controls #load-more-papers { width: 100%; height: auto; min-height: 30px; margin-top: 10px; border: 1px solid var(--line); font-size: 12px; }
+#citation-load-status { font-size: 11px; color: var(--ink-faint); }
+#citation-load-status:empty { display: none; }

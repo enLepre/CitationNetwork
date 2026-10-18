@@ -71,7 +71,7 @@ window.OpenAlex = (function () {
     return database;
   }
   async function cachedNetwork(seedId, density) {
-    const key=seedId+':'+density;
+    const key='adaptive-v1:'+seedId+':'+density;
     let entry=memoryNetworks.get(key);
     if (!entry) {
       const db=await openDatabase();
@@ -85,7 +85,7 @@ window.OpenAlex = (function () {
   }
   async function saveNetwork(network, density) {
     if (network.enrichmentFailed) return;
-    const entry={key:network.seedId+':'+density,time:Date.now(),network};
+    const entry={key:'adaptive-v1:'+network.seedId+':'+density,time:Date.now(),network};
     memoryNetworks.set(entry.key,entry);
     if(memoryNetworks.size>3) memoryNetworks.delete(memoryNetworks.keys().next().value);
     const db=await openDatabase(); if(!db) return;
@@ -409,6 +409,75 @@ window.OpenAlex = (function () {
       refTotal: seed.refs.length, refShown: refPapers.length, linkedShown };
   }
 
+  function initialBudget(total) { return total <= 300 ? total : total <= 2000 ? 250 : 300; }
+
+  async function citingPage(seedId, { min = 0, max = null, cursor = '*', recent = false, signal } = {}) {
+    const filters = ['cites:' + seedId, 'cited_by_count:>' + (min - 1)];
+    if (Number.isFinite(max)) filters.push('cited_by_count:<' + (max + 1));
+    const query = paramsFor({ filter: filters.join(','), sort: recent ? 'publication_date:desc' : 'cited_by_count:desc',
+      'per-page': 100, cursor, select: SELECT_LITE });
+    const result = await getJSON(API + '/works?' + query, { signal });
+    return { papers: (result.results || []).map(toPaper), total: result.meta?.count || 0, next: result.meta?.next_cursor || null };
+  }
+
+  // Shared references beyond the seed provide a bibliographic-coupling signal.
+  // Weight common references less and reserve 20% for recent candidates.
+  function rankExpansion(candidates, loaded, seedId, limit = 100) {
+    const known = new Set(loaded.map(p => p.id));
+    const pool = [...new Map(candidates.filter(p => !known.has(p.id)).map(p => [p.id, p])).values()];
+    const frequency = new Map(), loadedFrequency = new Map();
+    const refs = p => [...new Set(p.refs || [])].filter(id => id !== seedId);
+    for (const p of [...loaded, ...pool]) for (const id of refs(p)) frequency.set(id, (frequency.get(id) || 0) + 1);
+    for (const p of loaded) for (const id of refs(p)) loadedFrequency.set(id, (loadedFrequency.get(id) || 0) + 1);
+    const scored = pool.map(p => ({ p, refs: refs(p), score: refs(p).reduce((sum, id) => {
+      const count = frequency.get(id) || 1;
+      return sum + ((loadedFrequency.get(id) || 0) + Math.max(0, count - (loadedFrequency.get(id) || 0) - 1)) / Math.sqrt(count);
+    }, 0) / Math.sqrt(Math.max(1, refs(p).length)) }));
+    const selected = [], used = new Map();
+    const recent = pool.slice().sort((a,b) => (b.year || 0) - (a.year || 0) || a.id.localeCompare(b.id));
+    const recentIds = new Set(recent.slice(0, Math.min(Math.ceil(limit * .2), pool.length)).map(p => p.id));
+    let remaining = scored.filter(item => !recentIds.has(item.p.id));
+    while (selected.length < Math.floor(limit * .8) && remaining.length) {
+      let best = 0, bestScore = -Infinity;
+      remaining.forEach((item, i) => {
+        const overlap = item.refs.reduce((sum,id) => sum + (used.get(id) || 0), 0) / Math.max(1, item.refs.length);
+        const score = item.score / (1 + overlap);
+        if (score > bestScore) { best = i; bestScore = score; }
+      });
+      const item = remaining.splice(best,1)[0]; selected.push(item.p);
+      item.refs.forEach(id => used.set(id, (used.get(id) || 0) + 1));
+    }
+    for (const p of recent) if (selected.length < limit && !selected.some(n => n.id === p.id)) selected.push(p);
+    return selected;
+  }
+
+  async function expandNetwork(net, min, max, { signal } = {}) {
+    abort(signal);
+    const key = min + ':' + (Number.isFinite(max) ? max : 'all');
+    const previous = net.expansion?.key === key ? net.expansion : null;
+    const state = previous ? { ...previous, pool: previous.pool.slice() } : { key, min, max, top: '*', recent: '*', pool: [], total: null };
+    // At most two API pages per expansion; keep unused candidates for later.
+    if (state.pool.length < 100) {
+      const requests = [['top',false],['recent',true]].filter(([name]) => state[name]);
+      const pages = await Promise.all(requests.map(async ([name,recent]) => [name, await citingPage(net.seedId, {min,max,cursor:state[name],recent,signal})]));
+      abort(signal);
+      for (const [name,page] of pages) { state[name] = page.next; state.total = page.total; state.pool.push(...page.papers); }
+    }
+    const known = new Set(net.papers.map(p => p.id));
+    state.pool = [...new Map(state.pool.filter(p => !known.has(p.id) && p.cites >= min && (!Number.isFinite(max) || p.cites <= max)).map(p => [p.id,p])).values()];
+    const chosen = rankExpansion(state.pool, net.papers, net.seedId);
+    const chosenIds = new Set(chosen.map(p => p.id));
+    state.pool = state.pool.filter(p => !chosenIds.has(p.id));
+    const papers = net.papers.concat(chosen.map(p => ({...p, role:'cite'})));
+    const citingIds = [...new Set([...(net.citingIds || []), ...chosenIds])];
+    const citingSet = new Set(citingIds);
+    const loadedInRange = papers.filter(p => citingSet.has(p.id) && p.cites >= min && (!Number.isFinite(max) || p.cites <= max)).length;
+    state.done = loadedInRange >= state.total || (!state.top && !state.recent && !state.pool.length);
+    const seed = papers.find(p => p.id === net.seedId);
+    const result = network(papers, seed, { total:net.citingTotal, papers:citingIds }, papers.filter(p => p.role === 'ref'), net.linkedShown);
+    return { ...net, ...result, citingIds, expansion:state };
+  }
+
   // Build the full citation neighborhood around a seed paper object.
   async function buildNetwork(seed, opts) {
     opts = opts || {};
@@ -416,9 +485,20 @@ window.OpenAlex = (function () {
     abort(opts.signal);
     if (!seed.refsLoaded) seed = await byId(seed.id, opts);
 
+    const adaptive = opts.adaptive === true;
+    const loadCiting = async () => {
+      if (!adaptive) return citing(seed.id, citeLimit, opts);
+      let page = await citingPage(seed.id, {signal:opts.signal});
+      const total = page.total, budget = initialBudget(total), collected = page.papers.slice();
+      while (collected.length < budget && page.next && page.papers.length) {
+        page = await citingPage(seed.id, {cursor:page.next,signal:opts.signal}); collected.push(...page.papers);
+      }
+      const unique = [...new Map(collected.map(p => [p.id,p])).values()];
+      return {total, papers:unique.slice(0,budget)};
+    };
     const [refPapers, citeRes] = await Promise.all([
       seed.refs && seed.refs.length ? fetchByIds(seed.refs, opts) : Promise.resolve([]),
-      citing(seed.id, citeLimit, opts)
+      loadCiting()
     ]);
 
     // node map — seed first, then references, then citing (first writer wins)
@@ -431,7 +511,10 @@ window.OpenAlex = (function () {
     let papers = [...map.values()];
     const ids = new Set(papers.map(p => p.id));
 
-    const direct = network(papers, seed, citeRes, refPapers);
+    const decorate = net => adaptive ? { ...net, adaptive:true,
+      initialMin: citeRes.total > 300 && citeRes.papers.length ? Math.max(0, citeRes.papers[citeRes.papers.length-1].cites || 0) : 0,
+      citingIds: [...new Set([...citeRes.papers.map(p=>p.id), ...refPapers.filter(p=>(p.refs||[]).includes(seed.id)).map(p=>p.id)])] } : net;
+    const direct = decorate(network(papers, seed, citeRes, refPapers));
     if (opts.onDirect) await opts.onDirect(direct);
     abort(opts.signal);
 
@@ -463,8 +546,8 @@ window.OpenAlex = (function () {
     }
 
     abort(opts.signal);
-    return network(papers, seed, citeRes, refPapers, linkedShown);
+    return decorate(network(papers, seed, citeRes, refPapers, linkedShown));
   }
 
-  return { sortResults, cachedNetwork, saveNetwork, flushCache, search, searchPage, searchAuthors, resolveTop, byId, fetchByIds, abstractFor, citing, sourceImpact, buildNetwork, toPaper };
+  return { initialBudget, rankExpansion, expandNetwork, citingPage, sortResults, cachedNetwork, saveNetwork, flushCache, search, searchPage, searchAuthors, resolveTop, byId, fetchByIds, abstractFor, citing, sourceImpact, buildNetwork, toPaper };
 })();
