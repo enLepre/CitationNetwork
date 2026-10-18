@@ -100,7 +100,7 @@ async function labelStats(page) {
   try {
     const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];
     page.on('pageerror',e=>errors.push(e.message));await mock(page);
-    await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed&density=80');await settled(page);
+    await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed&density=80&loading=fixed');await settled(page);
     await page.waitForFunction(()=>!CG._motionActive);
     assert.equal(await page.locator('.graph-options-panel').isVisible(),false);
     await page.click('#graph-options summary');

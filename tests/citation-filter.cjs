@@ -100,7 +100,7 @@ async function labelStats(page) {
  const browser=await chromium.launch({headless:true});
  try {
  const page=await browser.newPage({viewport:{width:1280,height:900}});
- await mock(page); await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed&density=80'); await settled(page);
+ await mock(page); await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed&density=80&loading=fixed'); await settled(page);
  await page.click('#toggle-clusters');
  assert.equal(await page.locator('#toggle-clusters').getAttribute('aria-pressed'),'true');
  assert(await page.evaluate(()=>CG.clusters.length>0));
@@ -225,7 +225,7 @@ async function labelStats(page) {
  assert(await page.locator('#citation-min').isDisabled());
  assert.equal(await page.locator('#citation-min').inputValue(),'0');
  const touch=await browser.newPage({viewport:{width:390,height:844},hasTouch:true});
- await mock(touch);await touch.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed&density=80');await settled(touch);
+ await mock(touch);await touch.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed&density=80&loading=fixed');await settled(touch);
  await touch.tap('#graph-options summary');
  const touchBox=await touch.locator('#citation-range').boundingBox();
  await touch.touchscreen.tap(touchBox.x+touchBox.width*.25,touchBox.y+15);

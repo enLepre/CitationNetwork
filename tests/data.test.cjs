@@ -176,7 +176,7 @@ function adaptiveFixture(count, tied = false) {
 }
 
 test('adaptive loading uses authoritative totals, complete small graphs and a stable rank threshold',async()=>{
-  for(const [total,budget,minimum] of [[0,0,0],[160,160,0],[300,300,0],[301,250,52],[2000,250,1751],[2001,300,1702]]) {
+  for(const [total,budget,minimum] of [[0,0,0],[160,160,0],[300,300,0],[301,250,52],[2000,250,1751],[2001,300,1702],[13000,300,12701]]) {
     const {api,seed}=adaptiveFixture(total);seed.cites=1; // selection uses API total, not stale seed metadata
     const net=await api.buildNetwork(seed,{adaptive:true,minShared:99999});
     assert.equal(net.citingTotal,total);assert.equal(net.citingShown,budget);
