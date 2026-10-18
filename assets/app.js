@@ -303,7 +303,7 @@
       try { selection = JSON.parse(sessionStorage.getItem('citation-selected') || 'null'); } catch (_) {}
       renderDetail(CURRENT.byId[selectedId] || (selection?.seedId === net.seedId && CURRENT.byId[selection.paperId]) || seed);
     }
-    if (graph) graph.setFilter(readFilters());
+    if (graph) { graph.setFilter(readFilters()); syncCitationFilter(); }
     syncShareUrl();
     updateNavigation();
     window.CitationPage = { network: CURRENT, ready: true, selectedId };
@@ -452,6 +452,37 @@
     try { saved = JSON.parse(sessionStorage.getItem('citation-filters') || '{}'); } catch (_) {}
     return { showRefs: saved?.showRefs !== false, showCites: saved?.showCites !== false, showLinked: saved?.showLinked !== false };
   }
+  let citationSeed = null;
+  function syncCitationFilter() {
+    if (!graph || !$('citation-filter')) return;
+    const counts = graph.nodes.map(n => n.cites).filter(n => Number.isFinite(n) && n >= 0);
+    const max = Math.max(0, ...counts);
+    if (citationSeed !== CURRENT.seedId) {
+      citationSeed = CURRENT.seedId;
+      graph.setFilter({ minCitations: 0 });
+    }
+    const threshold = Math.min(graph.minCitations || 0, max);
+    if (threshold !== graph.minCitations) graph.setFilter({ minCitations: threshold });
+    const slider = $('citation-min');
+    slider.max = String(max); slider.value = String(threshold); slider.disabled = max === 0;
+    $('citation-filter').hidden = false;
+    $('citation-min-value').textContent = threshold.toLocaleString('en');
+    slider.setAttribute('aria-valuetext', threshold.toLocaleString('en') + ' citations minimum');
+    $('citation-max').textContent = max.toLocaleString('en');
+    const binCount = Math.min(28, max + 1), width = 280 / binCount;
+    const bins = Array(binCount).fill(0);
+    counts.forEach(n => bins[Math.min(binCount - 1, Math.floor(n / (max + 1) * binCount))]++);
+    const peak = Math.max(1, ...bins);
+    $('citation-histogram').innerHTML = bins.map((count, i) => {
+      const low = Math.ceil(i * (max + 1) / binCount), high = Math.ceil((i + 1) * (max + 1) / binCount) - 1;
+      const height = count / peak * 58;
+      return `<rect x="${i * width}" y="${64-height}" width="${Math.max(1,width-2)}" height="${height}" class="${high < threshold ? 'excluded' : ''}"><title>${low === high ? low : low + '–' + high} citations: ${count} papers</title></rect>`;
+    }).join('');
+    const visible = graph.nodes.filter(n => graph._visible(n)).length;
+    const unknown = graph.nodes.length - counts.length;
+    $('citation-filter-count').textContent = `${visible} of ${graph.nodes.length} papers shown`;
+    $('citation-filter-note').textContent = 'Loaded papers · seed always shown' + (unknown ? ` · ${unknown} unknown counts` : '');
+  }
   let layoutTimer = null, layoutRequest = 0;
   function syncLayoutControls() {
     if (!$('graph-spacing') || !graph) return;
@@ -482,6 +513,11 @@
     } finally { if (request === layoutRequest) syncLayoutControls(); }
   }
   function wireControls() {
+    $('citation-min')?.addEventListener('input', event => {
+      if (!graph) return;
+      graph.setFilter({ minCitations: Number(event.target.value) });
+      syncCitationFilter();
+    });
     const filters = readFilters();
     for (const [id, key] of [['toggle-ref','showRefs'], ['toggle-cite','showCites'], ['toggle-linked','showLinked']]) {
       const button = $(id);
@@ -491,7 +527,7 @@
         filters[key] = !filters[key];
         button.setAttribute('aria-pressed', String(filters[key]));
         try { sessionStorage.setItem('citation-filters', JSON.stringify(filters)); } catch (_) {}
-        if (graph) graph.setFilter(filters);
+        if (graph) { graph.setFilter(filters); syncCitationFilter(); }
       });
     }
     $("zoom-in")?.addEventListener("click", () => graph && graph.zoomBy(1.25, undefined, undefined, true));
