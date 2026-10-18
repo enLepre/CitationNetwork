@@ -16,7 +16,7 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(target).pipe(res);
 });
 const raw = (id, refs = []) => ({ id: 'https://openalex.org/' + id,
-  display_name: id === 'Wseed' ? 'Catalytic pathways and connected research in chemistry' : 'Connected research paper ' + id,
+  display_name: id === 'Wseed' ? 'Catalytic pathways and connected research in chemistry' : 'Connected research paper ' + id + ' '+['photoredox catalysis','protein folding','carbon nitride','water splitting','oxygen reduction','carbon dots','single atoms','organic frameworks','hydrogen peroxide','solar cells','graphene oxide','metal oxides'][(parseInt(id.replace(/\D/g,''))||0)%12],
   publication_year: 2000 + (parseInt(id.replace(/\D/g, '')) || 25) % 26,
   cited_by_count: id === 'Wseed' ? 0 : (parseInt(id.replace(/\D/g, '')) || 0) * 10, type: 'article', doi: 'https://doi.org/10.1000/' + id,
   authorships: [{ author: { display_name: 'Enrico Researcher' + id.replace(/\D/g, '') } }],
@@ -104,6 +104,8 @@ async function labelStats(page) {
  await page.click('#toggle-clusters');
  assert.equal(await page.locator('#toggle-clusters').getAttribute('aria-pressed'),'true');
  assert(await page.evaluate(()=>CG.clusters.length>0));
+ assert(await page.evaluate(()=>CG.clusters.every(c=>c.ids.length>=c.minimum)));
+ assert(await page.evaluate(()=>new Set(CG.clusters.map(c=>c.label)).size===CG.clusters.length));
  await frames(page);
  const flag=page.locator('.cluster-flag:visible').first();
  await flag.click();

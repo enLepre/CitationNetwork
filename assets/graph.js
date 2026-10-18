@@ -516,7 +516,7 @@
         const rect=el('rect',{x:0,y:0,height:28,rx:4});
         const text=el('text',{x:10,y:18});
         const title=el('title');
-        title.textContent = 'Suggested topic from titles. '+cluster.phrases.join(' · ')+(cluster.authors.length?'\nRecurring authors: '+cluster.authors.join(', '):'')+'\nClick to highlight this group.';
+        title.textContent = cluster.label+'\nSuggested topic from titles. '+cluster.phrases.join(' · ')+(cluster.authors.length?'\nRecurring authors: '+cluster.authors.join(', '):'')+'\nClick to highlight this group.';
         flag.append(rect,text,title);this.clusterLayer.append(flag);
         Object.assign(cluster,{flag,rect,text});
         const activate=()=>{this.activeCluster=this.activeCluster===cluster.id?null:cluster.id;this._invalidate({paint:true});};
@@ -538,18 +538,22 @@
       const boxes=[];
       for(const c of this.clusters) {
         const members=c.ids.map(id=>this.nodeById[id]).filter(n=>n&&this._visible(n));
-        c.flag.style.display=members.length>=3?'':'none';if(members.length<3)continue;
-        const label=c.label.length>32?c.label.slice(0,30)+'…':c.label;
-        c.text.textContent=label+' · '+members.length;
-        const width=Math.min(290,Math.max(120,c.text.textContent.length*7+20));c.rect.setAttribute('width',width);
+        const minimum=c.minimum || 4;
+        c.flag.style.display=members.length>=minimum?'':'none';if(members.length<minimum)continue;
+        const parts=c.label.split(' · '), trim=s=>s.length>36?s.slice(0,34)+'…':s;
+        const lines=[trim(parts[0])+' · '+members.length];if(parts[1])lines.push(trim(parts[1]));
+        const caption=lines.join('\n');
+        if(c.caption!==caption){c.caption=caption;c.text.replaceChildren(...lines.map((line,i)=>{const span=el('tspan',{x:10,y:18+i*16});span.textContent=line;return span;}));}
+        const height=lines.length>1?44:28;
+        const width=Math.min(this._width-12,Math.max(120,Math.max(...lines.map(s=>s.length))*7+20));c.rect.setAttribute('width',width);c.rect.setAttribute('height',height);
         let x=members.reduce((s,n)=>s+(n.x+(n._ox||0))*this.scale+this.tx,0)/members.length-width/2;
         let y=members.reduce((s,n)=>s+(n.y+(n._oy||0))*this.scale+this.ty,0)/members.length-36;
         if(x+width<0||x>this._width||y<0||y>this._height){c.flag.style.display='none';continue;}
         x=Math.max(6,Math.min(this._width-width-6,x));
-        for(let tries=0;tries<12&&boxes.some(b=>x<b.x+b.w&&x+width>b.x&&y<b.y+32&&y+28>b.y);tries++)y+=34;
-        if(y+28>this._height){c.flag.style.display='none';continue;}
-        boxes.push({x,y,w:width});c.flag.setAttribute('transform',`translate(${x} ${y})`);
-        c.flag.setAttribute('aria-label',c.text.textContent);c.flag.setAttribute('aria-pressed',String(this.activeCluster===c.id));
+        for(let tries=0;tries<12&&boxes.some(b=>x<b.x+b.w&&x+width>b.x&&y<b.y+b.h+4&&y+height>b.y);tries++)y+=height+6;
+        if(y+height>this._height){c.flag.style.display='none';continue;}
+        boxes.push({x,y,w:width,h:height});c.flag.setAttribute('transform',`translate(${x} ${y})`);
+        c.flag.setAttribute('aria-label',c.label+' · '+members.length+' papers');c.flag.setAttribute('aria-pressed',String(this.activeCluster===c.id));
       }
     }
 
@@ -853,7 +857,7 @@
       const shared = id => (counts.get(id) || 0) >= 2;
       const neigh = this.hovered ? this.adj[this.hovered.id] : null;
       let clusterMembers = this.showClusters && this.activeCluster ? new Set(this.clusters.find(c=>c.id===this.activeCluster)?.ids || []) : null;
-      if (clusterMembers && [...clusterMembers].filter(id=>this.nodeById[id] && this._visible(this.nodeById[id])).length<3) clusterMembers=null;
+      if (clusterMembers && [...clusterMembers].filter(id=>this.nodeById[id] && this._visible(this.nodeById[id])).length<(this.clusters.find(c=>c.id===this.activeCluster)?.minimum || 4)) clusterMembers=null;
       const isLit = id => clusterMembers ? clusterMembers.has(id) : !focus || selected.has(id) || counts.has(id) || this.hovered?.id === id || neigh?.has(id);
 
       this.nodes.forEach(n => {
