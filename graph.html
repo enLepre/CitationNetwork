@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f5f2ec">
 <title>Graph — Citation Network</title>
 <script blocking="render" src="assets/navigation.js?v=search-14"></script>
-<link rel="stylesheet" href="assets/styles.css?v=citations-22">
+<link rel="stylesheet" href="assets/styles.css?v=citations-23">
 
 </head>
 <body data-page="graph">
@@ -41,7 +41,8 @@
         <label for="citation-min">Minimum citations <output id="citation-min-value" for="citation-min">0</output></label>
         <svg id="citation-histogram" viewBox="0 0 280 64" role="img" aria-label="Distribution of citation counts among loaded papers"></svg>
         <input id="citation-min" type="range" min="0" max="0" step="1" value="0" disabled aria-describedby="citation-filter-note">
-        <div class="citation-axis"><span>0</span><span id="citation-max">0</span></div>
+        <div class="citation-axis" id="citation-axis"></div>
+        <label class="citation-exact-label" for="citation-exact">Exact minimum <input id="citation-exact" type="number" min="0" step="1" value="0" disabled></label>
         <p id="citation-filter-count" role="status"></p>
         <p id="citation-filter-note">Loaded papers · seed always shown</p>
       </section><div class="controls">
@@ -84,11 +85,11 @@
   <span class="tmsg"></span>
   <input class="tsub" id="toast-url" readonly="" hidden="">
 </div>
-<script src="assets/layout.js?v=citations-22" defer></script>
+<script src="assets/layout.js?v=citations-23" defer></script>
 <script src="assets/sample.js?v=search-14" defer></script>
-<script src="assets/graph.js?v=citations-22" defer></script>
+<script src="assets/graph.js?v=citations-23" defer></script>
 <script src="assets/openalex.js?v=search-14" defer></script>
 <script src="assets/tweaks.js?v=plum-18" defer></script>
-<script src="assets/app.js?v=citations-22" defer></script>
+<script src="assets/app.js?v=citations-23" defer></script>
 </body>
 </html>

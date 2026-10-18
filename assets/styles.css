@@ -401,7 +401,7 @@ body.has-search .bigsearch { margin-top: 28px; }
 .graph-legend button[aria-pressed="false"] .legend-dot { background: transparent; }
 .graph-legend button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
-/* Citation distribution and threshold share a linear citation-count axis. */
+/* Citation distribution and threshold share a logarithmic citation-count axis. */
 .citation-filter { position: absolute; bottom: 76px; left: 24px; z-index: 7; width: min(280px, calc(100% - 64px)); padding: 14px 16px 10px; background: var(--panel); border: 1px solid var(--line); color: var(--ink-soft); font-size: 12px; }
 .citation-filter[hidden] { display: none; }
 .citation-filter label { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
@@ -415,3 +415,10 @@ body.has-search .bigsearch { margin-top: 28px; }
 .citation-filter p { margin: 6px 0 0; }
 #citation-filter-note { color: var(--ink-faint); font-size: 11px; }
 @media(max-width:760px) { .citation-filter { left: 16px; bottom: 66px; width: min(260px, calc(100% - 64px)); } }
+
+.citation-axis { position: relative; display: block; height: 18px; margin-top: 3px; }
+.citation-axis span { position: absolute; transform: translateX(-50%); }
+.citation-axis span:first-child { transform: none; }
+.citation-axis span:last-child:not(:first-child) { transform: translateX(-100%); }
+.citation-filter .citation-exact-label { align-items: center; font-size: 12px; margin: 4px 0; }
+#citation-exact { width: 90px; min-width: 0; padding: 3px 5px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; }
