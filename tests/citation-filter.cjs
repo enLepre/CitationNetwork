@@ -101,6 +101,20 @@ async function labelStats(page) {
  try {
  const page=await browser.newPage({viewport:{width:1280,height:900}});
  await mock(page); await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed&density=80'); await settled(page);
+ await page.click('#toggle-clusters');
+ assert.equal(await page.locator('#toggle-clusters').getAttribute('aria-pressed'),'true');
+ assert(await page.evaluate(()=>CG.clusters.length>0));
+ await frames(page);
+ const flag=page.locator('.cluster-flag:visible').first();
+ await flag.click();
+ assert(await page.evaluate(()=>Boolean(CG.activeCluster)));
+ await frames(page);
+ await page.screenshot({path:path.join(output,'research-groups.png')});
+ const membership=await page.evaluate(()=>JSON.stringify(CG.clusters.map(c=>c.ids)));
+ await page.click('#zoom-in');await frames(page);
+ assert.equal(await page.evaluate(()=>JSON.stringify(CG.clusters.map(c=>c.ids))),membership);
+ await page.click('#toggle-clusters');
+ assert.equal(await page.evaluate(()=>CG.activeCluster),null);
  await page.click('#graph-search summary');
  await page.fill('#graph-search-query','connected wr12');
  assert.equal(await page.evaluate(()=>CG.nodes.filter(n=>CG._visible(n)&&n.role!=='seed').length),11);

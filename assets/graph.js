@@ -32,6 +32,9 @@
       this.vp.appendChild(this.hitLayer);
       this.vp.appendChild(this.nodeLayer);
       this.svg.appendChild(this.vp);
+      this.clusterLayer = el('g', {class:'cluster-flags'});
+      this.svg.appendChild(this.clusterLayer);
+      this.clusters = []; this.showClusters = false; this.activeCluster = null;
 
       this.nodes = []; this.edges = []; this.nodeById = {};
       this.scale = 1; this.tx = 0; this.ty = 0;
@@ -137,6 +140,8 @@
       });
 
       for (const edge of oldEdges.values()) edge.path.remove();
+      this._clustersDirty = true;
+      if (this.showClusters) this._buildClusters();
 
       // Degree = number of links. Flag the three most-linked papers (excluding
       // the seed, which is always labelled) so their titles stay visible even
@@ -501,6 +506,53 @@
       return role === 'seed' ? p.seed : role === 'cite' ? p.cite : role === 'linked' ? (p.linked || p.ref) : p.ref;
     }
 
+    _buildClusters() {
+      this._clustersDirty = false;
+      this.clusters = window.CitationClusters?.detect(this.nodes, this.edges, this.seedId) || [];
+      this.activeCluster = null;
+      this.clusterLayer.replaceChildren();
+      for (const cluster of this.clusters) {
+        const flag=el('g', {class:'cluster-flag', role:'button', tabindex:'0', 'aria-pressed':'false'});
+        const rect=el('rect',{x:0,y:0,height:28,rx:4});
+        const text=el('text',{x:10,y:18});
+        const title=el('title');
+        title.textContent = 'Suggested topic from titles. '+cluster.phrases.join(' · ')+(cluster.authors.length?'\nRecurring authors: '+cluster.authors.join(', '):'')+'\nClick to highlight this group.';
+        flag.append(rect,text,title);this.clusterLayer.append(flag);
+        Object.assign(cluster,{flag,rect,text});
+        const activate=()=>{this.activeCluster=this.activeCluster===cluster.id?null:cluster.id;this._invalidate({paint:true});};
+        flag.addEventListener('pointerdown',e=>e.stopPropagation());
+        flag.addEventListener('click',e=>{e.stopPropagation();activate();});
+        flag.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();activate();}});
+      }
+    }
+
+    toggleClusters(show) {
+      this.showClusters=show;if(show && this._clustersDirty)this._buildClusters();
+      if(!show)this.activeCluster=null;
+      this._invalidate({paint:true,positions:true});
+    }
+
+    _renderClusters() {
+      this.clusterLayer.style.display=this.showClusters?'':'none';
+      if(!this.showClusters)return;
+      const boxes=[];
+      for(const c of this.clusters) {
+        const members=c.ids.map(id=>this.nodeById[id]).filter(n=>n&&this._visible(n));
+        c.flag.style.display=members.length>=3?'':'none';if(members.length<3)continue;
+        const label=c.label.length>32?c.label.slice(0,30)+'…':c.label;
+        c.text.textContent=label+' · '+members.length;
+        const width=Math.min(290,Math.max(120,c.text.textContent.length*7+20));c.rect.setAttribute('width',width);
+        let x=members.reduce((s,n)=>s+(n.x+(n._ox||0))*this.scale+this.tx,0)/members.length-width/2;
+        let y=members.reduce((s,n)=>s+(n.y+(n._oy||0))*this.scale+this.ty,0)/members.length-36;
+        if(x+width<0||x>this._width||y<0||y>this._height){c.flag.style.display='none';continue;}
+        x=Math.max(6,Math.min(this._width-width-6,x));
+        for(let tries=0;tries<12&&boxes.some(b=>x<b.x+b.w&&x+width>b.x&&y<b.y+32&&y+28>b.y);tries++)y+=34;
+        if(y+28>this._height){c.flag.style.display='none';continue;}
+        boxes.push({x,y,w:width});c.flag.setAttribute('transform',`translate(${x} ${y})`);
+        c.flag.setAttribute('aria-label',c.text.textContent);c.flag.setAttribute('aria-pressed',String(this.activeCluster===c.id));
+      }
+    }
+
     _matchesSearch(n) {
       if (!this.searchTerms?.length) return true;
       const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -727,6 +779,7 @@
         if (dirty.transform) this.vp.setAttribute('transform', 'translate(' + this.tx + ' ' + this.ty + ') scale(' + this.scale + ')');
         if (dirty.paint) this._paint();
         if (dirty.positions || motion || this._dirty.positions) { this._renderPositions(!dirty.positions); this._renderScale = this.scale; this._dirty.positions = false; }
+        this._renderClusters();
         if ((!this._physicsRunning && dirty.labels) || (motion && !this._motionActive && !this._relocation && !this._physicsRunning)) this._layoutLabels();
         if (this._motionActive && !dirty.paint && !dirty.positions && performance.now() - started > 12) {
           // Protect slower devices: finish this decorative effect instead of
@@ -799,7 +852,9 @@
       }
       const shared = id => (counts.get(id) || 0) >= 2;
       const neigh = this.hovered ? this.adj[this.hovered.id] : null;
-      const isLit = id => !focus || selected.has(id) || counts.has(id) || this.hovered?.id === id || neigh?.has(id);
+      let clusterMembers = this.showClusters && this.activeCluster ? new Set(this.clusters.find(c=>c.id===this.activeCluster)?.ids || []) : null;
+      if (clusterMembers && [...clusterMembers].filter(id=>this.nodeById[id] && this._visible(this.nodeById[id])).length<3) clusterMembers=null;
+      const isLit = id => clusterMembers ? clusterMembers.has(id) : !focus || selected.has(id) || counts.has(id) || this.hovered?.id === id || neigh?.has(id);
 
       this.nodes.forEach(n => {
         const vis = this._visible(n);
@@ -836,13 +891,13 @@
         const vis = this._visible(a) && this._visible(b);
         e.path.style.display = vis ? "" : "none";
         if (!vis) return;
-        const lit = !focus || selected.has(e.s) || selected.has(e.t) || this.hovered?.id === e.s || this.hovered?.id === e.t;
+        const lit = clusterMembers ? clusterMembers.has(e.s) && clusterMembers.has(e.t) : !focus || selected.has(e.s) || selected.has(e.t) || this.hovered?.id === e.s || this.hovered?.id === e.t;
         e._shared = (selected.has(e.s) && (selected.has(e.t) || shared(e.t))) || (selected.has(e.t) && shared(e.s));
         e._lit = focus && lit;
         const col = e.kind === "cite" ? pal.cite : e.kind === "ref" ? pal.ref : pal.faint;
         e.path.setAttribute("stroke", e._shared ? pal.ink : col);
         e.path.setAttribute("stroke-width", (e._shared ? 2.6 : e._lit ? 1.3 : 0.8) / this.scale);
-        const base = e._shared ? 1 : focus ? (lit ? 0.8 : 0.04) : (e.kind === "cross" ? 0.20 : 0.32);
+        const base = e._shared ? 1 : (focus || clusterMembers) ? (lit ? 0.8 : 0.04) : (e.kind === "cross" ? 0.20 : 0.32);
         if (!modeVisible && !e._filtered) e._fadeUntil = performance.now() + (this._reducedMotion.matches ? 0 : 180);
         const revealing = modeVisible && e._filtered;
         e._filtered = !modeVisible;

@@ -655,6 +655,13 @@
         if (graph) { graph.setFilter(filters); syncCitationFilter(); }
       });
     }
+    $('toggle-clusters')?.addEventListener('click', () => {
+      if (!graph) return;
+      graph.toggleClusters(!graph.showClusters);
+      $('toggle-clusters').setAttribute('aria-pressed', String(graph.showClusters));
+      $('toggle-clusters').setAttribute('aria-label', graph.showClusters ? 'Hide research groups' : 'Show research groups');
+      $('toggle-clusters').title = graph.showClusters ? (graph.clusters.length ? 'Hide research groups' : 'No distinct research groups found yet') : 'Show research groups';
+    });
     $("zoom-in")?.addEventListener("click", () => graph && graph.zoomBy(1.25, undefined, undefined, true));
     $("zoom-out")?.addEventListener("click", () => graph && graph.zoomBy(0.8, undefined, undefined, true));
     $("zoom-fit")?.addEventListener("click", () => graph && graph.fit(true));

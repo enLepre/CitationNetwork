@@ -81,3 +81,11 @@ require more rendering time.
 Tests: `node --test tests/data.test.cjs`, `node tests/adaptive.cjs`, and
 `node tests/citation-filter.cjs`. The latter explicitly uses fixed density to isolate controls;
 the adaptive suite covers the default loading policy and incremental UI.
+
+### Research group flags
+
+The flag button enables an experimental view of up to 12 connected groups of at least four loaded papers. Detection uses weighted direct links and shared references, excludes the seed and ubiquitous references, and runs only when enabled. A deterministic local modularity pass forms groups independently of positions and filters; loading more papers recomputes them.
+
+Labels use recurring, distinctive title words and phrases. Hover shows supporting phrases and recurring authors; click or Enter highlights a group. Labels are suggestions, not verified research teams. Abstract fetching and abstract-derived labels are not included in this first version. Flags follow visible group members, remain screen-sized during zoom, avoid one another, and hide when fewer than three members remain visible.
+
+Run `node --test tests/clusters.test.cjs` for grouping and label checks; `node tests/citation-filter.cjs` covers flag toggling, highlighting, and zoom stability alongside existing filters.
