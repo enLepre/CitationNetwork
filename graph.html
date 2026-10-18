@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f5f2ec">
 <title>Graph — Citation Network</title>
 <script blocking="render" src="assets/navigation.js?v=search-14"></script>
-<link rel="stylesheet" href="assets/styles.css?v=physics-21">
+<link rel="stylesheet" href="assets/styles.css?v=citations-22">
 
 </head>
 <body data-page="graph">
@@ -37,7 +37,14 @@
             <button class="btn" id="loader-sample">Explore sample graph</button>
           </div>
         </div>
-      </div><span id="status-counts" hidden aria-live="polite"></span><aside class="paper-stack" id="detail" aria-label="Selected papers" hidden></aside><svg id="graph-canvas" xmlns="http://www.w3.org/2000/svg" aria-label="Connected papers"></svg><div class="controls">
+      </div><span id="status-counts" hidden aria-live="polite"></span><aside class="paper-stack" id="detail" aria-label="Selected papers" hidden></aside><svg id="graph-canvas" xmlns="http://www.w3.org/2000/svg" aria-label="Connected papers"></svg><section class="citation-filter" id="citation-filter" aria-label="Filter papers by citation count" hidden>
+        <label for="citation-min">Minimum citations <output id="citation-min-value" for="citation-min">0</output></label>
+        <svg id="citation-histogram" viewBox="0 0 280 64" role="img" aria-label="Distribution of citation counts among loaded papers"></svg>
+        <input id="citation-min" type="range" min="0" max="0" step="1" value="0" disabled aria-describedby="citation-filter-note">
+        <div class="citation-axis"><span>0</span><span id="citation-max">0</span></div>
+        <p id="citation-filter-count" role="status"></p>
+        <p id="citation-filter-note">Loaded papers · seed always shown</p>
+      </section><div class="controls">
         <div class="group">
           <button id="zoom-in" title="Zoom in">+</button>
           <button id="zoom-out" title="Zoom out">−</button>
@@ -77,11 +84,11 @@
   <span class="tmsg"></span>
   <input class="tsub" id="toast-url" readonly="" hidden="">
 </div>
-<script src="assets/layout.js?v=physics-21" defer></script>
+<script src="assets/layout.js?v=citations-22" defer></script>
 <script src="assets/sample.js?v=search-14" defer></script>
-<script src="assets/graph.js?v=physics-21" defer></script>
+<script src="assets/graph.js?v=citations-22" defer></script>
 <script src="assets/openalex.js?v=search-14" defer></script>
 <script src="assets/tweaks.js?v=plum-18" defer></script>
-<script src="assets/app.js?v=physics-21" defer></script>
+<script src="assets/app.js?v=citations-22" defer></script>
 </body>
 </html>
