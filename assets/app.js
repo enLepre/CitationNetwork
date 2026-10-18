@@ -459,9 +459,11 @@
     const max = Math.max(0, ...counts);
     if (citationSeed !== CURRENT.seedId) {
       citationSeed = CURRENT.seedId;
-      graph.setFilter({ minCitations: 0 });
+      graph.setFilter({ minCitations: 0, maxCitations: null });
     }
-    const threshold = Math.min(graph.minCitations || 0, max);
+    const upper = Number.isFinite(graph.maxCitations) ? Math.min(graph.maxCitations, max) : max;
+    if (Number.isFinite(graph.maxCitations) && upper !== graph.maxCitations) graph.setFilter({ maxCitations: upper });
+    const threshold = Math.min(graph.minCitations || 0, upper);
     if (threshold !== graph.minCitations) graph.setFilter({ minCitations: threshold });
     const slider = $('citation-min');
     slider.max = '1000'; slider.dataset.citationMax = String(max);
@@ -472,6 +474,14 @@
     $('citation-filter').hidden = false;
     $('citation-min-value').textContent = threshold.toLocaleString('en');
     slider.setAttribute('aria-valuetext', threshold.toLocaleString('en') + ' citations minimum');
+    const upperSlider = $('citation-upper');
+    upperSlider.max = '1000'; upperSlider.dataset.citationMax = String(max);
+    upperSlider.value = max ? String(Math.round(Math.log1p(upper) / Math.log1p(max) * 1000)) : '0';
+    upperSlider.disabled = max === 0;
+    upperSlider.setAttribute('aria-valuetext', upper.toLocaleString('en') + ' citations maximum');
+    $('citation-upper-value').textContent = upper.toLocaleString('en');
+    $('citation-upper-exact').max = String(max); $('citation-upper-exact').value = String(upper);
+    $('citation-upper-exact').disabled = max === 0;
     const position = n => max ? Math.log1p(n) / Math.log1p(max) : 0;
     const bounds = [...new Set(Array.from({length: 28}, (_, i) => Math.ceil(Math.expm1(Math.log1p(max) * i / 28))))].filter(n => n < max || n === 0);
     bounds.push(max + 1);
@@ -482,7 +492,7 @@
       const x = position(low) * 280;
       const end = i === bins.length-1 ? 280 : position(high+1) * 280;
       const height = count / peak * 58;
-      return `<rect x="${x}" y="${64-height}" width="${Math.max(0,end-x-1)}" height="${height}" class="${high < threshold ? 'excluded' : ''}"><title>${low === high ? low : low + '–' + high} citations: ${count} papers</title></rect>`;
+      return `<rect x="${x}" y="${64-height}" width="${Math.max(0,end-x-1)}" height="${height}" class="${high < threshold || low > upper ? 'excluded' : ''}"><title>${low === high ? low : low + '–' + high} citations: ${count} papers</title></rect>`;
     }).join('');
     const ticks = [0];
     for (let n = 10; n < max; n *= 10) if (position(n) < .78) ticks.push(n);
@@ -523,26 +533,32 @@
     } finally { if (request === layoutRequest) syncLayoutControls(); }
   }
   function wireControls() {
-    $('citation-min')?.addEventListener('input', event => {
-      if (!graph) return;
-      const max = Number(event.target.dataset.citationMax);
-      graph.setFilter({ minCitations: Math.round(Math.expm1(Number(event.target.value) / 1000 * Math.log1p(max))) });
+    function setCitationBound(isUpper, value) {
+      if (!graph || !Number.isFinite(value)) return;
+      const max = Number($('citation-min').dataset.citationMax);
+      const upper = Number.isFinite(graph.maxCitations) ? graph.maxCitations : max;
+      value = Math.max(0, Math.min(max, Math.round(value)));
+      if (isUpper) {
+        value = Math.max(graph.minCitations || 0, value);
+        graph.setFilter({ maxCitations: value === max ? null : value });
+      } else graph.setFilter({ minCitations: Math.min(upper, value) });
       syncCitationFilter();
-    });
-    $('citation-exact')?.addEventListener('input', event => {
-      if (!graph || event.target.value === '') return;
-      const value = Number(event.target.value);
-      if (!Number.isFinite(value)) return;
-      graph.setFilter({ minCitations: Math.max(0, Math.min(Number(event.target.max), Math.round(value))) });
-      syncCitationFilter();
-    });
-    $('citation-min')?.addEventListener('keydown', event => {
-      if (!graph || !['ArrowLeft','ArrowDown','ArrowRight','ArrowUp'].includes(event.key)) return;
-      event.preventDefault();
-      const delta = ['ArrowLeft','ArrowDown'].includes(event.key) ? -1 : 1;
-      graph.setFilter({ minCitations: Math.min(Number(event.target.dataset.citationMax), (graph.minCitations || 0) + delta) });
-      syncCitationFilter();
-    });
+    }
+    for (const [sliderId, exactId, isUpper] of [['citation-min','citation-exact',false],['citation-upper','citation-upper-exact',true]]) {
+      $(sliderId)?.addEventListener('input', event => {
+        const max = Number(event.target.dataset.citationMax);
+        setCitationBound(isUpper, Math.expm1(Number(event.target.value) / 1000 * Math.log1p(max)));
+      });
+      $(exactId)?.addEventListener('input', event => {
+        if (event.target.value !== '') setCitationBound(isUpper, Number(event.target.value));
+      });
+      $(sliderId)?.addEventListener('keydown', event => {
+        if (!graph || !['ArrowLeft','ArrowDown','ArrowRight','ArrowUp'].includes(event.key)) return;
+        event.preventDefault();
+        const delta = ['ArrowLeft','ArrowDown'].includes(event.key) ? -1 : 1;
+        setCitationBound(isUpper, Number($(exactId).value) + delta);
+      });
+    }
     const filters = readFilters();
     for (const [id, key] of [['toggle-ref','showRefs'], ['toggle-cite','showCites'], ['toggle-linked','showLinked']]) {
       const button = $(id);
