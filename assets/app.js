@@ -467,21 +467,21 @@
     if (threshold !== graph.minCitations) graph.setFilter({ minCitations: threshold });
     const slider = $('citation-min');
     slider.max = '1000'; slider.dataset.citationMax = String(max);
-    slider.value = max ? String(Math.round(Math.log1p(threshold) / Math.log1p(max) * 1000)) : '0';
+    slider.value = max ? String(Math.log1p(threshold) / Math.log1p(max) * 1000) : '0';
     slider.disabled = max === 0;
-    $('citation-exact').max = String(max); $('citation-exact').value = String(threshold);
-    $('citation-exact').disabled = max === 0;
     $('citation-filter').hidden = false;
     $('citation-min-value').textContent = threshold.toLocaleString('en');
     slider.setAttribute('aria-valuetext', threshold.toLocaleString('en') + ' citations minimum');
     const upperSlider = $('citation-upper');
     upperSlider.max = '1000'; upperSlider.dataset.citationMax = String(max);
-    upperSlider.value = max ? String(Math.round(Math.log1p(upper) / Math.log1p(max) * 1000)) : '0';
+    upperSlider.value = max ? String(Math.log1p(upper) / Math.log1p(max) * 1000) : '0';
     upperSlider.disabled = max === 0;
     upperSlider.setAttribute('aria-valuetext', upper.toLocaleString('en') + ' citations maximum');
     $('citation-upper-value').textContent = upper.toLocaleString('en');
-    $('citation-upper-exact').max = String(max); $('citation-upper-exact').value = String(upper);
-    $('citation-upper-exact').disabled = max === 0;
+    const range = $('citation-range');
+    range.style.setProperty('--lower', slider.value / 10 + '%');
+    range.style.setProperty('--upper', upperSlider.value / 10 + '%');
+    slider.dataset.count = String(threshold); upperSlider.dataset.count = String(upper);
     const position = n => max ? Math.log1p(n) / Math.log1p(max) : 0;
     const bounds = [...new Set(Array.from({length: 28}, (_, i) => Math.ceil(Math.expm1(Math.log1p(max) * i / 28))))].filter(n => n < max || n === 0);
     bounds.push(max + 1);
@@ -499,9 +499,7 @@
     if (max > 0) ticks.push(max);
     $('citation-axis').innerHTML = ticks.map(n => `<span style="left:${position(n)*100}%">${n >= 1000000 ? (n / 1000000).toFixed(1).replace(/\.0$/, "") + "m" : fmt(n)}</span>`).join('');
     const visible = graph.nodes.filter(n => graph._visible(n)).length;
-    const unknown = graph.nodes.length - counts.length;
     $('citation-filter-count').textContent = `${visible} of ${graph.nodes.length} papers shown`;
-    $('citation-filter-note').textContent = 'Log scale · loaded papers · seed always shown' + (unknown ? ` · ${unknown} unknown counts` : '');
   }
   let layoutTimer = null, layoutRequest = 0;
   function syncLayoutControls() {
@@ -544,21 +542,45 @@
       } else graph.setFilter({ minCitations: Math.min(upper, value) });
       syncCitationFilter();
     }
-    for (const [sliderId, exactId, isUpper] of [['citation-min','citation-exact',false],['citation-upper','citation-upper-exact',true]]) {
-      $(sliderId)?.addEventListener('input', event => {
+    const range = $('citation-range');
+    let dragging = null;
+    const showValue = id => { if (range) range.dataset.active = id; };
+    const hideValue = () => { if (range) delete range.dataset.active; };
+    for (const [sliderId, isUpper] of [['citation-min',false],['citation-upper',true]]) {
+      const slider = $(sliderId);
+      slider?.addEventListener('input', event => {
         const max = Number(event.target.dataset.citationMax);
         setCitationBound(isUpper, Math.expm1(Number(event.target.value) / 1000 * Math.log1p(max)));
       });
-      $(exactId)?.addEventListener('input', event => {
-        if (event.target.value !== '') setCitationBound(isUpper, Number(event.target.value));
-      });
-      $(sliderId)?.addEventListener('keydown', event => {
-        if (!graph || !['ArrowLeft','ArrowDown','ArrowRight','ArrowUp'].includes(event.key)) return;
-        event.preventDefault();
+      slider?.addEventListener('keydown', event => {
+        if (!graph || !['ArrowLeft','ArrowDown','ArrowRight','ArrowUp','Home','End'].includes(event.key)) return;
+        event.preventDefault(); showValue(sliderId);
+        const max = Number(slider.dataset.citationMax);
         const delta = ['ArrowLeft','ArrowDown'].includes(event.key) ? -1 : 1;
-        setCitationBound(isUpper, Number($(exactId).value) + delta);
+        setCitationBound(isUpper, event.key === 'Home' ? 0 : event.key === 'End' ? max : Number(slider.dataset.count) + delta);
       });
+      slider?.addEventListener('keyup', hideValue);
+      slider?.addEventListener('blur', hideValue);
     }
+    function dragCitation(event) {
+      if (!dragging) return;
+      const box = range.getBoundingClientRect();
+      const fraction = Math.max(0, Math.min(1, (event.clientX - box.left - 8) / (box.width - 16)));
+      const max = Number($(dragging).dataset.citationMax);
+      setCitationBound(dragging === 'citation-upper', Math.expm1(fraction * Math.log1p(max)));
+    }
+    range?.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || $('citation-min').disabled) return;
+      event.preventDefault();
+      const box = range.getBoundingClientRect();
+      const point = Math.max(0, Math.min(1000, (event.clientX - box.left - 8) / (box.width - 16) * 1000));
+      const low = Number($('citation-min').value), high = Number($('citation-upper').value);
+      dragging = Math.abs(point-low) < Math.abs(point-high) || (low === high && point < low) ? 'citation-min' : 'citation-upper';
+      $(dragging).focus(); showValue(dragging);
+      range.setPointerCapture(event.pointerId); dragCitation(event);
+    });
+    range?.addEventListener('pointermove', dragCitation);
+    for (const name of ['pointerup','pointercancel','lostpointercapture']) range?.addEventListener(name, () => { dragging = null; hideValue(); });
     const filters = readFilters();
     for (const [id, key] of [['toggle-ref','showRefs'], ['toggle-cite','showCites'], ['toggle-linked','showLinked']]) {
       const button = $(id);
