@@ -29,3 +29,42 @@ test('missing metadata and hostile titles stay plain data',()=>{
  assert.doesNotThrow(()=>detect(nodes,[],'seed'));
  assert.deepEqual(detect([],[],'seed'),[]);
 });
+
+function cliques(specs, bridges=[]) {
+ const nodes=[{id:'seed'}], edges=[];
+ for(const [prefix,count,title] of specs){
+  for(let i=0;i<count;i++)nodes.push({id:prefix+i,title:typeof title==='function'?title(i):title});
+  for(let i=0;i<count;i++)for(let j=i+1;j<count;j++)edges.push({s:prefix+i,t:prefix+j});
+ }
+ edges.push(...bridges);return detect(nodes,edges,'seed');
+}
+test('large graphs suppress small groups and unsupported topic labels',()=>{
+ const result=cliques([['a',140,'Protein folding dynamics'],['b',140,'Photoredox catalysis mechanisms'],['c',5,'Carbon nitride synthesis'],['d',20,i=>'Study using new approach '+i]]);
+ assert.equal(result.length,2);
+ assert(result.every(c=>c.ids.length>=c.minimum && c.minimum>=10));
+});
+test('similar topics merge only with substantial cross-group links',()=>{
+ const specs=[['a',6,'Carbon nitride synthesis'],['b',6,'Carbon nitride synthesis'],['c',6,'Protein folding dynamics']];
+ const linked=cliques(specs,Array.from({length:6},(_,i)=>({s:'a'+i,t:'b'+i})));
+ assert(linked.some(c=>c.ids.length===12 && c.label.includes('carbon')));
+ const unlinked=cliques(specs);
+ assert(!unlinked.some(c=>c.ids.includes('a0')&&c.ids.includes('b0')));
+ assert.equal(new Set(unlinked.map(c=>c.label)).size,unlinked.length);
+});
+test('repeated broad labels get evidence-based qualifiers',()=>{
+ const result=cliques([
+  ['a',14,i=>'Carbon nitride '+(i<4?'hydrogen evolution':'')],
+  ['b',14,i=>'Carbon nitride '+(i<4?'oxygen reduction':'')],
+  ['c',24,'Protein folding dynamics']
+ ]);
+ const a=result.find(c=>c.ids.includes('a0')),b=result.find(c=>c.ids.includes('b0'));
+ assert(a && b);
+ assert.notEqual(a.label,b.label);
+ assert.match(a.label,/hydrogen/);assert.match(b.label,/oxygen/);
+ assert.match(a.label,/carbon nitride/);assert.match(b.label,/carbon nitride/);
+});
+test('strong cross-links alone do not merge unrelated topics',()=>{
+ const result=cliques([['a',6,'Carbon nitride synthesis'],['b',6,'Protein folding dynamics']],Array.from({length:6},(_,i)=>({s:'a'+i,t:'b'+i})));
+ assert.equal(result.length,2);
+ assert(result.every(c=>c.ids.length===6));
+});
