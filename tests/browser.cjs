@@ -264,10 +264,12 @@ async function labelStats(page) {
     assert(connections.shared>0 && connections.correct && connections.visible);
     await page.screenshot({path:path.join(output,'stack-cards.png')});
     await page.evaluate(()=>CG.select(null));
+    await page.locator('#graph-options').evaluate(el=>el.open=true);
     await page.click('#zoom-fit'); await page.waitForFunction(()=>!CG._camera); await frames(page);
     const labels = await labelStats(page);assert(labels.visible>=1);assert.equal(labels.overlappingPairs,0);assert(labels.minScreenFontPx>=12.99);
     assert.equal(await idleWrites(page),0);
     const zoom=await page.evaluate(()=>CG.scale);await page.click('#zoom-in');await frames(page);assert(await page.evaluate(v=>CG.scale>v,zoom));
+    await page.locator('#graph-options').evaluate(el=>el.open=false);
     await page.locator('.gnode[data-id="Wseed"]').focus();await page.keyboard.press('Enter');
     assert(await page.locator('#detail').isVisible());await page.keyboard.press('Escape');assert.equal(await page.locator('#detail').isVisible(),false);
     await navigate(page,'paper');await page.waitForFunction(()=>window.CitationPage?.ready&&!document.getElementById('status-counts').textContent.includes('finding'));

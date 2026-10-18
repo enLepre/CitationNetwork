@@ -101,6 +101,15 @@ async function labelStats(page) {
  try {
  const page=await browser.newPage({viewport:{width:1280,height:900}});
  await mock(page); await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed'); await settled(page);
+ assert(await page.locator('#citation-filter').isHidden());
+ assert.equal(await page.locator('.settings-panel').count(),3);
+ await page.click('#graph-options summary');
+ assert(await page.locator('#citation-filter').isVisible());
+ assert(await page.locator('#graph-center').isVisible());
+ assert(await page.locator('#zoom-in').isVisible());
+ await page.locator('#graph-options summary').focus();await page.keyboard.press('Enter');
+ assert(await page.locator('#citation-filter').isHidden());
+ await page.keyboard.press('Enter');
  assert.equal(await page.locator('#citation-min').inputValue(),'0');
  const set=async value=>{await page.locator('#citation-exact').evaluate((el,value)=>{el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));},String(value));await frames(page);};
  // A very highly cited outlier must not compress the low end of the slider.
@@ -116,9 +125,9 @@ async function labelStats(page) {
  assert(await page.evaluate(()=>CG.edges.every(e=>!CG._visible(CG.nodeById[e.s])||!CG._visible(CG.nodeById[e.t])?e.path.style.display==='none':true)));
  assert.equal(await page.locator('#citation-histogram').textContent(),before);
  await page.locator('#citation-min').focus();await page.keyboard.press('ArrowRight');assert.equal(await page.locator('#citation-exact').inputValue(),'501');
- await page.click('#graph-options summary');await page.click('#toggle-ref');await frames(page);
+ await page.click('#toggle-ref');await frames(page);
  assert(await page.evaluate(()=>CG.nodes.filter(n=>n.role==='ref').every(n=>n.gEl.style.display==='none')));
- await page.click('#toggle-ref');await page.click('#graph-options summary');await set(0);
+ await page.click('#toggle-ref');await set(0);
  assert(await page.evaluate(()=>CG.nodes.every(n=>n.gEl.style.display!=='none')));
  const setUpper=async value=>{await page.locator('#citation-upper-exact').evaluate((el,value)=>{el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));},String(value));await frames(page);};
  await set(100);await setUpper(500);
@@ -134,8 +143,11 @@ async function labelStats(page) {
  assert(await page.evaluate(()=>CG.nodes.every(n=>n.gEl.style.display!=='none')));
  await setUpper(1500);
  await set(500);await page.screenshot({path:path.join(output,'citation-filter-desktop.png')});
- await page.setViewportSize({width:390,height:844});await page.click('#theme-toggle');await frames(page);
- const box=await page.locator('#citation-filter').boundingBox();assert(box.x>=0&&box.x+box.width<=390&&box.y>=0&&box.y+box.height<=844);
+ await page.setViewportSize({width:390,height:844});await page.click('#theme-toggle');await page.click('#graph-options summary');await frames(page);
+ const box=await page.locator('.graph-options-panel').boundingBox();assert(box.x>=0&&box.x+box.width<=390&&box.y>=0&&box.y+box.height<=844);
+ await page.locator('#recenter-selected').scrollIntoViewIfNeeded();
+ assert(await page.locator('#recenter-selected').isVisible());
+ await page.locator('#citation-min').scrollIntoViewIfNeeded();
  await page.screenshot({path:path.join(output,'citation-filter-mobile.png')});
  await page.evaluate(()=>{CG.nodes.forEach(n=>n.cites=1);document.getElementById('citation-min').dispatchEvent(new Event('input'));});
  assert(await page.locator('#citation-histogram rect').evaluateAll(bars=>bars.every(b=>Number(b.getAttribute('width'))>0)));
