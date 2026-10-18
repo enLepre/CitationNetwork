@@ -101,7 +101,7 @@ async function labelStats(page) {
   const page=await browser.newPage({viewport:{width:1440,height:1000}});const urls=await mock(page,{extraDelay:900});
   await page.addInitScript(()=>{window.workerCount=0;const Native=Worker;window.Worker=class extends Native{constructor(...args){super(...args);workerCount++;}};});
   const base='http://127.0.0.1:'+server.address().port;
-  await page.goto(base+'/graph.html?seed=Wseed');
+  await page.goto(base+'/graph.html?seed=Wseed&density=80');
   await page.waitForFunction(()=>window.CG?.nodes.length&&document.getElementById('loader').hidden);
   await page.evaluate(()=>{window.seedElement=CG.nodeById.Wseed.gEl;window.edgeElement=CG.edges[0].path;});
   await settled(page);
@@ -121,11 +121,11 @@ async function labelStats(page) {
   await page.evaluate(()=>CG.setLinkMode('all'));await frames(page);
   assert(await page.evaluate(()=>CG.edges.every(e=>e._ax===CG.nodeById[e.s].x+(CG.nodeById[e.s]._ox||0))),'revealed edges refresh to current coordinates');
   const requests=urls.length;
-  await page.goto(base+'/list.html?seed=Wseed');await page.waitForFunction(()=>window.CitationPage?.ready);
+  await page.goto(base+'/list.html?seed=Wseed&density=80');await page.waitForFunction(()=>window.CitationPage?.ready);
   await page.evaluate(()=>window.firstRow=document.querySelector('tr[data-id="Wr2"]'));
   await page.locator('.list-sort button').first().click();
   assert(await page.evaluate(()=>firstRow===document.querySelector('tr[data-id="Wr2"]')),'sorting retains existing rows');
-  await page.goto(base+'/graph.html?seed=Wseed');await settled(page);
+  await page.goto(base+'/graph.html?seed=Wseed&density=80');await settled(page);
   assert.equal(await page.evaluate(()=>workerCount),0,'restored network and positions must skip layout workers');
   assert.equal(urls.length,requests,'cached navigation does not refetch papers');
   assert.equal(await idleWrites(page),0);
@@ -134,7 +134,7 @@ async function labelStats(page) {
   await page.reload();await settled(page);assert(urls.length>requests,'expired cache refreshes');
   const denied=await browser.newPage();await mock(denied);
   await denied.addInitScript(()=>{indexedDB.open=()=>{throw new DOMException('Storage disabled','SecurityError');};});
-  await denied.goto(base+'/graph.html?seed=Wseed');await settled(denied);await denied.close();
+  await denied.goto(base+'/graph.html?seed=Wseed&density=80');await settled(denied);await denied.close();
   console.log('PASS: incremental graph, worker reuse, zero hidden-link/style writes, restored layout, keyed rows and cache expiry');
  }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;server.close();});

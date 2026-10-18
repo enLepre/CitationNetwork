@@ -52,3 +52,32 @@ The local layout bundle contains d3-force, d3-quadtree, d3-dispatch and d3-timer
 Home (`index.html`) is always the centered Search page and never builds a network from a stored paper or query string. Selecting a result opens `graph.html?seed=…&density=…`. Graph fills the entire workspace below the navigation. Selecting a node opens a non-modal popup with only its title, authors, year, journal and original-source URL; the × button, Escape or clicking the empty graph dismisses it. Paper (`paper.html`) contains the detailed paper information, abstract, citation counts, connections and density/filter controls. It opens the last selected paper in the current network (or the seed by default), without loading the graph renderer. Graph filters persist for the session. List (`list.html`) opens paper summaries beside the table, without loading the graph renderer or worker. Each document contains only its own content. Normal links provide browser Back/Forward behavior; the menu preserves the selected seed and density for Paper/Graph/List while Search always links to Home.
 
 A shared graph URL explicitly points to `graph.html`. OpenAlex response caches remain in session storage so switching between Graph and List avoids repeating the same requests. The separate pages share the Georgia notebook style, centered, always-visible navigation and sun/moon theme toggle. Paper, Graph and List remain separate navigation links, with an underline marking the current page. Theme and Share are icon-only actions. Before a paper is selected, Home hides the page links and Share while reserving their space. Once a paper is selected, Search keeps the same full navigation, remembered paper, density, and sharing action as Graph and List. The header has fixed geometry and its theme is restored before first paint. Supported browsers slide the content horizontally in Search → Paper → Graph → List order using cross-document view transitions while the header stays stationary; Back/Forward use the same spatial order. Reduced-motion settings disable the slide, and other browsers retain normal navigation.
+
+
+### Adaptive graph loading
+
+New sessions default to Adaptive (density=0); explicit 40/80/120-paper links remain supported.
+The incoming-citation API total determines the initial citing-paper budget: all for totals up to
+300, 250 for totals from 301 to 2,000, and 300 above that. Larger networks start with the
+citation count of the last initially selected citing paper as the minimum filter. References
+and up to 60 shared-reference papers are additional to that budget. The threshold stays fixed
+while more papers arrive; users can lower it to zero.
+
+Changing the citation range debounces an expansion request. Each request reads at most two
+100-record cursor pages within the inclusive range (most cited and newest), then adds at most
+100 unseen papers. Eighty places favor shared references beyond the seed, with normalization
+for reference-list length, downweighting of common references, and a repeated-group penalty.
+Twenty places are reserved for recent candidates. This ranks retrieved candidates rather than
+claiming a complete clustering of the unseen literature. Unused candidates and pagination
+state are cached. The Load more control continues expansion without an automatic unbounded load.
+
+The histogram describes loaded papers only. The panel distinguishes shown papers, loaded
+papers, and loaded/total incoming citations. Equal citation counts can leave matching papers
+unloaded initially; they remain accessible through expansion. Failed or cancelled requests
+retain the existing graph. Prior positions are preserved when batches are added. Request
+availability still depends on OpenAlex limits, and very large manually expanded graphs can
+require more rendering time.
+
+Tests: `node --test tests/data.test.cjs`, `node tests/adaptive.cjs`, and
+`node tests/citation-filter.cjs`. The latter explicitly uses fixed density to isolate controls;
+the adaptive suite covers the default loading policy and incremental UI.

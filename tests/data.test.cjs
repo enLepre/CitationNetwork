@@ -156,3 +156,92 @@ test('paper ordering reaches the API and preserves merged ordering and missing y
    assert(urls.slice(-2).every(u=>u.searchParams.get('sort')===param&&u.searchParams.get('page')==='2'));
  }
 });
+
+function adaptiveFixture(count, tied = false) {
+  const records = Array.from({length:count}, (_,i) => ({...raw('W'+i, ['Wseed']), cited_by_count:tied ? 10 : count-i, publication_year:2000+i%26}));
+  const urls=[];
+  const api=client(async url=>{
+    const u=new URL(url);urls.push(u);
+    const filter=u.searchParams.get('filter')||'';
+    let rows=records.slice();
+    const low=filter.match(/cited_by_count:>(-?\d+)/), high=filter.match(/cited_by_count:<(\d+)/);
+    if(low) rows=rows.filter(p=>p.cited_by_count>Number(low[1]));
+    if(high) rows=rows.filter(p=>p.cited_by_count<Number(high[1]));
+    if(u.searchParams.get('sort')==='publication_date:desc') rows.sort((a,b)=>b.publication_year-a.publication_year);
+    const offset=u.searchParams.get('cursor')==='*'?0:Number(u.searchParams.get('cursor')||0),size=Number(u.searchParams.get('per-page')||100);
+    return ok({meta:{count:rows.length,next_cursor:offset+size<rows.length?String(offset+size):null},results:rows.slice(offset,offset+size)});
+  });
+  const seed=api.toPaper({...raw('Wseed'),cited_by_count:count});
+  return {api,seed,urls};
+}
+
+test('adaptive loading uses authoritative totals, complete small graphs and a stable rank threshold',async()=>{
+  for(const [total,budget,minimum] of [[0,0,0],[160,160,0],[300,300,0],[301,250,52],[2000,250,1751],[2001,300,1702]]) {
+    const {api,seed}=adaptiveFixture(total);seed.cites=1; // selection uses API total, not stale seed metadata
+    const net=await api.buildNetwork(seed,{adaptive:true,minShared:99999});
+    assert.equal(net.citingTotal,total);assert.equal(net.citingShown,budget);
+    assert.equal(net.initialMin,minimum);assert.equal(net.citingIds.length,budget);
+    assert.equal(net.papers.length,budget+1);
+  }
+});
+
+test('expansion queries the selected inclusive range, batches results and exhausts tied counts without duplicates',async()=>{
+  const {api,seed,urls}=adaptiveFixture(600);
+  let net=await api.buildNetwork(seed,{adaptive:true,minShared:99999});
+  assert.equal(net.initialMin,351);
+  const original=net.papers.length;
+  for(let i=0;i<8;i++) {
+    const before=net.papers.length;net=await api.expandNetwork(net,20,240);
+    assert(net.papers.length-before<=100);
+    assert.equal(new Set(net.papers.map(p=>p.id)).size,net.papers.length);
+    if(net.expansion.done)break;
+  }
+  assert(net.expansion.done);assert.equal(net.expansion.total,221);
+  assert.equal(net.papers.length,original+221);assert.equal(net.initialMin,351);
+  assert(net.papers.slice(original).every(p=>p.cites>=20&&p.cites<=240));
+  assert(urls.some(u=>u.searchParams.get('filter').includes('cited_by_count:>19,cited_by_count:<241')));
+  assert(urls.some(u=>u.searchParams.get('sort')==='publication_date:desc'));
+  const next=await api.expandNetwork(net,0,10);
+  assert.equal(next.expansion.total,10);assert(next.expansion.done);
+  assert.equal(net.expansion.total,221,'changing range must not mutate previous state');
+});
+
+test('cluster ranking excludes the universal seed reference and reserves recent isolated candidates',()=>{
+  const {api}=adaptiveFixture(0);
+  const isolated=Array.from({length:120},(_,i)=>({id:'I'+i,year:2026,refs:['Wseed']}));
+  const cluster=Array.from({length:40},(_,i)=>({id:'C'+i,year:2000,refs:['Wseed','shared-a','shared-b']}));
+  const ranked=api.rankExpansion([...isolated,...cluster],[], 'Wseed',100);
+  assert.equal(ranked.length,100);assert.equal(new Set(ranked.map(p=>p.id)).size,100);
+  assert(ranked.slice(0,40).every(p=>p.id.startsWith('C')));
+  assert(ranked.slice(80).every(p=>p.year===2026));
+  const noSeed=api.rankExpansion([...isolated,...cluster].map(p=>({...p,refs:p.refs.filter(r=>r!=='Wseed')})),[],'Wseed',100);
+  assert.deepEqual(ranked.map(p=>p.id),noSeed.map(p=>p.id));
+});
+
+test('aborted expansion leaves the existing graph intact',async()=>{
+  const {api,seed}=adaptiveFixture(400);
+  const net=await api.buildNetwork(seed,{adaptive:true,minShared:99999});
+  const snapshot=JSON.stringify(net),controller=new AbortController();controller.abort();
+  await assert.rejects(api.expandNetwork(net,0,null,{signal:controller.signal}));
+  assert.equal(JSON.stringify(net),snapshot);
+});
+
+
+test('tied citation counts remain loadable beyond the adaptive budget',async()=>{
+ const {api,seed}=adaptiveFixture(600,true);
+ let net=await api.buildNetwork(seed,{adaptive:true,minShared:99999});
+ assert.equal(net.initialMin,10);assert.equal(net.citingShown,250);
+ for(let i=0;i<20;i++){net=await api.expandNetwork(net,10,10);if(net.expansion.done)break;}
+ assert(net.expansion.done);assert.equal(net.citingIds.length,600);
+ assert.equal(new Set(net.papers.map(p=>p.id)).size,601);
+});
+
+test('failed expansion preserves papers and pagination for a retry',async()=>{
+ const {api,seed}=adaptiveFixture(400);
+ const net=await api.buildNetwork(seed,{adaptive:true,minShared:99999}),snapshot=JSON.stringify(net);
+ const failing=client(async()=>({ok:false,status:403,json:async()=>({error:'unavailable'})}));
+ await assert.rejects(failing.expandNetwork(net,0,100));
+ assert.equal(JSON.stringify(net),snapshot);
+ const retried=await api.expandNetwork(net,0,100);
+ assert(retried.papers.length>net.papers.length);
+});

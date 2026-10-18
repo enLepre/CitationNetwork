@@ -10,7 +10,7 @@
   /* ---- current network state ---- */
   let CURRENT = { seedId: null, papers: [], byId: {}, edges: [], neighbors: {}, meta: {} };
   let graph = null;
-  let citeLimit = 80;
+  let citeLimit = 0;
   let lastSeed = null;          // paper object used for retry
   let sortKey = "cites";
   let sortDir = "desc";          // "asc" | "desc" — toggled by clicking the active sort
@@ -26,6 +26,7 @@
   const sharedSeed = params.get('seed');
   let remembered = null;
   try { remembered = JSON.parse(sessionStorage.getItem('citation-current') || 'null'); } catch (_) {}
+  if (remembered && remembered.modeVersion !== 2) remembered.density = 0;
   function pageUrl(view, seedId = CURRENT.seedId || sharedSeed || remembered?.seedId) {
     const url = new URL(view === 'search' ? 'index.html' : view + '.html', location.href);
     if (view !== 'search' && seedId) { url.searchParams.set('seed', seedId); url.searchParams.set('density', String(citeLimit)); }
@@ -200,10 +201,11 @@
   // One owner for every load, including examples, retries, density and shared URLs.
   // Cancel network requests and worker jobs as soon as the user chooses a new seed.
   async function startLoad(resolveSeed, title, cacheId = null) {
+    cancelExpansion();
     if (loadController) loadController.abort();
     loadController = new AbortController();
     const signal = loadController.signal, seq = ++netSeq;
-    loading = true;
+    loading = true; citationSeed = null;
     if (PAGE === 'graph') { ensureGraph(); graph.cancelLayout(); }
     setLoader('loading', title, 'Fetching paper details from OpenAlex');
     let directShown = false;
@@ -222,7 +224,7 @@
       lastSeed = seed;
       setLoader('loading', 'Building citation graph…', 'Mapping <b>' + esc(truncate(seed.title, 60)) + '</b><br>Fetching references and citing papers');
       const net = await OpenAlex.buildNetwork(seed, {
-        citeLimit, signal,
+        citeLimit, adaptive: citeLimit === 0, signal,
         onDirect: async direct => {
           if (signal.aborted || seq !== netSeq) return;
           await applyNetwork(direct, { seq, signal });
@@ -244,18 +246,18 @@
       if (signal.aborted || seq !== netSeq) return;
       if (directShown) $('status-counts').textContent += ' · some extra papers unavailable';
       else setLoader('error', 'Couldn’t build the graph', esc(err.message || 'Network error') + '.<br>Try again, or explore the sample graph.');
-    } finally { if (seq === netSeq) loading = false; }
+    } finally { if (seq === netSeq) { loading = false; if (graph) syncCitationFilter(); } }
   }
 
   function loadSeed(seed) { if (PAGE !== 'graph' && PAGE !== 'paper') { location.assign(pageUrl('graph', seed.id)); return; } return startLoad(() => Promise.resolve(seed), 'Building citation graph…'); }
   function loadSeedById(id, density) {
-    if (density && ['40', '80', '120'].includes(String(density))) {
+    if (density != null && ['0', '40', '80', '120'].includes(String(density))) {
       citeLimit = +density; if ($('density')) $('density').value = String(citeLimit);
     }
     return startLoad(options => OpenAlex.byId(id, options), 'Opening shared graph…', id);
   }
   function updateStatus(net) {
-    $('status-counts').textContent = net.refShown + ' references · top ' + net.citingShown + ' of ' + fmt(net.citingTotal) + ' citing'
+    $('status-counts').textContent = net.refShown + (net.adaptive ? ' references · ' : ' references · top ') + net.citingShown + ' of ' + fmt(net.citingTotal) + ' citing'
       + (net.linkedShown ? ' · ' + net.linkedShown + ' co-cited' : '');
   }
 
@@ -288,7 +290,7 @@
     if ($("seed-title")) $("seed-title").textContent = seed.title;
     document.title = seed.title + ({ graph: " — Graph", paper: " — Paper", list: " — List" }[PAGE]);
     $("status-counts").textContent =
-      `${net.refShown} references · top ${net.citingShown} of ${fmt(net.citingTotal)} citing` +
+      `${net.refShown} references · ${net.adaptive ? '' : 'top '}${net.citingShown} of ${fmt(net.citingTotal)} citing` +
       (net.linkedShown ? ` · ${net.linkedShown} co-cited` : "");
     if (!preserve && graph) {
       graph.select(null);
@@ -311,12 +313,11 @@
   }
 
   /* ---------------- share ---------------- */
-  // A shared graph is fully reproducible from the seed id + density: the network
-  // is rebuilt live from OpenAlex, so the link only needs those two values.
+  // Share the seed and loading mode; progressive expansions remain local.
   function shareUrl() { return pageUrl('graph'); }
   function syncShareUrl() {
     if (!CURRENT.seedId || PAGE === 'search') return;
-    try { sessionStorage.setItem('citation-current', JSON.stringify({ seedId: CURRENT.seedId, density: citeLimit })); } catch (_) {}
+    try { sessionStorage.setItem('citation-current', JSON.stringify({ seedId: CURRENT.seedId, density: citeLimit, modeVersion: 2 })); } catch (_) {}
     history.replaceState(null, '', pageUrl(PAGE));
   }
   function refreshShareBtn() {
@@ -452,6 +453,33 @@
     try { saved = JSON.parse(sessionStorage.getItem('citation-filters') || '{}'); } catch (_) {}
     return { showRefs: saved?.showRefs !== false, showCites: saved?.showCites !== false, showLinked: saved?.showLinked !== false };
   }
+  let expansionController = null, expansionTimer = null, expansionSeq = 0, expanding = false;
+  function cancelExpansion() {
+    clearTimeout(expansionTimer); expansionController?.abort(); expansionSeq++; expanding = false;
+  }
+  async function expandCitations() {
+    if (!graph || !CURRENT.meta.adaptive || loading) return;
+    cancelExpansion();
+    const seq = expansionSeq, seedId = CURRENT.seedId;
+    expansionController = new AbortController(); expanding = true;
+    const signal = expansionController.signal;
+    $('citation-load-status').textContent = '';
+    syncCitationFilter();
+    try {
+      const net = await OpenAlex.expandNetwork(CURRENT.meta, graph.minCitations || 0, graph.maxCitations, {signal});
+      if (signal.aborted || seq !== expansionSeq || seedId !== CURRENT.seedId) return;
+      if (net.papers.length !== CURRENT.papers.length) await applyNetwork(net, {seq:netSeq,signal,preserve:true});
+      else CURRENT.meta = net;
+      if (signal.aborted || seq !== expansionSeq) return;
+      await OpenAlex.saveNetwork(net, citeLimit);
+      const matching = net.expansion.total;
+      $('citation-load-status').textContent = net.expansion.done ? `All ${fmt(matching)} citing papers in this range loaded.` : `${fmt(matching)} citing papers match this range. Load more to continue.`;
+    } catch (error) {
+      if (!signal.aborted && seq === expansionSeq) $('citation-load-status').textContent = 'Could not load more papers. Try again.';
+    } finally {
+      if (seq === expansionSeq) { expanding = false; syncCitationFilter(); }
+    }
+  }
   let citationSeed = null;
   function syncCitationFilter() {
     if (!graph || !$('citation-filter')) return;
@@ -459,7 +487,7 @@
     const max = Math.max(0, ...counts);
     if (citationSeed !== CURRENT.seedId) {
       citationSeed = CURRENT.seedId;
-      graph.setFilter({ minCitations: 0, maxCitations: null });
+      graph.setFilter({ minCitations: CURRENT.meta.initialMin || 0, maxCitations: null });
     }
     const upper = Number.isFinite(graph.maxCitations) ? Math.min(graph.maxCitations, max) : max;
     if (Number.isFinite(graph.maxCitations) && upper !== graph.maxCitations) graph.setFilter({ maxCitations: upper });
@@ -499,7 +527,16 @@
     if (max > 0) ticks.push(max);
     $('citation-axis').innerHTML = ticks.map(n => `<span style="left:${position(n)*100}%">${n >= 1000000 ? (n / 1000000).toFixed(1).replace(/\.0$/, "") + "m" : fmt(n)}</span>`).join('');
     const visible = graph.nodes.filter(n => graph._visible(n)).length;
-    $('citation-filter-count').textContent = `${visible} of ${graph.nodes.length} papers shown`;
+    $('citation-filter-count').textContent = `${visible} shown · ${graph.nodes.length} loaded`;
+    if (CURRENT.meta.adaptive) $('citation-filter-count').textContent += ` · ${(CURRENT.meta.citingIds || []).length} of ${fmt(CURRENT.meta.citingTotal)} citing papers loaded`;
+    const button = $('load-more-papers');
+    if (button) {
+      const key = threshold + ':' + (Number.isFinite(graph.maxCitations) ? graph.maxCitations : 'all');
+      const complete = CURRENT.meta.expansion?.key === key && CURRENT.meta.expansion.done;
+      button.hidden = !CURRENT.meta.adaptive || (CURRENT.meta.citingIds || []).length >= CURRENT.meta.citingTotal || complete;
+      button.disabled = expanding || loading;
+      button.textContent = expanding ? 'Loading papers…' : 'Load more in this range';
+    }
   }
   let layoutTimer = null, layoutRequest = 0;
   function syncForceFill(slider) {
@@ -546,8 +583,12 @@
         value = Math.max(graph.minCitations || 0, value);
         graph.setFilter({ maxCitations: value === max ? null : value });
       } else graph.setFilter({ minCitations: Math.min(upper, value) });
+      cancelExpansion();
+      if ($('citation-load-status')) $('citation-load-status').textContent = '';
       syncCitationFilter();
+      if (CURRENT.meta.adaptive && (CURRENT.meta.citingIds || []).length < CURRENT.meta.citingTotal) expansionTimer = setTimeout(expandCitations, 450);
     }
+    $('load-more-papers')?.addEventListener('click', expandCitations);
     const range = $('citation-range');
     let dragging = null;
     const showValue = id => { if (range) range.dataset.active = id; };
@@ -857,7 +898,7 @@
     if (!CURRENT.seedId) { tb.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--ink-faint);font-family:var(--mono);font-size:13px">No graph loaded yet — search a paper first.</td></tr>`; $("list-seed").textContent = ""; return; }
     const m = CURRENT.meta;
     $("list-seed").textContent =
-      `${CURRENT.papers.length} papers · ${CURRENT.edges.length} links · top ${m.citingShown} of ${fmt(m.citingTotal)} citing`;
+      `${CURRENT.papers.length} papers · ${CURRENT.edges.length} links · ${m.adaptive ? '' : 'top '}${m.citingShown} of ${fmt(m.citingTotal)} citing`;
 
     const linkCount = p => (CURRENT.neighbors[p.id] || []).length;
     const base = (a, b) => {
@@ -1008,6 +1049,7 @@
 
   /* ---------------- offline sample fallback ---------------- */
   async function loadSample() {
+    cancelExpansion();
     if (loadController) loadController.abort();
     ++netSeq; loading = true;
     ensureGraph(); graph.cancelLayout();
@@ -1042,11 +1084,12 @@
     if (event.key === 'Escape' && PAGE === 'graph' && detail && !detail.hidden && !$('graph-options')?.open) { event.preventDefault(); closeDetail(); }
   });
   const initialDensity = params.get('density') || remembered?.density;
-  if (['40','80','120'].includes(String(initialDensity))) citeLimit = +initialDensity;
+  if (['0','40','80','120'].includes(String(initialDensity))) citeLimit = +initialDensity;
   buildSearch(); wireControls(); updateNavigation();
   window.addEventListener('pageshow', event => {
     try { remembered = JSON.parse(sessionStorage.getItem('citation-current') || 'null'); } catch (_) {}
-    if (PAGE === 'search' && ['40','80','120'].includes(String(remembered?.density))) citeLimit = +remembered.density;
+    if (remembered && remembered.modeVersion !== 2) remembered.density = 0;
+    if (PAGE === 'search' && ['0','40','80','120'].includes(String(remembered?.density))) citeLimit = +remembered.density;
     updateNavigation();
     if (event.persisted && resumeSearch && PAGE === 'search') { resumeSearch = false; doSearch(); }
     if (event.persisted && resumeLoad && PAGE !== 'search') { resumeLoad = false; const id = CURRENT.seedId || sharedSeed || remembered?.seedId; if (id) loadSeedById(id, citeLimit); }
@@ -1067,7 +1110,7 @@
     clearTimeout(layoutTimer); layoutRequest++;
     resumeSearch = PAGE === 'search' && $('search-results').getAttribute('aria-busy') === 'true';
     resumeLoad = loading;
-    loadController?.abort(); graph?.cancelLayout(); cancelSearch();
+    cancelExpansion(); loadController?.abort(); graph?.cancelLayout(); cancelSearch();
   });
   if (PAGE !== 'search') {
     const id = sharedSeed || remembered?.seedId;
