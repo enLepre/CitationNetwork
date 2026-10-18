@@ -113,9 +113,9 @@ async function labelStats(page) {
  assert(panels.every(p=>p.x===panels[0].x));
  assert(panels.slice(1).every((p,i)=>p.y>=panels[i].bottom));
  assert.equal(await page.locator('.settings-panel h2').count(),0);
- assert(await page.locator('.settings-panel').nth(0).locator('#graph-links').count());
+ assert(await page.locator('.settings-panel').nth(2).locator('#graph-links').count());
  assert(await page.locator('.settings-panel').nth(1).locator('#citation-range').count());
- assert(await page.locator('.settings-panel').nth(2).locator('#spread-nearby').count());
+ assert(await page.locator('.settings-panel').nth(0).locator('#spread-nearby').count());
  assert(await page.locator('.settings-panel').nth(3).locator('#recenter-selected').count());
  assert(await page.locator('#zoom-in').isVisible());
  await page.locator('#graph-options summary').focus();await page.keyboard.press('Enter');
