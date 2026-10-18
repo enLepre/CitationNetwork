@@ -449,3 +449,7 @@ body.has-search .bigsearch { margin-top: 28px; }
 #citation-min-value { left: clamp(28px, var(--lower), calc(100% - 28px)); }
 #citation-upper-value { left: clamp(28px, var(--upper), calc(100% - 28px)); }
 .citation-range[data-active="citation-min"] #citation-min-value, .citation-range[data-active="citation-upper"] #citation-upper-value { display: block; }
+
+.settings-panel .graph-legend { margin-top: 0; padding-top: 0; border-top: 0; }
+.settings-panel #graph-links { margin-bottom: 0; }
+.recenter-panel #recenter-selected { margin-top: 0; }
