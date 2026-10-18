@@ -102,10 +102,16 @@ async function labelStats(page) {
  const page=await browser.newPage({viewport:{width:1280,height:900}});
  await mock(page); await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed'); await settled(page);
  assert(await page.locator('#citation-filter').isHidden());
+ assert(await page.locator('#zoom-in').isVisible());
+ assert(await page.locator('#zoom-fit').isVisible());
+ await page.click('#zoom-in');
  assert.equal(await page.locator('.settings-panel').count(),3);
  await page.click('#graph-options summary');
  assert(await page.locator('#citation-filter').isVisible());
  assert(await page.locator('#graph-center').isVisible());
+ const panels=await page.locator('.settings-panel').evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return {x:r.x,y:r.y,bottom:r.bottom};}));
+ assert(panels.every(p=>p.x===panels[0].x));
+ assert(panels[1].y>=panels[0].bottom&&panels[2].y>=panels[1].bottom);
  assert(await page.locator('#zoom-in').isVisible());
  await page.locator('#graph-options summary').focus();await page.keyboard.press('Enter');
  assert(await page.locator('#citation-filter').isHidden());

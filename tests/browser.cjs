@@ -264,7 +264,6 @@ async function labelStats(page) {
     assert(connections.shared>0 && connections.correct && connections.visible);
     await page.screenshot({path:path.join(output,'stack-cards.png')});
     await page.evaluate(()=>CG.select(null));
-    await page.locator('#graph-options').evaluate(el=>el.open=true);
     await page.click('#zoom-fit'); await page.waitForFunction(()=>!CG._camera); await frames(page);
     const labels = await labelStats(page);assert(labels.visible>=1);assert.equal(labels.overlappingPairs,0);assert(labels.minScreenFontPx>=12.99);
     assert.equal(await idleWrites(page),0);
