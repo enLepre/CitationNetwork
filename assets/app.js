@@ -26,10 +26,10 @@
   const sharedSeed = params.get('seed');
   let remembered = null;
   try { remembered = JSON.parse(sessionStorage.getItem('citation-current') || 'null'); } catch (_) {}
-  if (remembered && remembered.modeVersion !== 2) remembered.density = 0;
+  if (remembered && remembered.modeVersion !== 3) remembered.density = 0;
   function pageUrl(view, seedId = CURRENT.seedId || sharedSeed || remembered?.seedId) {
     const url = new URL(view === 'search' ? 'index.html' : view + '.html', location.href);
-    if (view !== 'search' && seedId) { url.searchParams.set('seed', seedId); url.searchParams.set('density', String(citeLimit)); }
+    if (view !== 'search' && seedId) { url.searchParams.set('seed', seedId); url.searchParams.set('density', String(citeLimit)); if (citeLimit > 0) url.searchParams.set('loading', 'fixed'); }
     return url.href;
   }
   function updateNavigation() {
@@ -317,7 +317,7 @@
   function shareUrl() { return pageUrl('graph'); }
   function syncShareUrl() {
     if (!CURRENT.seedId || PAGE === 'search') return;
-    try { sessionStorage.setItem('citation-current', JSON.stringify({ seedId: CURRENT.seedId, density: citeLimit, modeVersion: 2 })); } catch (_) {}
+    try { sessionStorage.setItem('citation-current', JSON.stringify({ seedId: CURRENT.seedId, density: citeLimit, modeVersion: 3 })); } catch (_) {}
     history.replaceState(null, '', pageUrl(PAGE));
   }
   function refreshShareBtn() {
@@ -1106,13 +1106,14 @@
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && PAGE === 'graph' && detail && !detail.hidden && !$('graph-options')?.open && !$('graph-search')?.open) { event.preventDefault(); closeDetail(); }
   });
-  const initialDensity = params.get('density') || remembered?.density;
+  // Legacy density URLs must not silently retain the old 80-paper default.
+  const initialDensity = PAGE === 'search' ? 0 : params.has('density') ? (params.get('loading') === 'fixed' ? params.get('density') : 0) : remembered?.density;
   if (['0','40','80','120'].includes(String(initialDensity))) citeLimit = +initialDensity;
   buildSearch(); wireControls(); updateNavigation();
   window.addEventListener('pageshow', event => {
     try { remembered = JSON.parse(sessionStorage.getItem('citation-current') || 'null'); } catch (_) {}
-    if (remembered && remembered.modeVersion !== 2) remembered.density = 0;
-    if (PAGE === 'search' && ['0','40','80','120'].includes(String(remembered?.density))) citeLimit = +remembered.density;
+    if (remembered && remembered.modeVersion !== 3) remembered.density = 0;
+    if (PAGE === 'search') citeLimit = 0;
     updateNavigation();
     if (event.persisted && resumeSearch && PAGE === 'search') { resumeSearch = false; doSearch(); }
     if (event.persisted && resumeLoad && PAGE !== 'search') { resumeLoad = false; const id = CURRENT.seedId || sharedSeed || remembered?.seedId; if (id) loadSeedById(id, citeLimit); }
@@ -1137,7 +1138,7 @@
   });
   if (PAGE !== 'search') {
     const id = sharedSeed || remembered?.seedId;
-    if (id) loadSeedById(id, params.get('density') || remembered?.density);
+    if (id) loadSeedById(id, citeLimit);
     else {
       if (PAGE === 'list') renderList();
       setLoader('empty', 'Choose a paper to begin', '<a href="index.html">Go to Search →</a>');

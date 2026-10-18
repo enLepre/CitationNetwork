@@ -98,7 +98,7 @@ async function labelStats(page) {
 (async()=>{
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const browser=await chromium.launch({headless:true});
  try{
- const page=await browser.newPage({viewport:{width:1440,height:1000}});await mock(page);await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed&density=80');await settled(page);
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});await mock(page);await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed&density=80&loading=fixed');await settled(page);
  await page.click('#graph-options summary');
  const pinned=await page.evaluate(()=>{const n=CG.nodeById.Wr1;n.userPinned=true;return {x:n.x,y:n.y,scale:CG.scale};});
  const setBond=async value=>{

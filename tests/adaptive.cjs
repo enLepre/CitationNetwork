@@ -107,7 +107,8 @@ async function labelStats(page) {
  try{
  const page=await browser.newPage({viewport:{width:1280,height:900}});const urls=await mock(page);
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed');await settled(page);
+ await page.addInitScript(()=>{if(!sessionStorage.getItem('citation-current'))sessionStorage.setItem('citation-current',JSON.stringify({seedId:'Wseed',density:80,modeVersion:2}));});
+ await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed&density=80');await settled(page);
  await page.click('#graph-options summary');
  await page.waitForFunction(()=>!document.getElementById('load-more-papers').disabled);
  assert.equal(await page.evaluate(()=>CitationPage.network.meta.adaptive),true);
@@ -143,6 +144,9 @@ async function labelStats(page) {
  await page.reload();await settled(page);
  assert((await page.evaluate(()=>CG.nodes.length))>=count,'expanded network cached');
  assert.equal(errors.length,0,errors.join('\n'));
+ await page.evaluate(()=>sessionStorage.setItem('citation-current',JSON.stringify({seedId:'Wseed',density:80,modeVersion:3})));
+ await page.goto('http://127.0.0.1:'+server.address().port+'/index.html');
+ assert.equal(new URL(await page.locator('[data-view="graph"]').getAttribute('href')).searchParams.get('density'),'0');
  console.log('Adaptive initial threshold, 100-paper expansion, stable positions, continued expansion, debounced ranges and cache passed.');
  }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;server.close();});

@@ -119,7 +119,7 @@ async function labelStats(page) {
         await cdp.send('Network.enable');
         await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 40, downloadThroughput: 1250000, uploadThroughput: 1250000 });
         await page.addInitScript(() => { window.longTasks = []; new PerformanceObserver(list => window.longTasks.push(...list.getEntries().map(e => e.duration))).observe({ type: 'longtask', buffered: true }); });
-        await page.goto(base + (version === 'before' ? '/before.html' : '/graph.html') + '?seed=Wseed&density=80');
+        await page.goto(base + (version === 'before' ? '/before.html' : '/graph.html') + '?seed=Wseed&density=80&loading=fixed');
         await page.waitForFunction(() => window.CG?.nodes.length && document.getElementById('loader').hidden);
         const directReadyMs = await page.evaluate(() => performance.now());
         await settled(page);
@@ -145,7 +145,7 @@ async function labelStats(page) {
       const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
       const page = await context.newPage(); await mock(page);
       const cdp = await context.newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-      await page.goto(base + (version === 'before' ? '/before.html' : '/graph.html') + '?seed=Wseed&density=80'); await settled(page);
+      await page.goto(base + (version === 'before' ? '/before.html' : '/graph.html') + '?seed=Wseed&density=80&loading=fixed'); await settled(page);
       report.graph[version] = await page.evaluate(async () => {
         const papers = Array.from({ length: 500 }, (_, i) => ({ id: 'P' + i, title: 'Research paper ' + i, short: 'Author' + i, year: 2025, cites: 10, role: i ? 'ref' : 'seed' }));
         const edges = papers.slice(1).flatMap((p, i) => [{ s: p.id, t: 'P' + i }, { s: p.id, t: 'P' + Math.floor(i / 2) }]);
@@ -188,7 +188,7 @@ async function labelStats(page) {
     });
     const page = await context.newPage(); const urls = await mock(page, { extraDelay: 1600 });
     const errors = []; page.on('pageerror', error => errors.push(error.message));
-    await page.goto(base + '/?seed=Wseed&density=80');
+    await page.goto(base + '/?seed=Wseed&density=80&loading=fixed');
     assert.equal(await page.locator('main').count(), 1);
     assert.equal(await page.locator('#view-search').count(), 1);
     assert.equal(await page.locator('#graph-canvas, #view-list, .appearance-panel, #mini-input, .topbar .brand, .page-paper-title').count(), 0);
@@ -374,7 +374,7 @@ async function labelStats(page) {
     assert.deepEqual(await page.locator('#notebook-menu').boundingBox(),mobileNav);
     assert.deepEqual(errors,[]);report.checks.push('Home and reload always show Search; browser Back restores List; mobile pages and menu remain usable');await context.close();
     const fallback=await browser.newContext();const fallbackPage=await fallback.newPage();await mock(fallbackPage,{failExtra:true});await fallbackPage.addInitScript(()=>{window.Worker=undefined;});
-    await fallbackPage.goto(base+'/graph.html?seed=Wseed&density=80');await settled(fallbackPage);assert.equal(await fallbackPage.evaluate(()=>CG.nodes.length),250);assert((await fallbackPage.locator('#status-counts').textContent()).includes('unavailable'));await fallback.close();
+    await fallbackPage.goto(base+'/graph.html?seed=Wseed&density=80&loading=fixed');await settled(fallbackPage);assert.equal(await fallbackPage.evaluate(()=>CG.nodes.length),250);assert((await fallbackPage.locator('#status-counts').textContent()).includes('unavailable'));await fallback.close();
     report.checks.push('Time-sliced layout and failed optional enrichment still preserve a usable graph');
     if (report.cold.after) { assert(report.cold.after.bytes<report.cold.before.bytes*.2);assert(report.cold.after.readyMs<report.cold.before.readyMs);assert(report.graph.after.synchronousMs<report.graph.before.synchronousMs*.5); }
     fs.writeFileSync(path.join(output,process.env.PAGES_ONLY ? 'pages-checks.json' : 'performance.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
