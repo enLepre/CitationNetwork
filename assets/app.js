@@ -507,6 +507,7 @@
     for(const [id,key,output,scale] of [['graph-center','centerForce','center-value',100],['graph-spacing','spacing','spacing-value',100],['graph-bonds','bondStrength','bonds-value',100],['graph-distance','linkDistance','distance-value',1]]) {
       $(id).disabled=!graph._dataReady;$(id).value=String(Math.round(graph[key]*scale));
       $(output).textContent=Math.round(graph[key]*scale)+(scale===100?'%':'');
+      $(id).setAttribute('aria-valuetext', $(output).textContent);
     }
     $('reset-forces').disabled=!graph._dataReady;
     $('graph-links').value = graph.linkMode;
@@ -598,6 +599,7 @@
     $("zoom-fit")?.addEventListener("click", () => graph && graph.fit(true));
     for(const [id,key,output,scale] of [['graph-center','centerForce','center-value',100],['graph-spacing','spacing','spacing-value',100],['graph-bonds','bondStrength','bonds-value',100],['graph-distance','linkDistance','distance-value',1]]) {
       $(id)?.addEventListener('input',event=>{
+        $(id).setAttribute('aria-valuetext', event.target.value+(scale===100?'%':''));
         const value=+event.target.value/scale;
         $(output).textContent=event.target.value+(scale===100?'%':'');
         clearTimeout(layoutTimer);layoutRequest++;
@@ -605,6 +607,18 @@
         $('graph-layout-status').textContent='Adjusting forces…';
       });
     }
+    document.querySelectorAll('.force-control').forEach(control => {
+      const slider = control.querySelector('input');
+      const stop = () => control.classList.remove('is-adjusting');
+      slider.addEventListener('pointerdown', () => control.classList.add('is-adjusting'));
+      slider.addEventListener('keydown', event => {
+        if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)) control.classList.add('is-adjusting');
+      });
+      slider.addEventListener('keyup', stop);
+      slider.addEventListener('blur', stop);
+      window.addEventListener('pointerup', stop);
+      window.addEventListener('pointercancel', stop);
+    });
     $('reset-forces')?.addEventListener('click',()=>{
       layoutRequest++;
       graph?.updateForces({spacing:1,bondStrength:1,centerForce:1,linkDistance:145});

@@ -109,6 +109,17 @@ async function labelStats(page) {
  await page.click('#graph-options summary');
  assert(await page.locator('#citation-filter').isVisible());
  assert(await page.locator('#graph-center').isVisible());
+ const force=page.locator('#graph-center'), tip=page.locator('.force-control').first().locator('label');
+ await force.hover();assert(await tip.isVisible());assert(await tip.locator('output').isHidden());
+ const forceBox=await force.boundingBox();
+ await page.mouse.move(forceBox.x+forceBox.width/3,forceBox.y+15);await page.mouse.down();
+ await page.mouse.move(forceBox.x+forceBox.width/2,forceBox.y+15);
+ assert(await tip.locator('output').isVisible());
+ assert.equal(await force.getAttribute('aria-valuetext'),await tip.locator('output').textContent());
+ await page.mouse.up();assert(await tip.locator('output').isHidden());
+ await force.focus();await page.keyboard.down('ArrowRight');assert(await tip.locator('output').isVisible());
+ await page.keyboard.up('ArrowRight');assert(await tip.locator('output').isHidden());
+ await page.locator('#graph-options summary').focus();await page.mouse.move(1000,100);assert(await tip.isHidden());
  const panels=await page.locator('.settings-panel').evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return {x:r.x,y:r.y,bottom:r.bottom};}));
  assert(panels.every(p=>p.x===panels[0].x));
  assert(panels.slice(1).every((p,i)=>p.y>=panels[i].bottom));
