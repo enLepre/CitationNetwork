@@ -42,6 +42,7 @@ async function mock(page, { extraDelay = 350, slowSeed = false, failExtra = fals
       if(low)rows=rows.filter(p=>p.cited_by_count>Number(low[1]));
       if(high)rows=rows.filter(p=>p.cited_by_count<Number(high[1]));
       rows.sort(u.searchParams.get('sort')==='publication_date:desc'?(a,b)=>b.publication_year-a.publication_year:(a,b)=>b.cited_by_count-a.cited_by_count);
+      if(u.searchParams.has('cursor'))return route.fulfill({status:401,body:JSON.stringify({error:'API key required for cursor paging'})});
       const cursor=u.searchParams.get('cursor'),per=Number(u.searchParams.get('per-page')||100);
       const offset=cursor==='*'?0:cursor?Number(cursor):(Number(u.searchParams.get('page')||1)-1)*per;
       await new Promise(r=>setTimeout(r,100));
@@ -128,7 +129,7 @@ async function labelStats(page) {
  await page.waitForFunction(()=>!document.getElementById('load-more-papers').disabled);
  const req=urls.length;await lower(10);await lower(100);await lower(500);
  await page.waitForTimeout(1500);await page.waitForFunction(()=>!document.getElementById('load-more-papers').disabled || document.getElementById('load-more-papers').hidden);
- assert(urls.slice(req).filter(u=>u.includes('cursor=')).length<=2,'rapid range changes debounce');
+ assert(urls.slice(req).filter(u=>u.includes('page=') && u.includes('cites%3A')).length<=2,'rapid range changes debounce');
  assert.equal(await page.evaluate(()=>CG.minCitations),500);
  // A late response from a superseded range must not overwrite the chosen range.
  await page.route('https://api.openalex.org/works?**',async route=>{

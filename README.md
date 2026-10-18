@@ -56,7 +56,7 @@ A shared graph URL explicitly points to `graph.html`. OpenAlex response caches r
 
 ### Adaptive graph loading
 
-New sessions default to Adaptive (density=0); explicit 40/80/120-paper links remain supported.
+New sessions default to Adaptive (density=0); deliberately chosen fixed limits carry loading=fixed; older density-only links migrate to adaptive.
 The incoming-citation API total determines the initial citing-paper budget: all for totals up to
 300, 250 for totals from 301 to 2,000, and 300 above that. Larger networks start with the
 citation count of the last initially selected citing paper as the minimum filter. References
@@ -64,7 +64,7 @@ and up to 60 shared-reference papers are additional to that budget. The threshol
 while more papers arrive; users can lower it to zero.
 
 Changing the citation range debounces an expansion request. Each request reads at most two
-100-record cursor pages within the inclusive range (most cited and newest), then adds at most
+100-record numbered pages within the inclusive range (most cited and newest), then adds at most
 100 unseen papers. Eighty places favor shared references beyond the seed, with normalization
 for reference-list length, downweighting of common references, and a repeated-group penalty.
 Twenty places are reserved for recent candidates. This ranks retrieved candidates rather than
@@ -89,3 +89,5 @@ The flag button enables an experimental view of up to 12 connected groups of at 
 Labels use recurring, distinctive title words and phrases. Hover shows supporting phrases and recurring authors; click or Enter highlights a group. Labels are suggestions, not verified research teams. Abstract fetching and abstract-derived labels are not included in this first version. Flags follow visible group members, remain screen-sized during zoom, avoid one another, and hide when fewer than three members remain visible.
 
 Run `node --test tests/clusters.test.cjs` for grouping and label checks; `node tests/citation-filter.cjs` covers flag toggling, highlighting, and zoom stability alongside existing filters.
+
+Keyless OpenAlex cursor requests fail after page one. Adaptive loading therefore uses basic numbered pagination (up to 10,000 results per citation range); reaching that boundary asks the user to narrow the range. Failure of a later initial page retains downloaded papers with a warning rather than discarding the graph, and partial initial results are not persisted as a complete cache entry.
