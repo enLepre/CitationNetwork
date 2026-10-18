@@ -480,3 +480,9 @@ body.has-search .bigsearch { margin-top: 28px; }
 .controls #graph-search-clear { width: 100%; font-size: 13px; border: 1px solid var(--line); margin-top: 10px; }
 .graph-search.has-query summary { color: var(--ink); box-shadow: inset 0 -3px var(--ink-soft); }
 @media (max-width:760px) { .graph-search-panel { left:16px; bottom:64px; width:calc(100vw - 32px); } }
+
+.cluster-flag { cursor:pointer; }
+.cluster-flag rect { fill:var(--panel); stroke:var(--line); stroke-width:1; }
+.cluster-flag text { fill:var(--ink); font:12px var(--mono); pointer-events:none; }
+.cluster-flag:hover rect, .cluster-flag:focus rect, .cluster-flag[aria-pressed="true"] rect { stroke:var(--ink-soft); stroke-width:2; }
+#toggle-clusters[aria-pressed="true"] { box-shadow:inset 0 -3px var(--ink-soft); }
