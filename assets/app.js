@@ -527,7 +527,7 @@
     if (max > 0) ticks.push(max);
     $('citation-axis').innerHTML = ticks.map(n => `<span style="left:${position(n)*100}%">${n >= 1000000 ? (n / 1000000).toFixed(1).replace(/\.0$/, "") + "m" : fmt(n)}</span>`).join('');
     const visible = graph.nodes.filter(n => graph._visible(n)).length;
-    if ($('graph-search-count')) $('graph-search-count').textContent = `${visible} of ${graph.nodes.length} loaded papers shown`;
+    if ($('graph-search-count')) $('graph-search-count').textContent = `${visible} of ${graph.nodes.length} papers shown`;
 
     $('citation-filter-count').textContent = `${visible} shown · ${graph.nodes.length} loaded`;
     if (CURRENT.meta.adaptive) $('citation-filter-count').textContent += ` · ${(CURRENT.meta.citingIds || []).length} of ${fmt(CURRENT.meta.citingTotal)} citing papers loaded`;
@@ -594,12 +594,11 @@
     const searchPanel = $('graph-search');
     const applySearch = () => {
       if (!graph) return;
-      graph.setFilter({searchQuery:$('graph-search-query').value, searchField:$('graph-search-field').value});
+      graph.setFilter({searchQuery:$('graph-search-query').value, searchField:'all'});
       searchPanel.classList.toggle('has-query', Boolean($('graph-search-query').value.trim()));
       syncCitationFilter();
     };
     $('graph-search-query')?.addEventListener('input', applySearch);
-    $('graph-search-field')?.addEventListener('change', applySearch);
     $('graph-search-clear')?.addEventListener('click', () => { $('graph-search-query').value = ''; applySearch(); $('graph-search-query').focus(); });
     searchPanel?.addEventListener('toggle', () => { if (searchPanel.open) { $('graph-options').open = false; $('graph-search-query').focus(); } });
     document.addEventListener('pointerdown', event => { if (searchPanel?.open && !searchPanel.contains(event.target)) searchPanel.open = false; });
