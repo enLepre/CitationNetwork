@@ -484,7 +484,7 @@
     // (IF≈2) read small. Co-cited papers, rarely cross-cited here, are sized
     // by journal impact alone.
     _radius(role, citedHere, journalIF) {
-      if (role === "seed") return 32;
+      if (role === "seed") return 42;
       const cross = Math.min(26, Math.sqrt(citedHere || 0) * 6.8);
       const jour = Math.min(24, Math.sqrt(journalIF || 0) * 4.6);
       if (role === "linked") return 8 + jour;
@@ -795,7 +795,7 @@
         n.gEl.style.display = vis ? "" : "none";
         n.hitEl.style.display = vis ? '' : 'none';
         if (!vis) return;
-        const lit = isLit(n.id);
+        const lit = n.role === "seed" || isLit(n.id);
         const col = this._color(n.role, pal);
         const isSel = this.selected === n.id || this.selectedIds.has(n.id);
         n.cEl.setAttribute("fill", col);
