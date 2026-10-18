@@ -504,6 +504,7 @@
     _visible(n) {
       if (n.role === "seed") return true;
       if (this.minCitations > 0 && (!Number.isFinite(n.cites) || n.cites < this.minCitations)) return false;
+      if (Number.isFinite(this.maxCitations) && (!Number.isFinite(n.cites) || n.cites > this.maxCitations)) return false;
       if (n.role === "ref" && !this.showRefs) return false;
       if (n.role === "cite" && !this.showCites) return false;
       if (n.role === "linked" && !this.showLinked) return false;
@@ -512,6 +513,7 @@
 
     setFilter(opts) {
       const resumePhysics=this._physicsRunning;this._stopPhysics();
+      if ("maxCitations" in opts) this.maxCitations = Number.isFinite(opts.maxCitations) ? Math.max(0, opts.maxCitations) : null;
       if ("minCitations" in opts) this.minCitations = Math.max(0, Number(opts.minCitations) || 0);
       if ("showRefs" in opts) this.showRefs = opts.showRefs;
       if ("showCites" in opts) this.showCites = opts.showCites;
