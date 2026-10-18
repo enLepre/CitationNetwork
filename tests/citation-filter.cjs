@@ -104,17 +104,14 @@ async function labelStats(page) {
  await page.click('#graph-search summary');
  await page.fill('#graph-search-query','connected wr12');
  assert.equal(await page.evaluate(()=>CG.nodes.filter(n=>CG._visible(n)&&n.role!=='seed').length),11);
- await page.selectOption('#graph-search-field','authors');
  await page.fill('#graph-search-query','researcher168');
  assert.deepEqual(await page.evaluate(()=>CG.nodes.filter(n=>CG._visible(n)&&n.role!=='seed').map(n=>n.id)),['Wr168']);
- await page.selectOption('#graph-search-field','venue');
  await page.fill('#graph-search-query','CHEMISTRY');
  assert.equal(await page.evaluate(()=>CG.nodes.filter(n=>CG._visible(n)).length),await page.evaluate(()=>CG.nodes.length));
  await page.screenshot({path:path.join(output,'graph-search.png')});
  await page.evaluate(()=>CG.setFilter({showRefs:false}));
  assert(await page.evaluate(()=>CG.nodes.filter(n=>CG._visible(n)).every(n=>n.role!=='ref')));
  await page.evaluate(()=>CG.setFilter({showRefs:true}));
- await page.selectOption('#graph-search-field','authors');
  await page.fill('#graph-search-query','ÉNRICO');
  assert.equal(await page.evaluate(()=>CG.nodes.filter(n=>CG._visible(n)).length),await page.evaluate(()=>CG.nodes.length));
  await page.fill('#graph-search-query','no-such-paper');
