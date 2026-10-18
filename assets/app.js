@@ -502,12 +502,17 @@
     $('citation-filter-count').textContent = `${visible} of ${graph.nodes.length} papers shown`;
   }
   let layoutTimer = null, layoutRequest = 0;
+  function syncForceFill(slider) {
+    const fraction = (Number(slider.value) - Number(slider.min)) / (Number(slider.max) - Number(slider.min));
+    slider.style.setProperty('--force-fill', Math.max(0, Math.min(1, fraction)) * 100 + '%');
+  }
   function syncLayoutControls() {
     if (!$('graph-spacing') || !graph) return;
     for(const [id,key,output,scale] of [['graph-center','centerForce','center-value',100],['graph-spacing','spacing','spacing-value',100],['graph-bonds','bondStrength','bonds-value',100],['graph-distance','linkDistance','distance-value',1]]) {
       $(id).disabled=!graph._dataReady;$(id).value=String(Math.round(graph[key]*scale));
       $(output).textContent=Math.round(graph[key]*scale)+(scale===100?'%':'');
       $(id).setAttribute('aria-valuetext', $(output).textContent);
+      syncForceFill($(id));
     }
     $('reset-forces').disabled=!graph._dataReady;
     $('graph-links').value = graph.linkMode;
@@ -600,6 +605,7 @@
     for(const [id,key,output,scale] of [['graph-center','centerForce','center-value',100],['graph-spacing','spacing','spacing-value',100],['graph-bonds','bondStrength','bonds-value',100],['graph-distance','linkDistance','distance-value',1]]) {
       $(id)?.addEventListener('input',event=>{
         $(id).setAttribute('aria-valuetext', event.target.value+(scale===100?'%':''));
+        syncForceFill(event.target);
         const value=+event.target.value/scale;
         $(output).textContent=event.target.value+(scale===100?'%':'');
         clearTimeout(layoutTimer);layoutRequest++;
