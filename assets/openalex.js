@@ -137,6 +137,7 @@ window.OpenAlex = (function () {
       id: shortId(w.id),
       title: w.display_name || "Untitled",
       authors: authors || "Unknown authors",
+      searchAuthors: names.join(", "),
       short,
       year: w.publication_year || "—",
       venue,

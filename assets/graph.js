@@ -501,8 +501,17 @@
       return role === 'seed' ? p.seed : role === 'cite' ? p.cite : role === 'linked' ? (p.linked || p.ref) : p.ref;
     }
 
+    _matchesSearch(n) {
+      if (!this.searchTerms?.length) return true;
+      const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const fields = {title:n.title, authors:n.searchAuthors || n.authors, venue:n.venue, year:n.year, type:n.type, doi:[n.doi,n.id].join(' ')};
+      const text = normalize(this.searchField && this.searchField !== 'all' ? fields[this.searchField] : Object.values(fields).join(' '));
+      return this.searchTerms.every(term => text.includes(term));
+    }
+
     _visible(n) {
       if (n.role === "seed") return true;
+      if (!this._matchesSearch(n)) return false;
       if (this.minCitations > 0 && (!Number.isFinite(n.cites) || n.cites < this.minCitations)) return false;
       if (Number.isFinite(this.maxCitations) && (!Number.isFinite(n.cites) || n.cites > this.maxCitations)) return false;
       if (n.role === "ref" && !this.showRefs) return false;
@@ -513,6 +522,8 @@
 
     setFilter(opts) {
       const resumePhysics=this._physicsRunning;this._stopPhysics();
+      if ('searchQuery' in opts) this.searchTerms = String(opts.searchQuery || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+      if ('searchField' in opts) this.searchField = opts.searchField;
       if ("maxCitations" in opts) this.maxCitations = Number.isFinite(opts.maxCitations) ? Math.max(0, opts.maxCitations) : null;
       if ("minCitations" in opts) this.minCitations = Math.max(0, Number(opts.minCitations) || 0);
       if ("showRefs" in opts) this.showRefs = opts.showRefs;
