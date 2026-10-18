@@ -464,24 +464,34 @@
     const threshold = Math.min(graph.minCitations || 0, max);
     if (threshold !== graph.minCitations) graph.setFilter({ minCitations: threshold });
     const slider = $('citation-min');
-    slider.max = String(max); slider.value = String(threshold); slider.disabled = max === 0;
+    slider.max = '1000'; slider.dataset.citationMax = String(max);
+    slider.value = max ? String(Math.round(Math.log1p(threshold) / Math.log1p(max) * 1000)) : '0';
+    slider.disabled = max === 0;
+    $('citation-exact').max = String(max); $('citation-exact').value = String(threshold);
+    $('citation-exact').disabled = max === 0;
     $('citation-filter').hidden = false;
     $('citation-min-value').textContent = threshold.toLocaleString('en');
     slider.setAttribute('aria-valuetext', threshold.toLocaleString('en') + ' citations minimum');
-    $('citation-max').textContent = max.toLocaleString('en');
-    const binCount = Math.min(28, max + 1), width = 280 / binCount;
-    const bins = Array(binCount).fill(0);
-    counts.forEach(n => bins[Math.min(binCount - 1, Math.floor(n / (max + 1) * binCount))]++);
-    const peak = Math.max(1, ...bins);
-    $('citation-histogram').innerHTML = bins.map((count, i) => {
-      const low = Math.ceil(i * (max + 1) / binCount), high = Math.ceil((i + 1) * (max + 1) / binCount) - 1;
+    const position = n => max ? Math.log1p(n) / Math.log1p(max) : 0;
+    const bounds = [...new Set(Array.from({length: 28}, (_, i) => Math.ceil(Math.expm1(Math.log1p(max) * i / 28))))].filter(n => n < max || n === 0);
+    bounds.push(max + 1);
+    const bins = bounds.slice(0, -1).map((low, i) => ({ low, high: bounds[i+1]-1, count: 0 }));
+    counts.forEach(n => { const bin = bins.find(b => n >= b.low && n <= b.high); if (bin) bin.count++; });
+    const peak = Math.max(1, ...bins.map(b => b.count));
+    $('citation-histogram').innerHTML = bins.map(({low, high, count}, i) => {
+      const x = position(low) * 280;
+      const end = i === bins.length-1 ? 280 : position(high+1) * 280;
       const height = count / peak * 58;
-      return `<rect x="${i * width}" y="${64-height}" width="${Math.max(1,width-2)}" height="${height}" class="${high < threshold ? 'excluded' : ''}"><title>${low === high ? low : low + '–' + high} citations: ${count} papers</title></rect>`;
+      return `<rect x="${x}" y="${64-height}" width="${Math.max(0,end-x-1)}" height="${height}" class="${high < threshold ? 'excluded' : ''}"><title>${low === high ? low : low + '–' + high} citations: ${count} papers</title></rect>`;
     }).join('');
+    const ticks = [0];
+    for (let n = 10; n < max; n *= 10) if (position(n) < .78) ticks.push(n);
+    if (max > 0) ticks.push(max);
+    $('citation-axis').innerHTML = ticks.map(n => `<span style="left:${position(n)*100}%">${n >= 1000000 ? (n / 1000000).toFixed(1).replace(/\.0$/, "") + "m" : fmt(n)}</span>`).join('');
     const visible = graph.nodes.filter(n => graph._visible(n)).length;
     const unknown = graph.nodes.length - counts.length;
     $('citation-filter-count').textContent = `${visible} of ${graph.nodes.length} papers shown`;
-    $('citation-filter-note').textContent = 'Loaded papers · seed always shown' + (unknown ? ` · ${unknown} unknown counts` : '');
+    $('citation-filter-note').textContent = 'Log scale · loaded papers · seed always shown' + (unknown ? ` · ${unknown} unknown counts` : '');
   }
   let layoutTimer = null, layoutRequest = 0;
   function syncLayoutControls() {
@@ -515,7 +525,22 @@
   function wireControls() {
     $('citation-min')?.addEventListener('input', event => {
       if (!graph) return;
-      graph.setFilter({ minCitations: Number(event.target.value) });
+      const max = Number(event.target.dataset.citationMax);
+      graph.setFilter({ minCitations: Math.round(Math.expm1(Number(event.target.value) / 1000 * Math.log1p(max))) });
+      syncCitationFilter();
+    });
+    $('citation-exact')?.addEventListener('input', event => {
+      if (!graph || event.target.value === '') return;
+      const value = Number(event.target.value);
+      if (!Number.isFinite(value)) return;
+      graph.setFilter({ minCitations: Math.max(0, Math.min(Number(event.target.max), Math.round(value))) });
+      syncCitationFilter();
+    });
+    $('citation-min')?.addEventListener('keydown', event => {
+      if (!graph || !['ArrowLeft','ArrowDown','ArrowRight','ArrowUp'].includes(event.key)) return;
+      event.preventDefault();
+      const delta = ['ArrowLeft','ArrowDown'].includes(event.key) ? -1 : 1;
+      graph.setFilter({ minCitations: Math.min(Number(event.target.dataset.citationMax), (graph.minCitations || 0) + delta) });
       syncCitationFilter();
     });
     const filters = readFilters();
