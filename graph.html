@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f5f2ec">
 <title>Graph — Citation Network</title>
 <script blocking="render" src="assets/navigation.js?v=search-14"></script>
-<link rel="stylesheet" href="assets/styles.css?v=settings-26">
+<link rel="stylesheet" href="assets/styles.css?v=settings-27">
 
 </head>
 <body data-page="graph">
@@ -50,16 +50,16 @@
           <div class="graph-options-panel">
 <section class="citation-filter settings-panel" id="citation-filter" aria-label="Filter papers by citation count">
         <h2>Citation count</h2>
-        <label for="citation-min">Minimum citations <output id="citation-min-value" for="citation-min">0</output></label>
         <svg id="citation-histogram" viewBox="0 0 280 64" role="img" aria-label="Distribution of citation counts among loaded papers"></svg>
-        <input id="citation-min" type="range" min="0" max="0" step="1" value="0" disabled aria-describedby="citation-filter-note">
-        <label for="citation-upper">Maximum citations <output id="citation-upper-value" for="citation-upper">0</output></label>
-        <input id="citation-upper" type="range" min="0" max="0" step="1" value="0" disabled aria-describedby="citation-filter-note">
+        <div class="citation-range" id="citation-range">
+          <div class="citation-range-track" aria-hidden="true"><div class="citation-range-selection"></div></div>
+          <input id="citation-min" type="range" min="0" max="1000" step="any" value="0" disabled aria-label="Minimum citations">
+          <input id="citation-upper" type="range" min="0" max="1000" step="any" value="1000" disabled aria-label="Maximum citations">
+          <output id="citation-min-value" class="citation-value" for="citation-min"></output>
+          <output id="citation-upper-value" class="citation-value" for="citation-upper"></output>
+        </div>
         <div class="citation-axis" id="citation-axis"></div>
-        <label class="citation-exact-label" for="citation-exact">Exact minimum <input id="citation-exact" type="number" min="0" step="1" value="0" disabled></label>
-        <label class="citation-exact-label" for="citation-upper-exact">Exact maximum <input id="citation-upper-exact" type="number" min="0" step="1" value="0" disabled></label>
         <p id="citation-filter-count" role="status"></p>
-        <p id="citation-filter-note">Loaded papers · seed always shown</p>
       </section>
 <section class="settings-panel" aria-label="Force controls"><h2>Force controls</h2>
             <label class="spacing-label" for="graph-center">Center force <output id="center-value">100%</output></label>
@@ -93,11 +93,11 @@
   <span class="tmsg"></span>
   <input class="tsub" id="toast-url" readonly="" hidden="">
 </div>
-<script src="assets/layout.js?v=settings-26" defer></script>
+<script src="assets/layout.js?v=settings-27" defer></script>
 <script src="assets/sample.js?v=search-14" defer></script>
-<script src="assets/graph.js?v=settings-26" defer></script>
+<script src="assets/graph.js?v=settings-27" defer></script>
 <script src="assets/openalex.js?v=search-14" defer></script>
 <script src="assets/tweaks.js?v=plum-18" defer></script>
-<script src="assets/app.js?v=settings-26" defer></script>
+<script src="assets/app.js?v=settings-27" defer></script>
 </body>
 </html>
