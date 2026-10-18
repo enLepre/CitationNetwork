@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f5f2ec">
 <title>Graph — Citation Network</title>
 <script blocking="render" src="assets/navigation.js?v=search-14"></script>
-<link rel="stylesheet" href="assets/styles.css?v=citations-24">
+<link rel="stylesheet" href="assets/styles.css?v=settings-25">
 
 </head>
 <body data-page="graph">
@@ -37,7 +37,12 @@
             <button class="btn" id="loader-sample">Explore sample graph</button>
           </div>
         </div>
-      </div><span id="status-counts" hidden aria-live="polite"></span><aside class="paper-stack" id="detail" aria-label="Selected papers" hidden></aside><svg id="graph-canvas" xmlns="http://www.w3.org/2000/svg" aria-label="Connected papers"></svg><section class="citation-filter" id="citation-filter" aria-label="Filter papers by citation count" hidden>
+      </div><span id="status-counts" hidden aria-live="polite"></span><aside class="paper-stack" id="detail" aria-label="Selected papers" hidden></aside><svg id="graph-canvas" xmlns="http://www.w3.org/2000/svg" aria-label="Connected papers"></svg><div class="controls">
+        <details class="graph-options" id="graph-options">
+          <summary aria-label="Graph settings" title="Graph settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="var(--bg)"/><circle cx="15" cy="17" r="2.5" fill="var(--bg)"/></svg></summary>
+          <div class="graph-options-panel">
+<section class="citation-filter settings-panel" id="citation-filter" aria-label="Filter papers by citation count">
+        <h2>Citation count</h2>
         <label for="citation-min">Minimum citations <output id="citation-min-value" for="citation-min">0</output></label>
         <svg id="citation-histogram" viewBox="0 0 280 64" role="img" aria-label="Distribution of citation counts among loaded papers"></svg>
         <input id="citation-min" type="range" min="0" max="0" step="1" value="0" disabled aria-describedby="citation-filter-note">
@@ -48,17 +53,8 @@
         <label class="citation-exact-label" for="citation-upper-exact">Exact maximum <input id="citation-upper-exact" type="number" min="0" step="1" value="0" disabled></label>
         <p id="citation-filter-count" role="status"></p>
         <p id="citation-filter-note">Loaded papers · seed always shown</p>
-      </section><div class="controls">
-        <div class="group">
-          <button id="zoom-in" title="Zoom in">+</button>
-          <button id="zoom-out" title="Zoom out">−</button>
-        </div>
-        <div class="group">
-          <button id="zoom-fit" title="Fit to screen">⤢</button>
-        </div>
-        <details class="graph-options" id="graph-options">
-          <summary aria-label="Graph layout and connections" title="Layout & connections"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="var(--bg)"/><circle cx="15" cy="17" r="2.5" fill="var(--bg)"/></svg></summary>
-          <div class="graph-options-panel">
+      </section>
+<section class="settings-panel" aria-label="Force controls"><h2>Force controls</h2>
             <label class="spacing-label" for="graph-center">Center force <output id="center-value">100%</output></label>
             <input id="graph-center" class="force-slider" type="range" min="0" max="300" step="5" value="100" disabled>
             <label class="spacing-label" for="graph-spacing">Repel force <output id="spacing-value">100%</output></label>
@@ -67,6 +63,17 @@
             <input id="graph-bonds" class="force-slider" type="range" min="0" max="300" step="5" value="100" disabled>
             <label class="spacing-label" for="graph-distance">Link distance <output id="distance-value">145</output></label>
             <input id="graph-distance" class="force-slider" type="range" min="40" max="300" step="5" value="145" disabled>
+            <button id="reset-forces" type="button" disabled>Reset forces</button>
+            <p id="graph-layout-status" role="status" aria-live="polite"></p>
+            </section><section class="settings-panel" aria-label="Other tools"><h2>Other tools</h2>
+            <div class="settings-zoom" role="group" aria-label="Zoom controls">        <div class="group">
+          <button id="zoom-in" title="Zoom in">+</button>
+          <button id="zoom-out" title="Zoom out">−</button>
+        </div>
+        <div class="group">
+          <button id="zoom-fit" title="Fit to screen">⤢</button>
+        </div>
+</div>
             <div class="graph-legend" role="group" aria-label="Paper groups">
               <button type="button" id="toggle-ref" aria-pressed="true"><span class="legend-dot ref" aria-hidden="true"></span>References</button>
               <button type="button" id="toggle-cite" aria-pressed="true"><span class="legend-dot cite" aria-hidden="true"></span>Citing</button>
@@ -76,8 +83,7 @@
             <select id="graph-links"><option value="all">All connections</option><option value="selected">Selected papers</option><option value="shared">Shared connections</option></select>
             <button id="spread-nearby" type="button" disabled>Spread nearby</button>
             <button id="recenter-selected" type="button" disabled>Re-center graph</button>
-            <button id="reset-forces" type="button" disabled>Reset forces</button>
-            <p id="graph-layout-status" role="status" aria-live="polite"></p>
+            </section>
           </div>
         </details>
       </div><div class="gtooltip" id="gtooltip"><div class="tt"></div><div class="tm"></div></div></div></main>
@@ -88,11 +94,11 @@
   <span class="tmsg"></span>
   <input class="tsub" id="toast-url" readonly="" hidden="">
 </div>
-<script src="assets/layout.js?v=citations-24" defer></script>
+<script src="assets/layout.js?v=settings-25" defer></script>
 <script src="assets/sample.js?v=search-14" defer></script>
-<script src="assets/graph.js?v=citations-24" defer></script>
+<script src="assets/graph.js?v=settings-25" defer></script>
 <script src="assets/openalex.js?v=search-14" defer></script>
 <script src="assets/tweaks.js?v=plum-18" defer></script>
-<script src="assets/app.js?v=citations-24" defer></script>
+<script src="assets/app.js?v=settings-25" defer></script>
 </body>
 </html>
