@@ -168,7 +168,7 @@ function adaptiveFixture(count, tied = false) {
     if(low) rows=rows.filter(p=>p.cited_by_count>Number(low[1]));
     if(high) rows=rows.filter(p=>p.cited_by_count<Number(high[1]));
     if(u.searchParams.get('sort')==='publication_date:desc') rows.sort((a,b)=>b.publication_year-a.publication_year);
-    const offset=u.searchParams.get('cursor')==='*'?0:Number(u.searchParams.get('cursor')||0),size=Number(u.searchParams.get('per-page')||100);
+    const size=Number(u.searchParams.get('per-page')||100),offset=(Number(u.searchParams.get('page')||1)-1)*size;
     return ok({meta:{count:rows.length,next_cursor:offset+size<rows.length?String(offset+size):null},results:rows.slice(offset,offset+size)});
   });
   const seed=api.toPaper({...raw('Wseed'),cited_by_count:count});
@@ -244,4 +244,39 @@ test('failed expansion preserves papers and pagination for a retry',async()=>{
  assert.equal(JSON.stringify(net),snapshot);
  const retried=await api.expandNetwork(net,0,100);
  assert(retried.papers.length>net.papers.length);
+});
+
+test('large keyless graphs build when OpenAlex rejects cursor pagination',async()=>{
+ const calls=[];
+ const api=client(async url=>{
+  const u=new URL(url);calls.push(u);
+  if(u.searchParams.has('cursor') && u.searchParams.get('cursor')!=='*')return {ok:false,status:401};
+  const page=Number(u.searchParams.get('page')||1);
+  return ok({meta:{count:13000,next_cursor:'next-page'},results:Array.from({length:100},(_,i)=>({...raw('W'+((page-1)*100+i),['Wseed']),cited_by_count:13000-(page-1)*100-i}))});
+ });
+ const net=await api.buildNetwork(api.toPaper(raw('Wseed')),{adaptive:true});
+ assert.equal(net.citingShown,300);
+ assert.equal(net.citingTotal,13000);
+ assert.equal(calls.length,3);
+ assert(calls.every(u=>!u.searchParams.has('cursor')));
+});
+
+test('a failed later citing page preserves the initial graph and reports partial loading',async()=>{
+ const api=client(async url=>{
+  const page=Number(new URL(url).searchParams.get('page')||1);
+  if(page>1)return {ok:false,status:403};
+  return ok({meta:{count:13000,next_cursor:'next'},results:Array.from({length:100},(_,i)=>({...raw('W'+i,['Wseed']),cited_by_count:13000-i}))});
+ });
+ const net=await api.buildNetwork(api.toPaper(raw('Wseed')),{adaptive:true});
+ assert.equal(net.citingShown,100);
+ assert.equal(net.papers.length,101);
+ assert.match(net.loadWarning,/could not be loaded/);
+ await api.saveNetwork(net,0);
+ assert.equal(await api.cachedNetwork('Wseed',0),null);
+});
+
+test('numbered paging stops clearly at the API boundary rather than claiming exhaustion',async()=>{
+ let calls=0;const api=client(async()=>{calls++;return ok({});});
+ await assert.rejects(api.citingPage('Wseed',{cursor:'page:101'}),/Narrow the citation range/);
+ assert.equal(calls,0);
 });

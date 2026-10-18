@@ -305,7 +305,7 @@
       try { selection = JSON.parse(sessionStorage.getItem('citation-selected') || 'null'); } catch (_) {}
       renderDetail(CURRENT.byId[selectedId] || (selection?.seedId === net.seedId && CURRENT.byId[selection.paperId]) || seed);
     }
-    if (graph) { graph.setFilter(readFilters()); syncCitationFilter(); }
+    if (graph) { graph.setFilter(readFilters()); syncCitationFilter(); if (!preserve && $('citation-load-status')) $('citation-load-status').textContent = net.loadWarning || ''; }
     syncShareUrl();
     updateNavigation();
     window.CitationPage = { network: CURRENT, ready: true, selectedId };
@@ -475,7 +475,7 @@
       const matching = net.expansion.total;
       $('citation-load-status').textContent = net.expansion.done ? `All ${fmt(matching)} citing papers in this range loaded.` : `${fmt(matching)} citing papers match this range. Load more to continue.`;
     } catch (error) {
-      if (!signal.aborted && seq === expansionSeq) $('citation-load-status').textContent = 'Could not load more papers. Try again.';
+      if (!signal.aborted && seq === expansionSeq) $('citation-load-status').textContent = 'Could not load more papers. ' + error.message;
     } finally {
       if (seq === expansionSeq) { expanding = false; syncCitationFilter(); }
     }

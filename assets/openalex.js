@@ -71,7 +71,7 @@ window.OpenAlex = (function () {
     return database;
   }
   async function cachedNetwork(seedId, density) {
-    const key='adaptive-v1:'+seedId+':'+density;
+    const key='adaptive-v2:'+seedId+':'+density;
     let entry=memoryNetworks.get(key);
     if (!entry) {
       const db=await openDatabase();
@@ -84,8 +84,8 @@ window.OpenAlex = (function () {
     return entry && Date.now()-entry.time<TTL ? entry.network : null;
   }
   async function saveNetwork(network, density) {
-    if (network.enrichmentFailed) return;
-    const entry={key:'adaptive-v1:'+network.seedId+':'+density,time:Date.now(),network};
+    if (network.enrichmentFailed || network.loadWarning) return;
+    const entry={key:'adaptive-v2:'+network.seedId+':'+density,time:Date.now(),network};
     memoryNetworks.set(entry.key,entry);
     if(memoryNetworks.size>3) memoryNetworks.delete(memoryNetworks.keys().next().value);
     const db=await openDatabase(); if(!db) return;
@@ -415,10 +415,14 @@ window.OpenAlex = (function () {
   async function citingPage(seedId, { min = 0, max = null, cursor = '*', recent = false, signal } = {}) {
     const filters = ['cites:' + seedId, 'cited_by_count:>' + (min - 1)];
     if (Number.isFinite(max)) filters.push('cited_by_count:<' + (max + 1));
+    // Basic pagination is supported without a key for the first 10,000 results.
+    const page = cursor === '*' ? 1 : Number(String(cursor).replace('page:', ''));
+    if (!Number.isInteger(page) || page < 1 || page > 100) throw new Error('OpenAlex allows 10,000 results per range without authenticated cursor paging. Narrow the citation range to continue.');
     const query = paramsFor({ filter: filters.join(','), sort: recent ? 'publication_date:desc' : 'cited_by_count:desc',
-      'per-page': 100, cursor, select: SELECT_LITE });
+      'per-page': 100, page, select: SELECT_LITE });
     const result = await getJSON(API + '/works?' + query, { signal });
-    return { papers: (result.results || []).map(toPaper), total: result.meta?.count || 0, next: result.meta?.next_cursor || null };
+    const papers = (result.results || []).map(toPaper), total = result.meta?.count || 0;
+    return { papers, total, next: papers.length && page * 100 < total ? 'page:' + (page + 1) : null };
   }
 
   // Shared references beyond the seed provide a bibliographic-coupling signal.
@@ -491,11 +495,14 @@ window.OpenAlex = (function () {
       if (!adaptive) return citing(seed.id, citeLimit, opts);
       let page = await citingPage(seed.id, {signal:opts.signal});
       const total = page.total, budget = initialBudget(total), collected = page.papers.slice();
+      let loadWarning = '';
       while (collected.length < budget && page.next && page.papers.length) {
-        page = await citingPage(seed.id, {cursor:page.next,signal:opts.signal}); collected.push(...page.papers);
+        try { page = await citingPage(seed.id, {cursor:page.next,signal:opts.signal}); }
+        catch (error) { abort(opts.signal); loadWarning = 'Some citing papers could not be loaded. ' + error.message; break; }
+        collected.push(...page.papers);
       }
       const unique = [...new Map(collected.map(p => [p.id,p])).values()];
-      return {total, papers:unique.slice(0,budget)};
+      return {total, papers:unique.slice(0,budget), loadWarning};
     };
     const [refPapers, citeRes] = await Promise.all([
       seed.refs && seed.refs.length ? fetchByIds(seed.refs, opts) : Promise.resolve([]),
@@ -512,7 +519,7 @@ window.OpenAlex = (function () {
     let papers = [...map.values()];
     const ids = new Set(papers.map(p => p.id));
 
-    const decorate = net => adaptive ? { ...net, adaptive:true,
+    const decorate = net => adaptive ? { ...net, adaptive:true, loadWarning: citeRes.loadWarning || '',
       initialMin: citeRes.total > 300 && citeRes.papers.length ? Math.max(0, citeRes.papers[citeRes.papers.length-1].cites || 0) : 0,
       citingIds: [...new Set([...citeRes.papers.map(p=>p.id), ...refPapers.filter(p=>(p.refs||[]).includes(seed.id)).map(p=>p.id)])] } : net;
     const direct = decorate(network(papers, seed, citeRes, refPapers));
