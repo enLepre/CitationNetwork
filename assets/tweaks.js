@@ -13,7 +13,7 @@
     ['bg','bg-2','ink','ink-soft','ink-faint','line','line-soft'].forEach((key,i) => style.setProperty('--'+key,colors[i]));
     ['surface','panel'].forEach(key => style.setProperty('--'+key,colors[0]));
     ['seed','ref','cite','linked'].forEach((key,i) => { const color=['#715b49','#8b795f','#536b82','#875f7b'][i]; style.setProperty('--'+key,key === 'linked' ? (dark ? '#bea2b6' : color) : dark ? `color-mix(in srgb, ${color}, white 40%)` : color); });
-    style.setProperty('--seed', dark ? '#53d6c5' : '#007f78');
+    style.setProperty('--seed', dark ? '#91aaa5' : '#007f78');
     document.querySelector('meta[name="theme-color"]').content = colors[0];
     theme.setAttribute('aria-pressed', String(dark)); theme.title = dark ? 'Switch to light mode' : 'Switch to dark mode'; theme.setAttribute('aria-label',theme.title);
     if (window.CG) window.CG._invalidate({ paint:true,labels:true });
