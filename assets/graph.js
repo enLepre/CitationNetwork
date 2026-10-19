@@ -959,7 +959,13 @@
         const isSel = this.selected === n.id || this.selectedIds.has(n.id);
         n.cEl.setAttribute("fill", col);
         n.cEl.setAttribute("stroke", pal.bg);
-        n.gEl.style.opacity = lit ? 1 : 0.2;
+        // Shade SVG primitives directly. Animated group opacity requires
+        // compositing whole node subtrees and can leave stale/blank frames.
+        n.gEl.style.opacity = '';
+        n.cEl.setAttribute('fill-opacity', lit ? 1 : 0.25);
+        n.cEl.setAttribute('stroke-opacity', lit ? 1 : 0.25);
+        n.tEl.setAttribute('fill-opacity', lit ? 1 : 0.45);
+        n.tEl.setAttribute('stroke-opacity', lit ? 1 : 0.45);
         // halo
         if (isSel || shared(n.id) || n.role === "seed") {
           n.haloEl.setAttribute("r", n.rad + (isSel ? 8 : 6));

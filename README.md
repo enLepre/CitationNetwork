@@ -115,3 +115,5 @@ Additional checks: `node tests/large-graph.cjs` covers dense drawing, retained c
 ### Hover stability
 
 Hover highlights papers and connections without changing label placement or visibility. Selection, zoom and filters can still update the label layout. Keeping clickable labels fixed during hover prevents a stationary pointer from repeatedly entering and leaving a label when it moves itself. Run `node tests/hover-stability.cjs` for stationary-pointer, position and label-selection checks with both individual and batched connections.
+
+SVG emphasis uses immediate per-primitive fill/stroke alpha rather than animated opacity on node groups. This avoids compositing every node subtree during hover and reduces hover repainting. Paper movement remains force-driven. Edge-specific visual regression checks are available locally with `node tests/hover-stability.cjs --edge`; they check actual seed pixels while the pointer rests on different labels. The complete blank frame reported on one Edge installation was not reproduced on the test installation, so this is a rendering mitigation, not a confirmed browser-specific root cause.

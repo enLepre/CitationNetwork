@@ -344,8 +344,9 @@ body.has-search .bigsearch { margin-top: 28px; }
 
 /* A shared, restrained motion rhythm; no perpetual decorative work. */
 :root { --motion-ease: cubic-bezier(.22,.68,.25,1); }
-.gnode { transition: opacity 160ms var(--motion-ease); }
-.gedge { transition: opacity 160ms var(--motion-ease), stroke 160ms var(--motion-ease); }
+.gnode { transition: none; }
+/* Apply SVG emphasis in one paint; keep movement in the graph renderer. */
+.gedge, .gnode .halo { transition: none; }
 .presult { transition: background-color 140ms var(--motion-ease); }
 #search-status { min-height: 46px; }
 .search-wrap > h1, .search-wrap > .lede, .bigsearch, .search-options, #search-hint { transform-origin: top left; }
@@ -501,3 +502,6 @@ body.has-search .bigsearch { margin-top: 28px; }
 .cluster-flag text { fill:var(--ink); font:12px var(--mono); pointer-events:none; }
 .cluster-flag:hover rect, .cluster-flag:focus rect, .cluster-flag[aria-pressed="true"] rect { stroke:var(--ink-soft); stroke-width:2; }
 #toggle-clusters[aria-pressed="true"] { box-shadow:inset 0 -3px var(--ink-soft); }
+
+/* SVG hover emphasis is immediate; force-driven paper movement is separate. */
+#graph-canvas .gnode, #graph-canvas .gedge, #graph-canvas .halo { transition: none; }
