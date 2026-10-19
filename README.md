@@ -111,3 +111,7 @@ Adaptive previews retain their existing positions while remaining references and
 Research-topic detection runs in a cancellable worker, with a deferred fallback when workers are unavailable. Keyword suggestions are prepared when the search panel opens. Citation histogram geometry is reused while adjusting bounds. Large raw API records remain in memory rather than being synchronously serialized into session storage; assembled networks still use IndexedDB. Journal size lookups reuse individual source values across different batches.
 
 Additional checks: `node tests/large-graph.cjs` covers dense drawing, retained connections, query caching, spatial collision checks, filters, highlights, zoom, worker cancellation, incremental drag release, and the sparse renderer.
+
+### Hover stability
+
+Hover highlights papers and connections without changing label placement or visibility. Selection, zoom and filters can still update the label layout. Keeping clickable labels fixed during hover prevents a stationary pointer from repeatedly entering and leaving a label when it moves itself. Run `node tests/hover-stability.cjs` for stationary-pointer, position and label-selection checks with both individual and batched connections.

@@ -967,10 +967,9 @@
           n.haloEl.style.opacity = isSel || shared(n.id) ? 0.2 : 0.12;
         } else { n.haloEl.style.opacity = 0; }
         // label
-        const big = n.role === "seed";
-        // top-linked hubs keep their author/year label visible at any zoom
-        const showLbl = this.showLabels && (big || (focus && lit) || !focus);
-        n.labelCandidate = showLbl;
+        // Hover changes emphasis only. Moving/hiding clickable labels here
+        // can remove the pointer's own target and cause an enter/leave loop.
+        n.labelCandidate = this.showLabels;
         n.tEl.setAttribute("fill", pal.ink);
         n.tEl.setAttribute("stroke", pal.bg);
         if (n.tHubEl) n.tHubEl.style.display = "none";
@@ -1003,9 +1002,10 @@
     }
 
     // Screen-space label boxes: keep readable text sizes and suppress collisions.
-    // Focused/selected papers and the seed win, then the strongest hubs.
+    // Selection and the seed win, then the strongest hubs. Hover must not
+    // change label placement: labels are interactive pointer targets.
     _layoutLabels() {
-      const focus = this.hovered ? this.hovered.id : this.selected;
+      const focus = this.selected;
       const boxes = [];
       const widthPx = this.W, heightPx = this.H;
       const maxLabels = Math.max(12, Math.min(80, Math.floor(widthPx * heightPx / 18000)));
