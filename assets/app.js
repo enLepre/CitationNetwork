@@ -1136,7 +1136,7 @@
       if (graph?.nodes.length && !loading) sessionStorage.setItem('citation-graph-view', JSON.stringify({
         seedId: CURRENT.seedId, density: citeLimit, width: graph.W, height: graph.H,
         scale: graph.scale, tx: graph.tx, ty: graph.ty,
-        forceVersion:2, ...graph._forceSettings(), positions: graph.nodes.map(n => ({id:n.id,x:n.x+(n._ox||0),y:n.y+(n._oy||0),userPinned:!!n.userPinned})), cards: paperCards.map(p=>p.id)
+        forceVersion:2, ...graph._forceSettings(), positions: graph.nodes.map(n => ({id:n.id,x:n.x+(n._ox||0),y:n.y+(n._oy||0)})), cards: paperCards.map(p=>p.id)
       }));
       if (PAGE === 'search') sessionStorage.setItem('citation-search-view', JSON.stringify({
         query: $('big-input').value, mode: $('search-mode').value, sort: $('search-sort').value,

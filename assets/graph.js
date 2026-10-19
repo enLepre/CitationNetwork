@@ -13,7 +13,7 @@
     return n;
   };
   const workerUrl = new URL("layout-worker.js?v=physics-21", document.currentScript.src);
-  const physicsWorkerUrl = new URL('physics-worker.js?v=physics-21',document.currentScript.src);
+  const physicsWorkerUrl = new URL('physics-worker.js?v=release-42',document.currentScript.src);
 
   class CitationGraph {
     constructor(svg, opts) {
@@ -117,7 +117,7 @@
           ...p, role: r, citedHere: ch,
           x: old ? old.x : cx + Math.cos(ang) * rad,
           y: old ? old.y : cy + Math.sin(ang) * rad,
-          fixed: !!old || p.id === seedId, userPinned: !!old?.userPinned,
+          fixed: !!old || p.id === seedId, userPinned: false,
           vx: 0, vy: 0, baseR: rr / this._nodeScale, rad: rr
         });
       });
@@ -263,7 +263,7 @@
       const ids=new Set(nodes.map(n=>n.id));
       return {width:this.W,height:this.H,centerX:center.x,centerY:center.y,...this._forceSettings(),
         nodes:nodes.map(n=>({id:n.id,rad:n.rad,x:n.x,y:n.y,
-          ...(n.userPinned||n===this.dragNode||n.id===this.seedId?{fx:n.x,fy:n.y}:{})})),
+          ...(n===this.dragNode||n.id===this.seedId?{fx:n.x,fy:n.y}:{})})),
         edges:this.edges.filter(e=>ids.has(e.s)&&ids.has(e.t)).map(({s,t})=>({s,t}))};
     }
 
@@ -337,6 +337,14 @@
       if(this._physicsSim){const n=this._physicsSim.nodes().find(n=>n.id===node.id);if(n){n.fx=n.x=node.x;n.fy=n.y=node.y;n.vx=n.vy=0;}}
     }
 
+    _releasePhysics(node) {
+      if(!this._dataReady || node.id===this.seedId)return;
+      this._physicsPending=null;
+      this.updateForces();
+      if(this._physicsWorker)this._physicsWorker.postMessage({type:'release',revision:this._physicsRevision,id:node.id,x:node.x,y:node.y});
+      if(this._physicsSim){const n=this._physicsSim.nodes().find(n=>n.id===node.id);if(n){n.x=node.x;n.y=node.y;n.fx=n.fy=null;n.vx=n.vy=0;}}
+    }
+
     async arrange(spacing = this.spacing, centerId = null) {
       if (!this._dataReady || !this.nodes.length || this.dragNode) return false;
       const center = this.nodeById[centerId || this.seedId];
@@ -345,7 +353,7 @@
       const seq = this._layoutSeq, ratio = centerId ? 1.35 : spacing / this.spacing;
       const local = centerId ? this.adj[centerId] : null;
       const nodes = this.nodes.map(n => {
-        const movable = this._visible(n) && !n.userPinned && n.id !== this.seedId && n.id !== centerId && (!local || local.has(n.id));
+        const movable = this._visible(n) && n.id !== this.seedId && n.id !== centerId && (!local || local.has(n.id));
         return {id:n.id,role:n.role,rad:n.rad,x:n.x,y:n.y,
           labelWidth:n.labelWidth || Math.min(140,(n.short || '').length*7+40),
           anchorX:movable ? center.x+(n.x-center.x)*ratio : n.x,
@@ -357,7 +365,7 @@
       const changed = [];
       for (const p of positions) {
         const n = this.nodeById[p.id];
-        if (!n || n.userPinned || n === this.dragNode) continue;
+        if (!n || n.id === this.seedId || n === this.dragNode) continue;
         const x = n.x-p.x, y = n.y-p.y;
         if (Math.hypot(x,y) < .01) continue;
         n.x=p.x; n.y=p.y;
@@ -708,6 +716,7 @@
         if (this.dragNode) {
           const start = this._dragStart;
           if (!this.dragMoved && Math.hypot(sx - start.sx, sy - start.sy) < this._dragThreshold) return;
+          if (this.dragNode.id === this.seedId) { this.dragMoved = true; return; }
           const oldX = this.dragNode.x, oldY = this.dragNode.y, now = performance.now();
           this.dragNode.x = start.x + (sx - start.sx) / this.scale;
           this.dragNode.y = start.y + (sy - start.sy) / this.scale;
@@ -716,7 +725,6 @@
 
           this.dragNode.vx = 0; this.dragNode.vy = 0;
           this.dragNode.movedDuringLayout = true;
-          this.dragNode.userPinned = true;
           this._pinPhysics(this.dragNode);
           this.dragMoved = true;
           this._invalidate({ positions: true, labels: true });
@@ -747,7 +755,10 @@
       this._dragStart = null;
       this.svg.classList.remove('grabbing');
       if (this.svg.hasPointerCapture(id)) this.svg.releasePointerCapture(id);
-      if (node && moved) this._releaseMotion(node, cancelled);
+      if (node && moved && node.id !== this.seedId) {
+        this._releasePhysics(node);
+        this._releaseMotion(node, cancelled);
+      }
       if (!cancelled && !moved) this.select(node ? node.id : null);
     }
 
@@ -768,7 +779,7 @@
         const started = performance.now();
         if(this._physicsPending) {
           const data=this._physicsPending;this._physicsPending=null;
-          for(const p of data.positions){const n=this.nodeById[p.id];if(n&&!n.userPinned&&n!==this.dragNode&&n.id!==this.seedId){n.x=p.x;n.y=p.y;n._ox=n._oy=0;}}
+          for(const p of data.positions){const n=this.nodeById[p.id];if(n&&n!==this.dragNode&&n.id!==this.seedId){n.x=p.x;n.y=p.y;n._ox=n._oy=0;}}
           this._dirty.positions=true;
           if(data.done){this._dirty.labels=true;this.opts.onForcesSettled?.();}
         }

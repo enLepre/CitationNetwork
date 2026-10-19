@@ -60,6 +60,7 @@ async function idle(page) {
     await page.evaluate(()=>CG.fit(true));await page.waitForFunction(()=>!CG._camera);await frame(page);
     assert.equal(await idle(page),0,'camera animation stops completely');
     const neighborPositions=await page.evaluate(()=>Object.fromEntries(CG.nodes.map(n=>[n.id,[n.x,n.y]])));
+    const seedPosition=neighborPositions.P0;
     const p=await point(page,'P3');
     await page.mouse.move(p.x,p.y);await page.mouse.down();
     await page.mouse.move(p.x+60,p.y+30,{steps:8});await page.waitForTimeout(100);
@@ -67,9 +68,14 @@ async function idle(page) {
     const drop=await page.evaluate(()=>[CG.nodeById.P3.x,CG.nodeById.P3.y]);
     await page.mouse.up();assert(await page.evaluate(()=>CG._physicsRunning));
     await rest(page);
-    assert.deepEqual(await page.evaluate(()=>[CG.nodeById.P3.x,CG.nodeById.P3.y]),drop,'recoil must preserve the drop point');
+    assert(await page.evaluate(drop=>Math.hypot(CG.nodeById.P3.x-drop[0],CG.nodeById.P3.y-drop[1])>1,drop),'released papers must rejoin the forces');
+    assert.deepEqual(await page.evaluate(()=>[CG.nodeById.P0.x,CG.nodeById.P0.y]),seedPosition,'only the central paper stays fixed');
+    assert.equal(await page.evaluate(()=>CG.nodeById.P3.userPinned),false);
     assert.equal(await page.evaluate(()=>CG.selected),null,'dragging must not open the paper');
     assert.equal(await idle(page),0);
+    const center=await point(page,'P0');
+    await page.mouse.move(center.x,center.y);await page.mouse.down();await page.mouse.move(center.x+50,center.y+25,{steps:5});await page.mouse.up();await rest(page);
+    assert.deepEqual(await page.evaluate(()=>[CG.nodeById.P0.x,CG.nodeById.P0.y]),seedPosition,'the central paper cannot be dragged away');
     await page.emulateMedia({reducedMotion:'reduce'});await setup(page);assert.equal(await page.evaluate(()=>CG._motionActive),false);assert.equal(await page.evaluate(()=>CG._motion.size),0);
     await page.emulateMedia({reducedMotion:'no-preference'});await setup(page);await page.emulateMedia({reducedMotion:'reduce'});await rest(page);assert.equal(await page.evaluate(()=>CG._motion.size),0);
     await page.emulateMedia({reducedMotion:'no-preference'});await setup(page);
@@ -83,7 +89,17 @@ async function idle(page) {
     await cdp.send('Emulation.setCPUThrottlingRate',{rate:4});
     await setup(page,500);await rest(page);assert.equal(await idle(page),0);
     await cdp.send('Emulation.setCPUThrottlingRate',{rate:1});
-    console.log(JSON.stringify({checks:'settling, drag response, exact drop position, idle, reduced motion, hidden tab and 500 papers passed',motionFrames:metrics.frames.length,labels:metrics.labels,maxPositionFrameMs:Math.max(0,...metrics.frames)},null,2));
+    const fallback=await browser.newPage({viewport:{width:1440,height:1000}});
+    await fallback.addInitScript(()=>{window.Worker=undefined;});await setup(fallback);await rest(fallback);
+    const fp=await point(fallback,'P3');
+    await fallback.mouse.move(fp.x,fp.y);await fallback.mouse.down();await fallback.mouse.move(fp.x+70,fp.y+25,{steps:8});
+    const fd=await fallback.evaluate(()=>[CG.nodeById.P3.x,CG.nodeById.P3.y]);
+    await fallback.evaluate(()=>CG.svg.dispatchEvent(new PointerEvent('pointercancel',{pointerId:CG._pointerId,bubbles:true})));
+    await fallback.mouse.up();await rest(fallback);
+    assert(await fallback.evaluate(drop=>Math.hypot(CG.nodeById.P3.x-drop[0],CG.nodeById.P3.y-drop[1])>1,fd),'cancelled drags also release fallback simulation pins');
+    assert(await fallback.evaluate(()=>CG._physicsSim.nodes().filter(n=>n.id!==CG.seedId).every(n=>n.fx==null&&n.fy==null)));
+    assert.equal(await idle(fallback),0);await fallback.close();
+    console.log(JSON.stringify({checks:'settling, released drag motion, fixed central paper, cancelled fallback drag, idle, reduced motion, hidden tab and 500 papers passed',motionFrames:metrics.frames.length,labels:metrics.labels,maxPositionFrameMs:Math.max(0,...metrics.frames)},null,2));
     assert.deepEqual(errors,[]);
   } finally {await browser.close();server.close();}
 })().catch(e=>{console.error(e);server.close();process.exitCode=1;});

@@ -100,14 +100,14 @@ async function labelStats(page) {
  try{
  const page=await browser.newPage({viewport:{width:1440,height:1000}});await mock(page);await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed&density=80&loading=fixed');await settled(page);
  await page.click('#graph-options summary');
- const pinned=await page.evaluate(()=>{const n=CG.nodeById.Wr1;n.userPinned=true;return {x:n.x,y:n.y,scale:CG.scale};});
+ const pinned=await page.evaluate(()=>{CG.nodeById.Wr1.userPinned=true;const n=CG.nodeById[CG.seedId];return {x:n.x,y:n.y,scale:CG.scale};});
  const setBond=async value=>{
   const immediate=await page.locator('#graph-bonds').evaluate((el,value)=>{const n=CG.nodes.find(n=>n.role==='cite'),x=n.x,y=n.y;el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));return CG.bondStrength===value/100;},String(value));assert(immediate,'link force updates immediately');
   await page.waitForTimeout(200);await page.waitForFunction(()=>!CG._cancelWorker&&!CG._relocation&&!CG._physicsRunning&&document.getElementById('graph-layout-status').textContent==='Forces updated.');
   return page.evaluate(()=>CG.edges.reduce((sum,e)=>{const a=CG.nodeById[e.s],b=CG.nodeById[e.t];return sum+Math.hypot(a.x-b.x,a.y-b.y);},0)/CG.edges.length);
  };
  const weak=await setBond(50),strong=await setBond(200);assert(strong<weak*.9,'stronger bonds shorten connections');
- assert.deepEqual(await page.evaluate(()=>({x:CG.nodeById.Wr1.x,y:CG.nodeById.Wr1.y,scale:CG.scale})),pinned);
+ assert.deepEqual(await page.evaluate(()=>({x:CG.nodeById[CG.seedId].x,y:CG.nodeById[CG.seedId].y,scale:CG.scale})),pinned);
  for(const [id,role] of [['toggle-ref','ref'],['toggle-cite','cite'],['toggle-linked','linked']]){
    await page.locator('#'+id+' .legend-dot').click();await frames(page);
    assert(await page.evaluate(role=>CG.nodes.filter(n=>n.role===role).every(n=>n.gEl.style.display==='none'&&n.hitEl.style.display==='none'),role));
@@ -124,6 +124,6 @@ async function labelStats(page) {
  await page.screenshot({path:path.join(output,'bond-controls-mobile.png')});
  await page.emulateMedia({reducedMotion:'reduce'});await setBond(100);assert.equal(await page.evaluate(()=>!!CG._relocation),false);
  assert.equal(await idleWrites(page),0);
- console.log(JSON.stringify({checks:'bond response, shorter links, pinned nodes, legend toggles, keyboard, persistence, dark mode, mobile and reduced motion passed',weakMeanLength:weak,strongMeanLength:strong}));
+ console.log(JSON.stringify({checks:'bond response, shorter links, fixed central paper, legend toggles, keyboard, persistence, dark mode, mobile and reduced motion passed',weakMeanLength:weak,strongMeanLength:strong}));
  }finally{await browser.close();server.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;server.close();});

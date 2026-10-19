@@ -113,7 +113,7 @@ async function labelStats(page) {
     const baseline=await page.evaluate(()=>{
       CG.nodeById.Wr1.userPinned=true;
       const center=CG.nodeById[CG.seedId];
-      return {scale:CG.scale,pin:[CG.nodeById.Wr1.x,CG.nodeById.Wr1.y],radius:CG.nodes.reduce((sum,n)=>sum+Math.hypot(n.x-center.x,n.y-center.y),0)/CG.nodes.length};
+      return {scale:CG.scale,pin:[CG.nodeById[CG.seedId].x,CG.nodeById[CG.seedId].y],radius:CG.nodes.reduce((sum,n)=>sum+Math.hypot(n.x-center.x,n.y-center.y),0)/CG.nodes.length};
     });
     const immediate = await page.locator('#graph-spacing').evaluate(el=>{
       const before = CG.nodeById.Wr2.x;
@@ -125,7 +125,7 @@ async function labelStats(page) {
     await page.waitForFunction(()=>!CG._physicsRunning);
     await page.waitForFunction(()=>document.getElementById('graph-layout-status').textContent==='Forces updated.');
     await page.waitForFunction(()=>CG.spacing===1.5&&!CG._relocation&&!CG._cancelWorker);
-    const expanded=await page.evaluate(()=>{const c=CG.nodeById[CG.seedId];return {scale:CG.scale,pin:[CG.nodeById.Wr1.x,CG.nodeById.Wr1.y],radius:CG.nodes.reduce((sum,n)=>sum+Math.hypot(n.x-c.x,n.y-c.y),0)/CG.nodes.length};});
+    const expanded=await page.evaluate(()=>{const c=CG.nodeById[CG.seedId];return {scale:CG.scale,pin:[CG.nodeById[CG.seedId].x,CG.nodeById[CG.seedId].y],radius:CG.nodes.reduce((sum,n)=>sum+Math.hypot(n.x-c.x,n.y-c.y),0)/CG.nodes.length};});
     assert.equal(expanded.scale,baseline.scale,'spacing must not be negated by automatic fitting');assert.deepEqual(expanded.pin,baseline.pin);
     assert(expanded.radius>baseline.radius*1.1,'larger spacing should spread the graph');
     const liveDrag = await page.evaluate(async()=>{
@@ -151,7 +151,7 @@ async function labelStats(page) {
     for(const before of beforeLocal.points) if(!beforeLocal.near.includes(before.id)||before.id==='Wr1')assert.deepEqual(afterLocal.find(n=>n.id===before.id),before,'local spreading preserves other papers');
     assert.equal(await page.evaluate(()=>CG.selected),beforeLocal.center);
     await page.keyboard.press('Escape');assert.equal(await page.locator('.graph-options-panel').isVisible(),false);assert.equal(await page.locator('.paper-card').count(),2,'Escape closes controls without dismissing papers');
-    await page.reload();await settled(page);assert.equal(await page.evaluate(()=>CG.spacing),1.5);assert.equal(await page.evaluate(()=>CG.linkMode),'shared');assert(await page.evaluate(()=>CG.nodeById.Wr1.userPinned));
+    await page.reload();await settled(page);assert.equal(await page.evaluate(()=>CG.spacing),1.5);assert.equal(await page.evaluate(()=>CG.linkMode),'shared');assert.equal(await page.evaluate(()=>CG.nodeById.Wr1.userPinned),false);
     await page.setViewportSize({width:390,height:844});await page.click('#graph-options summary');await page.waitForTimeout(200);
     const panel=await page.locator('.graph-options-panel').boundingBox();assert(panel.x>=0&&panel.x+panel.width<=390&&panel.y>=68&&panel.y+panel.height<=844);
     await page.screenshot({path:path.join(output,'layout-controls-mobile.png')});
@@ -168,6 +168,6 @@ async function labelStats(page) {
     assert.equal(new URL(page.url()).searchParams.get('seed'),'Wr3');
     assert.equal(await page.locator('.paper-card').count(),0);
     assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({checks:'spacing, fixed papers, local spreading, link modes, rapid input, persistence, mobile and reduced motion passed',averageRadiusBefore:baseline.radius,averageRadiusAfter:expanded.radius}));
+    console.log(JSON.stringify({checks:'spacing, fixed central paper, local spreading, link modes, rapid input, persistence, mobile and reduced motion passed',averageRadiusBefore:baseline.radius,averageRadiusAfter:expanded.radius}));
   }finally{await browser.close();server.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;server.close();});

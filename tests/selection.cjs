@@ -64,11 +64,15 @@ async function fixture(page) {
     // Actual drags keep the grab offset and must not open a paper.
     const start = await point(page, 'cite');
     await page.mouse.move(start.x + 3, start.y + 2); await page.mouse.down();
-    await page.mouse.move(start.x + 28, start.y + 17); await page.mouse.up(); await frame(page);
+    await page.mouse.move(start.x + 28, start.y + 17); await frame(page);
     const end = await point(page, 'cite');
     assert(Math.abs(end.wx - start.wx - 25) < 0.01); assert(Math.abs(end.wy - start.wy - 15) < 0.01);
+    await page.mouse.up(); await page.waitForFunction(()=>!CG._physicsRunning); await frame(page);
     assert.equal(await page.evaluate(() => CG.selected), null);
     console.log('PASS: real dragging preserves the grab offset without selecting');
+    // The released graph now settles into new positions. Restore the isolated
+    // click fixture before testing its deliberately spaced hit targets.
+    await fixture(page);
 
     await page.evaluate(() => {
       CG.nodeById.cite.x = 200; CG.nodeById.cite.y = 45;

@@ -19,5 +19,6 @@ self.onmessage=({data})=>{
     if(data.type==='init') {clearTimeout(timer);timer=null;nodes=data.input.nodes;sim=CitationLayout.createSimulation(data.input);sim.alpha(.3);wake();}
     else if(data.type==='settings'&&sim) {CitationLayout.configure(sim,data.settings);wake();}
     else if(data.type==='pin'&&sim) {const n=nodes.find(n=>n.id===data.id);if(n){n.fx=n.x=data.x;n.fy=n.y=data.y;n.vx=n.vy=0;}wake();}
+    else if(data.type==='release'&&sim) {const n=nodes.find(n=>n.id===data.id);if(n){n.x=data.x;n.y=data.y;n.fx=n.fy=null;n.vx=n.vy=0;}wake();}
   }catch(error){self.postMessage({revision,error:error.message});}
 };
