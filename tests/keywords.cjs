@@ -66,7 +66,7 @@ async function mock(page, { extraDelay = 350, slowSeed = false, failExtra = fals
 const frames = page => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
 async function settled(page) {
   await page.waitForFunction(() => window.CG?.nodes.length && document.getElementById('loader').hidden);
-  await page.waitForFunction(() => !document.getElementById('status-counts').textContent.includes('finding'));
+  await page.waitForFunction(() => !document.getElementById('status-counts').textContent.includes('finding') && !window.CitationPage?.network.meta.preview && (!window.CitationPage || window.CitationPage.ready));
   await page.waitForFunction(() => !window.CG?._motionActive);
   await page.evaluate(() => document.fonts.ready); await frames(page);
 }
@@ -84,6 +84,7 @@ async function settled(page) {
   assert(total>80);
   assert(!urls.some(u=>new URL(u).searchParams.get('select')==='id,abstract_inverted_index'));
   await page.click('#graph-search > summary');
+  await page.locator('#keyword-suggestions label').first().waitFor();
   assert(await page.locator('#keyword-suggestions label').count()>1);
   await page.locator('#keyword-suggestions label').first().click();
   assert(await page.locator('.keyword-chip').count());

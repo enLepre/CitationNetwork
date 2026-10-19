@@ -26,7 +26,7 @@ window.OpenAlex = (function () {
     try {
       for (const key of dirtyCache) {
         const entry = responseCache.get(key);
-        if (!entry) continue;
+        if (!entry || entry.persist === false) continue;
         const value = JSON.stringify([key, entry]);
         if (value.length < 150000) { serializedCache.set(key, value); oversizedCache.delete(key); }
         else { serializedCache.delete(key); oversizedCache.add(key); }
@@ -35,7 +35,7 @@ window.OpenAlex = (function () {
       // Bound synchronous fallback storage to 500 KB, including restored entries.
       let size=0; const small=[];
       for (const [key,entry] of [...responseCache].reverse()) {
-        if (Date.now()-entry.time >= TTL || oversizedCache.has(key)) continue;
+        if (Date.now()-entry.time >= TTL || oversizedCache.has(key) || entry.persist === false) continue;
         let value=serializedCache.get(key);
         if (!value) { value=JSON.stringify([key,entry]); if(value.length>=150000) { oversizedCache.add(key); continue; } serializedCache.set(key,value); }
         if (size+value.length > 500000 || small.length>=30) break;
@@ -199,7 +199,10 @@ window.OpenAlex = (function () {
         }
         if (!r.ok) { const error = new Error('OpenAlex request failed (' + r.status + ')'); error.status = r.status; throw error; }
         abort(signal);
-        responseCache.set(url, { data, time: Date.now() });
+        // Complete networks are stored asynchronously in IndexedDB. Do not
+        // stringify megabytes of bulk reference/abstract records on the UI thread.
+        const persist = !(data.results?.length > 20 && /referenced_works|abstract_inverted_index/.test(url));
+        responseCache.set(url, { data, time: Date.now(), persist });
         if (responseCache.size > 100) responseCache.delete(responseCache.keys().next().value);
         persistCache(url);
         return data;
@@ -399,16 +402,22 @@ window.OpenAlex = (function () {
 
   // Fetch journal impact factor (2-year mean citedness — the impact-factor
   // formula computed on OpenAlex's open data) for a set of source ids.
+  const sourceCache = new Map();
   async function sourceImpact(ids, options = {}) {
     const out = {};
-    const uniq = [...new Set(ids.filter(Boolean))];
+    const uniq = [...new Set(ids.filter(Boolean))].sort().filter(id=>{
+      const cached=sourceCache.get(id);
+      if(cached && Date.now()-cached.time<TTL){out[id]=cached.value;return false;}
+      return true;
+    });
     for (let i = 0; i < uniq.length; i += 50) {
       const chunk = uniq.slice(i, i + 50);
       if (!chunk.length) continue;
       try {
         const j = await getJSON(`${API}/sources?filter=openalex_id:${chunk.join("|")}&per-page=50&select=id,summary_stats`, options);
         (j.results || []).forEach(s => {
-          out[shortId(s.id)] = (s.summary_stats && s.summary_stats["2yr_mean_citedness"]) || 0;
+          const id=shortId(s.id), value=(s.summary_stats && s.summary_stats["2yr_mean_citedness"]) || 0;
+          out[id]=value;sourceCache.set(id,{time:Date.now(),value});
         });
       } catch (e) { if (isAbort(e)) throw e; /* non-fatal: leave missing */ }
     }
@@ -521,21 +530,38 @@ window.OpenAlex = (function () {
     if (!seed.refsLoaded) seed = await byId(seed.id, opts);
 
     const adaptive = opts.adaptive === true;
+    let readyRefs = [];
+    const references = (seed.refs?.length ? fetchByIds(seed.refs, opts) : Promise.resolve([])).then(papers => (readyRefs = papers));
+    const combine = (citingPapers, refs) => {
+      const map = new Map([[seed.id,{...seed,role:'seed'}]]);
+      for (const [papers,role] of [[refs,'ref'],[citingPapers,'cite']]) for (const p of papers) if(!map.has(p.id))map.set(p.id,{...p,role});
+      return [...map.values()];
+    };
     const loadCiting = async () => {
       if (!adaptive) return citing(seed.id, citeLimit, opts);
       let page = await citingPage(seed.id, {signal:opts.signal});
       const total = page.total, budget = initialBudget(total), collected = page.papers.slice();
+      // Once the authoritative total is known, the remaining initial pages can
+      // run concurrently while a smaller, usable preview is being displayed.
+      const rest = [];
+      for(let next=2; (next-1)*100<budget; next++) rest.push(citingPage(seed.id,{cursor:'page:'+next,signal:opts.signal}));
+      const pending = Promise.allSettled(rest);
+      if(opts.onPreview && total>100) {
+        const previewRefs=readyRefs.slice(0,60);
+        const preview=network(combine(collected,previewRefs),seed,{total,papers:collected},previewRefs);
+        await opts.onPreview({...preview,adaptive:true,preview:true,initialMin:0,citingIds:collected.map(p=>p.id)});
+      }
       let loadWarning = '';
-      while (collected.length < budget && page.next && page.papers.length) {
-        try { page = await citingPage(seed.id, {cursor:page.next,signal:opts.signal}); }
-        catch (error) { abort(opts.signal); loadWarning = 'Some citing papers could not be loaded. ' + error.message; break; }
-        collected.push(...page.papers);
+      for(const result of await pending) {
+        abort(opts.signal);
+        if(result.status==='rejected') {loadWarning='Some citing papers could not be loaded. '+result.reason.message;break;}
+        collected.push(...result.value.papers);
       }
       const unique = [...new Map(collected.map(p => [p.id,p])).values()];
       return {total, papers:unique.slice(0,budget), loadWarning};
     };
     const [refPapers, citeRes] = await Promise.all([
-      seed.refs && seed.refs.length ? fetchByIds(seed.refs, opts) : Promise.resolve([]),
+      references,
       loadCiting()
     ]);
 
@@ -553,7 +579,6 @@ window.OpenAlex = (function () {
       initialMin: citeRes.total > 300 && citeRes.papers.length ? Math.max(0, citeRes.papers[citeRes.papers.length-1].cites || 0) : 0,
       citingIds: [...new Set([...citeRes.papers.map(p=>p.id), ...refPapers.filter(p=>(p.refs||[]).includes(seed.id)).map(p=>p.id)])] } : net;
     const direct = decorate(network(papers, seed, citeRes, refPapers));
-    if (opts.onDirect) await opts.onDirect(direct);
     abort(opts.signal);
 
     // ---- second-degree expansion ----
@@ -573,10 +598,14 @@ window.OpenAlex = (function () {
       .slice(0, 60)
       .map(([id]) => id);
     let linkedShown = 0;
+    // Fetch optional enrichment during direct layout, rather than after it.
+    const enrichment = promote.length ? fetchByIds(promote, opts).then(papers=>({papers}),error=>({error})) : Promise.resolve({papers:[]});
+    if (opts.onDirect) await opts.onDirect(direct);
+    abort(opts.signal);
     if (promote.length) {
-      let extra;
-      try { extra = await fetchByIds(promote, opts); }
-      catch (error) { if (isAbort(error)) throw error; return { ...direct, enrichmentFailed: true }; }
+      const result = await enrichment;
+      if(result.error) {if(isAbort(result.error))throw result.error;return {...direct,enrichmentFailed:true};}
+      const extra = result.papers;
       extra.forEach(p => {
         if (!ids.has(p.id)) { map.set(p.id, { ...p, role: "linked" }); ids.add(p.id); linkedShown++; }
       });

@@ -50,7 +50,8 @@
     graph = new CitationGraph($("graph-canvas"), {
       onForcesSettled: () => { if($('graph-layout-status')) $('graph-layout-status').textContent='Forces updated.'; },
       onSelect: node => renderDetail(node),
-      onHover: (node, x, y) => renderTooltip(node, x, y)
+      onHover: (node, x, y) => renderTooltip(node, x, y),
+      onClustersReady: () => {if($('toggle-clusters'))$('toggle-clusters').title=graph.clusters.length?'Hide research groups':'No distinct research groups found yet';}
     });
     try {
       const saved = JSON.parse(sessionStorage.getItem('citation-layout-controls') || '{}');
@@ -207,10 +208,10 @@
     if (loadController) loadController.abort();
     loadController = new AbortController();
     const signal = loadController.signal, seq = ++netSeq;
-    loading = true; citationSeed = null;
+    loading = true; citationSeed = null; citationTouched = false;
     if (PAGE === 'graph') { ensureGraph(); graph.cancelLayout(); }
     setLoader('loading', title, 'Fetching paper details from OpenAlex');
-    let directShown = false;
+    let directShown = false, previewCamera = null;
     try {
       const cached = cacheId ? await OpenAlex.cachedNetwork(cacheId, citeLimit) : null;
       if (signal.aborted || seq !== netSeq) return;
@@ -227,9 +228,17 @@
       setLoader('loading', 'Building citation graph…', 'Mapping <b>' + esc(truncate(seed.title, 60)) + '</b><br>Fetching references and citing papers');
       const net = await OpenAlex.buildNetwork(seed, {
         citeLimit, adaptive: citeLimit === 0, signal,
+        onPreview: PAGE === 'graph' ? async preview => {
+          if(signal.aborted || seq!==netSeq)return;
+          await applyNetwork(preview,{seq,signal});
+          if(signal.aborted || seq!==netSeq)return;
+          directShown=true;hideLoader();
+          previewCamera={scale:graph.scale,tx:graph.tx,ty:graph.ty};
+          $('status-counts').textContent += ' · loading remaining papers…';
+        } : undefined,
         onDirect: async direct => {
           if (signal.aborted || seq !== netSeq) return;
-          await applyNetwork(direct, { seq, signal });
+          await applyNetwork(direct, { seq, signal, preserve:directShown });
           if (signal.aborted || seq !== netSeq) return;
           directShown = true;
           hideLoader();
@@ -239,6 +248,7 @@
       if (signal.aborted || seq !== netSeq) return;
       if (net.linkedShown) await applyNetwork(net, { seq, signal, preserve: true });
       if (signal.aborted || seq !== netSeq) return;
+      if(previewCamera && !graph._camera && ['scale','tx','ty'].every(key=>graph[key]===previewCamera[key]))graph.fit(true);
       await OpenAlex.saveNetwork(net, citeLimit);
       if (signal.aborted || seq !== netSeq) return;
       updateStatus(net);
@@ -264,6 +274,8 @@
   }
 
   async function applyNetwork(net, { seq = netSeq, signal, preserve = false, rebuild = false } = {}) {
+    if(window.CitationPage)window.CitationPage.ready=false;
+    if(CURRENT.meta.preview && !net.preview && !citationTouched)citationSeed=null;
     CURRENT.seedId = net.seedId;
     CURRENT.papers = net.papers;
     CURRENT.edges = net.edges;
@@ -484,7 +496,7 @@
       if (seq === expansionSeq) { expanding = false; syncCitationFilter(); }
     }
   }
-  let citationSeed = null;
+  let citationSeed = null, citationTouched = false;
   function syncCitationFilter() {
     if (!graph || !$('citation-filter')) return;
     const counts = (keywordController?.applied.terms.length ? CURRENT.papers : graph.nodes).map(n => n.cites).filter(n => Number.isFinite(n) && n >= 0);
@@ -515,21 +527,26 @@
     range.style.setProperty('--upper', upperSlider.value / 10 + '%');
     slider.dataset.count = String(threshold); upperSlider.dataset.count = String(upper);
     const position = n => max ? Math.log1p(n) / Math.log1p(max) : 0;
-    const bounds = [...new Set(Array.from({length: 28}, (_, i) => Math.ceil(Math.expm1(Math.log1p(max) * i / 28))))].filter(n => n < max || n === 0);
-    bounds.push(max + 1);
-    const bins = bounds.slice(0, -1).map((low, i) => ({ low, high: bounds[i+1]-1, count: 0 }));
-    counts.forEach(n => { const bin = bins.find(b => n >= b.low && n <= b.high); if (bin) bin.count++; });
-    const peak = Math.max(1, ...bins.map(b => b.count));
-    $('citation-histogram').innerHTML = bins.map(({low, high, count}, i) => {
-      const x = position(low) * 280;
-      const end = i === bins.length-1 ? 280 : position(high+1) * 280;
-      const height = count / peak * 58;
-      return `<rect x="${x}" y="${64-height}" width="${Math.max(0,end-x-1)}" height="${height}" class="${high < threshold || low > upper ? 'excluded' : ''}"><title>${low === high ? low : low + '–' + high} citations: ${count} papers</title></rect>`;
-    }).join('');
-    const ticks = [0];
-    for (let n = 10; n < max; n *= 10) if (position(n) < .78) ticks.push(n);
-    if (max > 0) ticks.push(max);
-    $('citation-axis').innerHTML = ticks.map(n => `<span style="left:${position(n)*100}%">${n >= 1000000 ? (n / 1000000).toFixed(1).replace(/\.0$/, "") + "m" : fmt(n)}</span>`).join('');
+    const histogramKey = counts.join(',');
+    if(graph._histogram?.key !== histogramKey) {
+      const bounds = [...new Set(Array.from({length: 28}, (_, i) => Math.ceil(Math.expm1(Math.log1p(max) * i / 28))))].filter(n => n < max || n === 0);
+      bounds.push(max + 1);
+      const bins = bounds.slice(0, -1).map((low, i) => ({ low, high: bounds[i+1]-1, count: 0 }));
+      counts.forEach(n => { const bin = bins.find(b => n >= b.low && n <= b.high); if (bin) bin.count++; });
+      const peak = Math.max(1, ...bins.map(b => b.count));
+      $('citation-histogram').innerHTML = bins.map(({low, high, count}, i) => {
+        const x = position(low) * 280;
+        const end = i === bins.length-1 ? 280 : position(high+1) * 280;
+        const height = count / peak * 58;
+        return `<rect x="${x}" y="${64-height}" width="${Math.max(0,end-x-1)}" height="${height}" class=""><title>${low === high ? low : low + '–' + high} citations: ${count} papers</title></rect>`;
+      }).join('');
+      const ticks = [0];
+      for (let n = 10; n < max; n *= 10) if (position(n) < .78) ticks.push(n);
+      if (max > 0) ticks.push(max);
+      $('citation-axis').innerHTML = ticks.map(n => `<span style="left:${position(n)*100}%">${n >= 1000000 ? (n / 1000000).toFixed(1).replace(/\.0$/, "") + "m" : fmt(n)}</span>`).join('');
+      graph._histogram = {key:histogramKey,bins};
+    }
+    [...$('citation-histogram').children].forEach((rect,i)=>{const bin=graph._histogram.bins[i];rect.classList.toggle('excluded',bin.high<threshold||bin.low>upper);});
     const visible = graph.nodes.filter(n => graph._visible(n)).length;
     if ($('graph-search-count')) $('graph-search-count').textContent = `${visible} of ${graph.nodes.length} papers shown`;
 
@@ -591,6 +608,7 @@
     });
     function setCitationBound(isUpper, value) {
       if (!graph || !Number.isFinite(value)) return;
+      citationTouched = true;
       const max = Number($('citation-min').dataset.citationMax);
       const upper = Number.isFinite(graph.maxCitations) ? graph.maxCitations : max;
       value = Math.max(0, Math.min(max, Math.round(value)));
@@ -673,7 +691,7 @@
       graph.toggleClusters(!graph.showClusters);
       $('toggle-clusters').setAttribute('aria-pressed', String(graph.showClusters));
       $('toggle-clusters').setAttribute('aria-label', graph.showClusters ? 'Hide research groups' : 'Show research groups');
-      $('toggle-clusters').title = graph.showClusters ? (graph.clusters.length ? 'Hide research groups' : 'No distinct research groups found yet') : 'Show research groups';
+      $('toggle-clusters').title = graph.showClusters ? (graph._clusterPending?'Finding research groups…':graph.clusters.length ? 'Hide research groups' : 'No distinct research groups found yet') : 'Show research groups';
     });
     $("zoom-in")?.addEventListener("click", () => graph && graph.zoomBy(1.25, undefined, undefined, true));
     $("zoom-out")?.addEventListener("click", () => graph && graph.zoomBy(0.8, undefined, undefined, true));

@@ -62,7 +62,7 @@ test('the direct graph paints before optional co-cited lookup; enrichment can fa
   let painted = false;
   const api = client(async url => {
     if (url.includes('cites:')) return ok({ results: [], meta: { count: 0 } });
-    if (url.includes('Wextra')) { assert(painted); throw new Error('Optional request failed'); }
+    if (url.includes('Wextra')) throw new Error('Optional request failed');
     return ok({ results: ['W1', 'W2', 'W3'].map(id => raw(id, ['Wextra'])) });
   });
   const seed = api.toPaper(raw('Wseed', ['W1', 'W2', 'W3']));
@@ -297,4 +297,58 @@ test('numbered paging stops clearly at the API boundary rather than claiming exh
  let calls=0;const api=client(async()=>{calls++;return ok({});});
  await assert.rejects(api.citingPage('Wseed',{cursor:'page:101'}),/Narrow the citation range/);
  assert.equal(calls,0);
+});
+
+test('adaptive preview precedes slow references and remaining citation pages start concurrently',async()=>{
+ let refsDone;const pending=new Map(),started=[];
+ const pageData=page=>({meta:{count:500},results:Array.from({length:100},(_,i)=>({...raw('W'+((page-1)*100+i),['Wseed']),cited_by_count:500-(page-1)*100-i}))});
+ const api=client(async url=>{
+  const u=new URL(url);
+  if((u.searchParams.get('filter')||'').startsWith('openalex_id:'))return new Promise(resolve=>{refsDone=()=>resolve(ok({results:[raw('R1'),raw('R2')]}));});
+  const page=Number(u.searchParams.get('page'));started.push(page);
+  if(page===1)return ok(pageData(1));
+  return new Promise(resolve=>pending.set(page,()=>resolve(ok(pageData(page)))));
+ });
+ let previewSeen=false;
+ const net=await api.buildNetwork(api.toPaper(raw('Wseed',['R1','R2'])),{adaptive:true,minShared:99999,onPreview:preview=>{
+  previewSeen=true;assert(preview.preview);assert.equal(preview.citingShown,100);assert.equal(preview.refShown,0);
+  assert.deepEqual(started,[1,2,3]);refsDone();pending.get(3)();pending.get(2)();
+ }});
+ assert(previewSeen);assert.equal(net.citingShown,250);assert.equal(net.refShown,2);
+ assert.equal(net.citingIds[249],'W249');assert(!net.preview);
+});
+
+test('co-cited requests overlap direct layout instead of waiting for it',async()=>{
+ let started=false,finish;
+ const api=client(async url=>{
+  if(url.includes('cites:'))return ok({meta:{count:0},results:[]});
+  if(url.includes('Wextra')){started=true;return new Promise(resolve=>{finish=()=>resolve(ok({results:[raw('Wextra')]}));});}
+  return ok({results:['R1','R2','R3'].map(id=>raw(id,['Wextra']))});
+ });
+ const net=await api.buildNetwork(api.toPaper(raw('Wseed',['R1','R2','R3'])),{onDirect:()=>{assert(started);finish();}});
+ assert.equal(net.linkedShown,1);
+});
+
+test('preview reference budget stays bounded while the final graph retains all references',async()=>{
+ const api=client(async url=>{
+  const u=new URL(url),filter=u.searchParams.get('filter')||'';
+  if(filter.startsWith('openalex_id:'))return ok({results:filter.slice(12).split('|').map(id=>raw(id))});
+  const page=Number(u.searchParams.get('page'));if(page===1)await new Promise(r=>setTimeout(r,10));
+  return ok({meta:{count:400},results:Array.from({length:100},(_,i)=>({...raw('W'+((page-1)*100+i),['Wseed']),cited_by_count:400-i}))});
+ });
+ const refs=Array.from({length:80},(_,i)=>'R'+i);let shown;
+ const net=await api.buildNetwork(api.toPaper(raw('Wseed',refs)),{adaptive:true,minShared:99999,onPreview:preview=>{shown=preview.refShown;assert(preview.papers.length<=161);}});
+ assert.equal(shown,60);assert.equal(net.refShown,80);
+});
+
+test('large raw records stay out of synchronous session serialization',async()=>{
+ const saved=new Map();const api=client(async()=>ok({results:Array.from({length:30},(_,i)=>raw('W'+i,['Wseed']))}),saved);
+ await api.fetchByIds(Array.from({length:30},(_,i)=>'W'+i));api.flushCache();
+ assert(!saved.get('citation-network-cache-v1').includes('referenced_works'));
+});
+
+test('journal sizes reuse per-source values across different batches',async()=>{
+ const requests=[];const api=client(async url=>{requests.push(url);const ids=new URL(url).searchParams.get('filter').slice(12).split('|');return ok({results:ids.map(id=>({id:'https://openalex.org/'+id,summary_stats:{'2yr_mean_citedness':2}}))});});
+ await api.sourceImpact(['S1','S2']);const values=await api.sourceImpact(['S2','S3']);
+ assert.equal(requests.length,2);assert(!requests[1].includes('S2'));assert.equal(values.S2,2);assert.equal(values.S3,2);
 });

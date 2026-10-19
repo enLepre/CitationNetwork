@@ -1,5 +1,15 @@
 # Performance verification
 
+## Large-network update — 19 October 2026
+
+Compared with commit `7bb46eb`, a desktop Chromium audit with 1,000 synthetic papers and 7,984 connections measured search-active label placement at approximately 881 ms before and 3.8 ms after the update. The graph's attached SVG elements fell from 14,989 to 7,007. The synthetic data included author metadata and reference lists; search matched all papers. These are individual unthrottled runs, not a statistical guarantee for all networks or devices.
+
+For the live OpenAlex seed `W2150399639`, both versions retained 386 papers and 6,262 connections. Attached SVG elements fell from 8,969 to 2,710. Before the update, two fresh-browser runs displayed the first graph at 5.3 and 10.1 seconds. An updated run displayed a usable preview at 4.8 seconds, including about 3.0 seconds fetching the seed record from OpenAlex. API latency varies, so this comparison does not isolate a guaranteed network speedup. The updated loader starts remaining citation pages concurrently and overlaps co-cited retrieval with layout.
+
+Run `node tests/large-graph.cjs` for the dense-network regression checks and `test-results/large-graph-performance.json`. The checks verify that every connection remains represented, query matches are cached, label collisions use nearby cells, filtering/highlights/zoom work, pending cluster workers can be cancelled, and dragging during incremental layout resumes the simulation. There are no hardware-dependent timing assertions. The full browser suite also verifies preview positions remain stable through initial loading and enrichment.
+
+## Earlier measurements
+
 Measured 16 October 2026 after the notebook redesign, against the original page at commit `e67f123`. This table records that earlier design; the separate-page browser suite generates current measurements under `test-results/performance.json`. Search now loads neither the graph renderer nor a network, and List loads paper data without creating a graph.
 
 | Measure | Original | Updated | Reduction |

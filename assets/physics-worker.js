@@ -1,5 +1,5 @@
 /* Interactive simulation lives off the UI thread and sleeps when settled. */
-importScripts('layout.js?v=physics-21');
+importScripts('layout.js?v=performance-43');
 let sim=null,nodes=[],timer=null,ticks=0,revision=0;
 function wake() {
   ticks=0; sim.alpha(Math.max(sim.alpha(),.3));

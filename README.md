@@ -36,7 +36,7 @@ The selection regression suite also checks clicks with small pointer movements o
 
 - Render on changes, with at most one scheduled frame. A brief damped spring effect settles newly placed nodes and lets up to 48 nearby linked papers respond to a drag. The initial settling effect changes only display offsets. Dragging holds a paper only while the pointer is down; on release every non-central paper is free to rearrange under the graph forces. The central paper stays fixed, and saved pins from older sessions are ignored. Position-only frames reuse node styling and label placement, stop within 1.1 seconds after the last input, and leave no idle SVG work. Reduced motion, hidden/inactive views, and very large networks disable the effect; a 12 ms position-frame budget cuts it short on slower devices.
 - Calculate the layout with Barnes–Hut repulsion and collision detection in a worker. If workers are unavailable, use short batches that yield to the UI thread.
-- Show the direct graph first. Optional co-cited papers load afterward; existing node positions remain fixed.
+- Show a 100-citing-paper preview for large adaptive networks while the remaining initial pages load concurrently. Optional co-cited retrieval overlaps direct layout; existing positions stay fixed as batches arrive.
 - Fetch lightweight search records, retrieve references when a paper is selected, and cache responses for 15 minutes in memory and session storage. Failed requests are not cached. Obsolete searches and graph loads are cancelled.
 - Keep graph labels at 13 screen pixels (15 for the seed), suppress overlapping labels and labels obscured by other nodes, and refresh them when zoom changes. Full titles remain available through hover, keyboard selection and the details panel.
 - Native appearance controls replace the React development builds and runtime Babel compiler.
@@ -101,3 +101,13 @@ This searches the currently loaded network, not every paper in OpenAlex. The ori
 Abstract search is opt-in. It fetches only IDs and abstract indexes, in batches of 50 with at most three concurrent requests, reuses cached abstracts, and shows coverage. Missing abstracts cannot match abstract-only terms. A failed abstract request leaves the existing graph intact and can be retried. Topic suggestions use the selected fields and do not require an AI service.
 
 Run `node --test tests/keywords.test.cjs tests/data.test.cjs` and `node tests/keywords.cjs` for matching, graph rebuilding, restoration, abstract failure/retry and mobile checks.
+
+### Large-network performance
+
+Dense networks (more than 1,200 connections) batch connections by their visible style into a small set of SVG paths. Every connection remains in the data and in the drawing; individual paper nodes and accessible hit targets stay in SVG. Small networks retain individual edge paths. Search normalizes each paper's metadata once and caches matches per query. Label placement uses screen-space grid cells to test nearby circles instead of scanning the entire network for every label.
+
+Adaptive previews retain their existing positions while remaining references and citing papers arrive. New papers appear after their incremental layout completes. The final initial graph fits the viewport if the user has not changed the preview camera. Drag releases during loading resume the force simulation once layout is ready. Incremental layout omits links between two fixed nodes and uses fewer iterations when most nodes are fixed.
+
+Research-topic detection runs in a cancellable worker, with a deferred fallback when workers are unavailable. Keyword suggestions are prepared when the search panel opens. Citation histogram geometry is reused while adjusting bounds. Large raw API records remain in memory rather than being synchronously serialized into session storage; assembled networks still use IndexedDB. Journal size lookups reuse individual source values across different batches.
+
+Additional checks: `node tests/large-graph.cjs` covers dense drawing, retained connections, query caching, spatial collision checks, filters, highlights, zoom, worker cancellation, incremental drag release, and the sparse renderer.

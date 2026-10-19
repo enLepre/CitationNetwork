@@ -11,9 +11,13 @@ export function configure(sim, { spacing = 1, bondStrength = 1, linkDistance = 1
 export function createSimulation(input) {
   const {nodes,edges,width,height,anchored=false}=input;
   const cx=input.centerX ?? width/2,cy=input.centerY ?? height/2;
+  const pinned=new Set(nodes.filter(n=>n.fx!=null&&n.fy!=null).map(n=>n.id));
+  // Old nodes stay fixed during enrichment. Links joining two fixed nodes
+  // cannot affect new positions, so exclude them from the force solver.
+  const activeEdges=edges.filter(e=>!pinned.has(e.s)||!pinned.has(e.t));
   const sim=forceSimulation(nodes).stop().alphaDecay(.035).velocityDecay(.38)
     .force('charge',forceManyBody().theta(.9))
-    .force('links',forceLink(edges.map(e=>({source:e.s,target:e.t}))).id(n=>n.id))
+    .force('links',forceLink(activeEdges.map(e=>({source:e.s,target:e.t}))).id(n=>n.id))
     .force('collision',forceCollide(n=>(n.rad+12)*(n.localSpacing||1)).iterations(2))
     .force('x',forceX(n=>anchored ? n.anchorX ?? cx : cx))
     .force('y',forceY(n=>anchored ? n.anchorY ?? cy : cy));
@@ -24,7 +28,8 @@ export function createSimulation(input) {
 export async function layout(input, cancelled = () => false, yieldToUI = true) {
   const {nodes,anchored=false}=input;
   const sim=createSimulation(input);
-  const maxTicks = anchored ? 110 : 180;
+  const mostlyFixed=nodes.filter(n=>n.fx!=null&&n.fy!=null).length>nodes.length*.75;
+  const maxTicks = anchored || mostlyFixed ? 110 : 180;
   let quietTicks = 0;
   for (let i = 0; i < maxTicks;) {
     if (cancelled()) return null;

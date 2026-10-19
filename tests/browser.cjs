@@ -67,7 +67,7 @@ async function mock(page, { extraDelay = 350, slowSeed = false, failExtra = fals
 const frames = page => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
 async function settled(page) {
   await page.waitForFunction(() => window.CG?.nodes.length && document.getElementById('loader').hidden);
-  await page.waitForFunction(() => !document.getElementById('status-counts').textContent.includes('finding'));
+  await page.waitForFunction(() => !document.getElementById('status-counts').textContent.includes('finding') && !window.CitationPage?.network.meta.preview && (!window.CitationPage || window.CitationPage.ready));
   await page.waitForFunction(() => !window.CG?._motionActive);
   await page.evaluate(() => document.fonts.ready); await frames(page);
 }
@@ -204,10 +204,9 @@ async function labelStats(page) {
     await page.waitForFunction(()=>!document.documentElement.dataset.slide); await frames(page); await page.screenshot({ path: path.join(output, 'after-search.png') });
     await page.fill('#big-input', 'catalysis'); await page.click('#big-go'); await page.click('.presult');
     await page.waitForURL('**/graph.html?*');
-    await page.waitForFunction(() => window.CG?.nodes.length && document.getElementById('loader').hidden);
-    const direct = await page.evaluate(() => CG.nodes.map(n => ({ id:n.id, x:n.x, y:n.y })));
+    const direct = await (await page.waitForFunction(() => window.CG?._dataReady && document.getElementById('loader').hidden && CG.nodes.map(n => ({id:n.id,x:n.x,y:n.y})))).jsonValue();
     // Home now defaults to adaptive loading: all 160 citing papers in this fixture.
-    assert.equal(direct.length, 1 + seedRefs.length + 160); await settled(page);
+    assert(direct.length >= 101 && direct.length <= 1 + seedRefs.length + 160); await settled(page);
     const expanded = await page.evaluate(() => CG.nodes.map(n => ({ id:n.id,x:n.x,y:n.y })));
     assert.equal(expanded.length, 1 + seedRefs.length + 160 + 12);
     for (const old of direct) { const node=expanded.find(n=>n.id===old.id);assert.equal(node.x,old.x);assert.equal(node.y,old.y); }
@@ -272,7 +271,7 @@ async function labelStats(page) {
     await page.locator('#graph-options').evaluate(el=>el.open=false);
     await page.locator('.gnode[data-id="Wseed"]').focus();await page.keyboard.press('Enter');
     assert(await page.locator('#detail').isVisible());await page.keyboard.press('Escape');assert.equal(await page.locator('#detail').isVisible(),false);
-    await navigate(page,'paper');await page.waitForFunction(()=>window.CitationPage?.ready&&!document.getElementById('status-counts').textContent.includes('finding'));
+    await navigate(page,'paper');await page.waitForFunction(()=>window.CitationPage?.ready&&!document.getElementById('status-counts').textContent.includes('finding') && !window.CitationPage?.network.meta.preview && (!window.CitationPage || window.CitationPage.ready));
     assert.equal(await page.evaluate(()=>typeof window.CG),'undefined');
     assert.equal(await page.locator('#graph-canvas').count(),0);
     assert.deepEqual(await page.locator('#notebook-menu').boundingBox(),nav);
@@ -280,7 +279,7 @@ async function labelStats(page) {
     assert.equal(await page.locator('#d-title').textContent(),'Catalytic pathways and connected research in chemistry');
     assert(await page.locator('#d-conns .conn').count()>0);
     await page.selectOption('#density','120');
-    await page.waitForFunction(()=>window.CitationPage?.network.meta.citingShown===120&&!document.getElementById('status-counts').textContent.includes('finding'));
+    await page.waitForFunction(()=>window.CitationPage?.network.meta.citingShown===120&&!document.getElementById('status-counts').textContent.includes('finding') && !window.CitationPage?.network.meta.preview && (!window.CitationPage || window.CitationPage.ready));
     assert(new URL(page.url()).pathname.endsWith('/paper.html'));
     await page.click('#toggle-ref');
     await page.waitForFunction(()=>!document.documentElement.dataset.slide); await frames(page); await page.screenshot({path:path.join(output,'after-paper.png')});
@@ -302,7 +301,7 @@ async function labelStats(page) {
     await page.click('#theme-toggle');await page.keyboard.press('Escape');
     await page.emulateMedia({reducedMotion:'reduce'});assert(await page.locator('.notebook-menu').evaluate(el=>getComputedStyle(el,'::before').transitionDuration==='0s'));await page.emulateMedia({reducedMotion:'no-preference'});
     await page.waitForTimeout(250); await page.waitForFunction(()=>!document.documentElement.dataset.slide); await frames(page); await page.screenshot({path:path.join(output,'after-details.png')});
-    const apiBeforeList=urls.length;await navigate(page,'list');await page.waitForFunction(()=>window.CitationPage?.ready&&!document.getElementById('status-counts').textContent.includes('finding'));
+    const apiBeforeList=urls.length;await navigate(page,'list');await page.waitForFunction(()=>window.CitationPage?.ready&&!document.getElementById('status-counts').textContent.includes('finding') && !window.CitationPage?.network.meta.preview && (!window.CitationPage || window.CitationPage.ready));
     assert.equal(await page.locator('main').count(),1);assert.equal(await page.locator('#view-search, #view-graph, #graph-canvas').count(),0);
     assert.equal(await page.evaluate(()=>typeof window.CG),'undefined');
     assert.equal(await page.evaluate(()=>performance.getEntriesByType('resource').some(r=>/layout|graph\.js/.test(r.name))),false);

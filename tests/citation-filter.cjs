@@ -65,7 +65,7 @@ async function mock(page, { extraDelay = 350, slowSeed = false, failExtra = fals
 const frames = page => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
 async function settled(page) {
   await page.waitForFunction(() => window.CG?.nodes.length && document.getElementById('loader').hidden);
-  await page.waitForFunction(() => !document.getElementById('status-counts').textContent.includes('finding'));
+  await page.waitForFunction(() => !document.getElementById('status-counts').textContent.includes('finding') && !window.CitationPage?.network.meta.preview && (!window.CitationPage || window.CitationPage.ready));
   await page.waitForFunction(() => !window.CG?._motionActive);
   await page.evaluate(() => document.fonts.ready); await frames(page);
 }
@@ -102,6 +102,7 @@ async function labelStats(page) {
  const page=await browser.newPage({viewport:{width:1280,height:900}});
  await mock(page); await page.goto('http://127.0.0.1:'+server.address().port+'/graph.html?seed=Wseed&density=80&loading=fixed'); await settled(page);
  await page.click('#toggle-clusters');
+ await page.waitForFunction(()=>!CG._clusterPending);
  assert.equal(await page.locator('#toggle-clusters').getAttribute('aria-pressed'),'true');
  assert(await page.evaluate(()=>CG.clusters.length>0));
  assert(await page.evaluate(()=>CG.clusters.every(c=>c.ids.length>=c.minimum)));

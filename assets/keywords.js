@@ -71,6 +71,7 @@
       this.$('keyword-mode').addEventListener('change', () => this.render());
       this.$('keyword-rebuild').addEventListener('click', () => this.commit());
       this.$('keyword-reset').addEventListener('click', () => this.commit(true));
+      element.closest('details').addEventListener('toggle',()=>{if(element.closest('details').open)this.render();});
       this.setBusy(false);
     }
     fields() { return [...this.element.querySelectorAll('[name="keyword-field"]:checked')].map(el => el.value); }
@@ -97,6 +98,7 @@
         } catch (_) {}
       }
       this.net = net;
+      this.element.closest('details').classList.toggle('has-keywords',!!this.applied.terms.length);
       this.render();
       if (this.applied.terms.length && this.applied.fields.includes('abstract')) await this.abstracts(net.papers, {signal});
       this.render();
@@ -108,7 +110,7 @@
       this.$('keyword-query').value = ''; this.render(); this.$('keyword-query').focus();
     }
     render() {
-      if (!this.net || this.busy) return;
+      if (!this.net || this.busy || !this.element.closest('details').open) return;
       const chosen = this.$('keyword-selected'); chosen.replaceChildren();
       for (const term of this.selected) {
         const button = document.createElement('button'); button.type = 'button';

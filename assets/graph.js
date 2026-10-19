@@ -12,8 +12,9 @@
     if (attrs) for (const k in attrs) n.setAttribute(k, attrs[k]);
     return n;
   };
-  const workerUrl = new URL("layout-worker.js?v=physics-21", document.currentScript.src);
-  const physicsWorkerUrl = new URL('physics-worker.js?v=release-42',document.currentScript.src);
+  const workerUrl = new URL("layout-worker.js?v=performance-43", document.currentScript.src);
+  const clusterWorkerUrl = new URL('clusters-worker.js?v=performance-43',document.currentScript.src);
+  const physicsWorkerUrl = new URL('physics-worker.js?v=performance-43',document.currentScript.src);
 
   class CitationGraph {
     constructor(svg, opts) {
@@ -35,6 +36,7 @@
       this.clusterLayer = el('g', {class:'cluster-flags'});
       this.svg.appendChild(this.clusterLayer);
       this.clusters = []; this.showClusters = false; this.activeCluster = null;
+      this._edgeBatches = new Map(); this._searchVersion = 0;
 
       this.nodes = []; this.edges = []; this.nodeById = {};
       this.scale = 1; this.tx = 0; this.ty = 0;
@@ -65,7 +67,7 @@
         if (this._active && this.nodes.length) this.fit();
       });
       this._resizeObserver.observe(svg);
-      document.addEventListener('visibilitychange', () => { if (document.hidden) { this._stopPhysics(); this._endRelocation(); this._camera = null; this._stopMotion(); } else this._invalidate(); });
+      document.addEventListener('visibilitychange', () => { if (document.hidden) { this._cancelClusters(); this._stopPhysics(); this._endRelocation(); this._camera = null; this._stopMotion(); } else {if(this.showClusters&&this._clustersDirty)this._buildClusters();this._invalidate();} });
       document.fonts.ready.then(() => { this.nodes.forEach(n => { n.labelWidth = null; }); this._invalidate(); });
     }
 
@@ -82,6 +84,11 @@
       this.cancelLayout();
       const seq = this._layoutSeq;
       const reuse = preserve && this.seedId === seedId;
+      const wasBatched=this._batchedEdges;
+      this._batchedEdges = edges.length > 1200;
+      this._labelOrder = null;
+      for(const batch of this._edgeBatches.values()) {clearTimeout(batch.timer);batch.path.remove();}
+      this._edgeBatches.clear();
       this.seedId = seedId;
       this._endPointer(null, true);
       this.hovered = null; this.dragNode = null;
@@ -118,6 +125,9 @@
           x: old ? old.x : cx + Math.cos(ang) * rad,
           y: old ? old.y : cy + Math.sin(ang) * rad,
           fixed: !!old || p.id === seedId, userPinned: false,
+          _searchVersion: -1,
+          _searchTexts: {},
+          _pendingLayout: preserve && !old,
           vx: 0, vy: 0, baseR: rr / this._nodeScale, rad: rr
         });
       });
@@ -133,9 +143,9 @@
         if (e.s === seedId) kind = "ref";
         else if (e.t === seedId) kind = "cite";
         const cached = oldEdges.get(e.s+'>'+e.t);
-        if (cached) { oldEdges.delete(e.s+'>'+e.t); cached.kind=kind; return cached; }
+        if (cached) { oldEdges.delete(e.s+'>'+e.t); cached.kind=kind;if(wasBatched!==this._batchedEdges)cached._ax=NaN; if(this._batchedEdges)cached.path.remove();else this.edgeLayer.appendChild(cached.path);return cached; }
         const path = el("path", { class: "gedge", fill: "none" });
-        this.edgeLayer.appendChild(path);
+        if(!this._batchedEdges)this.edgeLayer.appendChild(path);
         return { s: e.s, t: e.t, kind, path };
       });
 
@@ -188,12 +198,14 @@
       const positions = await this.ready;
       if (!positions || seq !== this._layoutSeq) return false;
       positions.forEach(p => { const n = this.nodeById[p.id]; if (n && !n.movedDuringLayout) { n.x = p.x; n.y = p.y; } });
+      this.nodes.forEach(n=>{n._pendingLayout=false;});
       if (view && Number.isFinite(view.scale)) this._moveCamera(view.scale, view.tx + (this.W-view.width)/2, view.ty + (this.H-view.height)/2);
       else if (!preserve && this._active) this.fit();
       this.onSelect(this.selected ? this.nodeById[this.selected] : null);
       this._invalidate({ positions: true, paint: true, labels: true });
       this._settleIn(preserve || view ? new Set(Object.keys(previous)) : null);
       this._dataReady = true;
+      if(this._resumeDragForces){this._resumeDragForces=false;this.updateForces();}
       return true;
     }
 
@@ -338,7 +350,8 @@
     }
 
     _releasePhysics(node) {
-      if(!this._dataReady || node.id===this.seedId)return;
+      if(node.id===this.seedId)return;
+      if(!this._dataReady){this._resumeDragForces=true;return;}
       this._physicsPending=null;
       this.updateForces();
       if(this._physicsWorker)this._physicsWorker.postMessage({type:'release',revision:this._physicsRevision,id:node.id,x:node.x,y:node.y});
@@ -515,8 +528,37 @@
     }
 
     _buildClusters() {
+      this._clusterWorker?.terminate();
+      this._clusterResolve?.();
+      const revision=this._clusterRevision=(this._clusterRevision||0)+1;
       this._clustersDirty = false;
-      this.clusters = window.CitationClusters?.detect(this.nodes, this.edges, this.seedId) || [];
+      this._clusterPending=true;
+      this.clusters=[];this.clusterLayer.replaceChildren();
+      this.clustersReady=new Promise(resolve=>{this._clusterResolve=resolve;});
+      const finish=clusters=>{
+        if(revision!==this._clusterRevision)return;
+        this._clusterWorker?.terminate();this._clusterWorker=null;this._clusterPending=false;
+        this._installClusters(clusters);this._invalidate({paint:true});this.opts.onClustersReady?.();
+        this._clusterResolve?.();this._clusterResolve=null;
+      };
+      const input={papers:this.nodes.map(({id,title,refs,searchAuthors,authors})=>({id,title,refs,searchAuthors,authors})),edges:this.edges.map(({s,t})=>({s,t})),seedId:this.seedId};
+      const fallback=()=>setTimeout(()=>{if(revision===this._clusterRevision)finish(window.CitationClusters?.detect(input.papers,input.edges,input.seedId)||[]);},0);
+      try {
+        const worker=this._clusterWorker=new Worker(clusterWorkerUrl);
+        worker.onmessage=({data})=>data.error?fallback():finish(data.clusters);
+        worker.onerror=event=>{event.preventDefault();worker.terminate();fallback();};
+        worker.postMessage(input);
+      } catch (_) {fallback();}
+    }
+
+    _cancelClusters() {
+      if(!this._clusterPending)return;
+      this._clusterRevision++;this._clusterWorker?.terminate();this._clusterWorker=null;
+      this._clusterResolve?.();this._clusterResolve=null;this._clusterPending=false;this._clustersDirty=true;
+    }
+
+    _installClusters(clusters) {
+      this.clusters=clusters;
       this.activeCluster = null;
       this.clusterLayer.replaceChildren();
       for (const cluster of this.clusters) {
@@ -535,6 +577,7 @@
     }
 
     toggleClusters(show) {
+      if(!show)this._cancelClusters();
       this.showClusters=show;if(show && this._clustersDirty)this._buildClusters();
       if(!show)this.activeCluster=null;
       this._invalidate({paint:true,positions:true});
@@ -567,14 +610,18 @@
 
     _matchesSearch(n) {
       if (!this.searchTerms?.length) return true;
+      if(n._searchVersion===this._searchVersion)return n._searchMatch;
       const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
       const fields = {title:n.title, authors:n.searchAuthors || n.authors, venue:n.venue, year:n.year, type:n.type, doi:[n.doi,n.id].join(' ')};
-      const text = normalize(this.searchField && this.searchField !== 'all' ? fields[this.searchField] : Object.values(fields).join(' '));
-      return this.searchTerms.every(term => text.includes(term));
+      const field=this.searchField||'all';
+      const text = (n._searchTexts ||= {})[field] ?? (n._searchTexts[field]=normalize(field!=='all'?fields[field]:Object.values(fields).join(' ')));
+      n._searchVersion=this._searchVersion;
+      return n._searchMatch=this.searchTerms.every(term => text.includes(term));
     }
 
     _visible(n) {
       if (n.role === "seed") return true;
+      if(n._pendingLayout)return false;
       if (!this._matchesSearch(n)) return false;
       if (this.minCitations > 0 && (!Number.isFinite(n.cites) || n.cites < this.minCitations)) return false;
       if (Number.isFinite(this.maxCitations) && (!Number.isFinite(n.cites) || n.cites > this.maxCitations)) return false;
@@ -588,6 +635,7 @@
       const resumePhysics=this._physicsRunning;this._stopPhysics();
       if ('searchQuery' in opts) this.searchTerms = String(opts.searchQuery || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().split(/\s+/).filter(Boolean);
       if ('searchField' in opts) this.searchField = opts.searchField;
+      if('searchQuery' in opts || 'searchField' in opts)this._searchVersion++;
       if ("maxCitations" in opts) this.maxCitations = Number.isFinite(opts.maxCitations) ? Math.max(0, opts.maxCitations) : null;
       if ("minCitations" in opts) this.minCitations = Math.max(0, Number(opts.minCitations) || 0);
       if ("showRefs" in opts) this.showRefs = opts.showRefs;
@@ -765,6 +813,8 @@
     /* ---------- render ---------- */
     setActive(active) {
       this._active = active;
+      if(!active)this._cancelClusters();
+      else if(this.showClusters&&this._clustersDirty)this._buildClusters();
       if (!active) { this._stopPhysics(); this._endRelocation(); this._camera = null; this._stopMotion(); }
       if (!active && this._frame != null) { cancelAnimationFrame(this._frame); this._frame = null; }
       if (active) this._invalidate();
@@ -794,6 +844,7 @@
         if (dirty.transform) this.vp.setAttribute('transform', 'translate(' + this.tx + ' ' + this.ty + ') scale(' + this.scale + ')');
         if (dirty.paint) this._paint();
         if (dirty.positions || motion || this._dirty.positions) { this._renderPositions(!dirty.positions); this._renderScale = this.scale; this._dirty.positions = false; }
+        else if(dirty.paint && this._batchedEdges)this._drawEdgeBatches();
         this._renderClusters();
         if ((!this._physicsRunning && dirty.labels) || (motion && !this._motionActive && !this._relocation && !this._physicsRunning)) this._layoutLabels();
         if (this._motionActive && !dirty.paint && !dirty.positions && performance.now() - started > 12) {
@@ -833,6 +884,7 @@
         }
       });
       this.edges.forEach(e => {
+        e._width=(e._shared?2.6:e._lit?1.3:.8)/this.scale;
         if (e.path.style.display === "none" || (e._filtered && performance.now() >= e._fadeUntil)) return;
         const a = this.nodeById[e.s], b = this.nodeById[e.t];
         const ax = a.x + (a._ox || 0), ay = a.y + (a._oy || 0);
@@ -847,9 +899,35 @@
         const mx = (ax + bx) / 2, my = (ay + by) / 2;
         const bow = Math.min(30, len * 0.08);
         const nx = -dy / len, ny = dx / len;
-        e.path.setAttribute("d", `M${ax} ${ay}Q${mx + nx * bow} ${my + ny * bow} ${bx} ${by}`);
+        e._geometry = `M${ax} ${ay}Q${mx + nx * bow} ${my + ny * bow} ${bx} ${by}`;
+        if(!this._batchedEdges)e.path.setAttribute('d',e._geometry);
         if (e._styleScale !== this.scale) { e.path.setAttribute("stroke-width", (e._shared ? 2.6 : e._lit ? 1.3 : 0.8) / this.scale); e._styleScale=this.scale; }
       });
+      if(this._batchedEdges)this._drawEdgeBatches();
+    }
+
+    // Dense graphs share a handful of SVG paths by style. Nodes and their
+    // accessible hit targets remain independent SVG elements.
+    _drawEdgeBatches() {
+      const groups=new Map();
+      for(const edge of this.edges) {
+        if(!edge._geometry || edge.path.style.display==='none' || !edge._alpha)continue;
+        const key=edge._stroke+'|'+(edge._shared?2.6:edge._lit?1.3:.8)+'|'+edge._alpha;
+        if(!groups.has(key))groups.set(key,{edge,parts:[]});
+        groups.get(key).parts.push(edge._geometry);
+      }
+      for(const [key,{edge,parts}] of groups) {
+        let batch=this._edgeBatches.get(key);
+        if(!batch){const path=el('path',{class:'gedge edge-batch',fill:'none',stroke:edge._stroke,'stroke-width':edge._width});this.edgeLayer.appendChild(path);batch={path};this._edgeBatches.set(key,batch);}
+        clearTimeout(batch.timer);batch.timer=null;
+        if(batch.width!==edge._width){batch.path.setAttribute('stroke-width',edge._width);batch.width=edge._width;}
+        const d=parts.join('');if(batch.d!==d){batch.path.setAttribute('d',d);batch.d=d;}
+        if(batch.alpha!==edge._alpha){batch.path.style.opacity=edge._alpha;batch.alpha=edge._alpha;}
+      }
+      for(const [key,batch] of this._edgeBatches)if(!groups.has(key)&&batch.timer==null){
+        batch.path.style.opacity=0;batch.alpha=0;
+        batch.timer=setTimeout(()=>{batch.path.remove();this._edgeBatches.delete(key);},this._reducedMotion.matches?0:180);
+      }
     }
 
     // colors / opacity / visibility — only when state changes
@@ -912,12 +990,15 @@
         const col = e.kind === "cite" ? pal.cite : e.kind === "ref" ? pal.ref : pal.faint;
         e.path.setAttribute("stroke", e._shared ? pal.ink : col);
         e.path.setAttribute("stroke-width", (e._shared ? 2.6 : e._lit ? 1.3 : 0.8) / this.scale);
+        e._stroke=e._shared?pal.ink:col;
+        e._width=(e._shared?2.6:e._lit?1.3:.8)/this.scale;
         const base = e._shared ? 1 : (focus || clusterMembers) ? (lit ? 0.8 : 0.04) : (e.kind === "cross" ? 0.20 : 0.32);
         if (!modeVisible && !e._filtered) e._fadeUntil = performance.now() + (this._reducedMotion.matches ? 0 : 180);
         const revealing = modeVisible && e._filtered;
         e._filtered = !modeVisible;
         if (revealing) this._dirty.positions = true;
         e.path.style.opacity = modeVisible ? base * this.linkOpacity : 0;
+        e._alpha=modeVisible?base*this.linkOpacity:0;
       });
     }
 
@@ -928,12 +1009,24 @@
       const boxes = [];
       const widthPx = this.W, heightPx = this.H;
       const maxLabels = Math.max(12, Math.min(80, Math.floor(widthPx * heightPx / 18000)));
-      const ordered = this.nodes.slice().sort((a, b) => {
+      if(!this._labelOrder || this._labelFocus!==focus)this._labelOrder = this.nodes.slice().sort((a, b) => {
         const rank = n => n.id === focus ? 1e9 : n.role === 'seed' ? 1e8 : n.topHub ? 1e7 + n.degree : n.degree;
         return rank(b) - rank(a);
       });
+      this._labelFocus=focus;
+      const ordered=this._labelOrder;
+      const cells=new Map(),visible=new Set(),cellSize=64;
+      for(const n of this.nodes)if(this._visible(n)) {
+        visible.add(n.id);
+        const x=(n.x+(n._ox||0))*this.scale+this.tx,y=(n.y+(n._oy||0))*this.scale+this.ty,r=n.rad*this.scale+3;
+        if(x+r<0||x-r>widthPx||y+r<0||y-r>heightPx)continue;
+        const circle={n,x,y,r};
+        for(let a=Math.floor((x-r)/cellSize);a<=Math.floor((x+r)/cellSize);a++)for(let b=Math.floor((y-r)/cellSize);b<=Math.floor((y+r)/cellSize);b++){
+          const key=a+':'+b;if(!cells.has(key))cells.set(key,[]);cells.get(key).push(circle);
+        }
+      }
       ordered.forEach(n => {
-        if (!n.labelCandidate || !this._visible(n) || boxes.length >= maxLabels) { n.tEl.style.display = 'none'; return; }
+        if (!n.labelCandidate || !visible.has(n.id) || boxes.length >= maxLabels) { n.tEl.style.display = 'none'; return; }
         const fs = n.role === 'seed' ? 15 : 13;
         // Canvas measures without interleaving SVG writes and layout reads.
         if (n.labelWidth == null) {
@@ -955,14 +1048,9 @@
           const box = { l: candidate.x - width / 2 - 4, r: candidate.x + width / 2 + 4, t: candidate.y, b: candidate.y + fs + 5 };
           const outside = box.l < 0 || box.r > widthPx || box.t < 0 || box.b > heightPx;
           const overlaps = boxes.some(b => box.l < b.r && box.r > b.l && box.t < b.b && box.b > b.t);
-          const hitsNode = this.nodes.some(other => {
-            if (other === n || !this._visible(other)) return false;
-            const nx = (other.x + (other._ox || 0)) * this.scale + this.tx, ny = (other.y + (other._oy || 0)) * this.scale + this.ty;
-            const r = other.rad * this.scale + 3;
-            const dx = nx - Math.max(box.l, Math.min(nx, box.r));
-            const dy = ny - Math.max(box.t, Math.min(ny, box.b));
-            return dx * dx + dy * dy < r * r;
-          });
+          let hitsNode=false;
+          for(let a=Math.floor(box.l/cellSize);a<=Math.floor(box.r/cellSize)&&!hitsNode;a++)for(let b=Math.floor(box.t/cellSize);b<=Math.floor(box.b/cellSize)&&!hitsNode;b++)
+            hitsNode=(cells.get(a+':'+b)||[]).some(c=>{if(c.n===n)return false;const dx=c.x-Math.max(box.l,Math.min(c.x,box.r)),dy=c.y-Math.max(box.t,Math.min(c.y,box.b));return dx*dx+dy*dy<c.r*c.r;});
           if (!outside && !overlaps && (!hitsNode || priority)) { chosen = { ...candidate, box }; break; }
         }
         n.tEl.style.display = chosen ? '' : 'none';
