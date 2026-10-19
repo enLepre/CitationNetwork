@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "build": "node scripts/build.cjs",
-    "test": "node --test tests/data.test.cjs tests/clusters.test.cjs",
-    "test:browser": "node tests/adaptive.cjs && node tests/citation-filter.cjs && node tests/forces.cjs && node tests/bonds.cjs && node tests/performance.cjs && node tests/layout-controls.cjs && node tests/search.cjs && node tests/selection.cjs && node tests/motion.cjs && node tests/browser.cjs",
+    "test": "node --test tests/data.test.cjs tests/clusters.test.cjs tests/keywords.test.cjs",
+    "test:browser": "node tests/keywords.cjs && node tests/adaptive.cjs && node tests/citation-filter.cjs && node tests/forces.cjs && node tests/bonds.cjs && node tests/performance.cjs && node tests/layout-controls.cjs && node tests/search.cjs && node tests/selection.cjs && node tests/motion.cjs && node tests/browser.cjs",
     "start": "node scripts/serve.cjs"
   },
   "dependencies": {

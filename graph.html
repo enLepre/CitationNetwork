@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f5f2ec">
 <title>Graph — Citation Network</title>
 <script blocking="render" src="assets/navigation.js?v=search-14"></script>
-<link rel="stylesheet" href="assets/styles.css?v=groups-40">
+<link rel="stylesheet" href="assets/styles.css?v=keywords-41">
 
 </head>
 <body data-page="graph">
@@ -48,10 +48,28 @@
         <div class="group"><button id="toggle-clusters" type="button" aria-label="Show research groups" aria-pressed="false" title="Show research groups"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 21V3m0 1c5-4 9 4 14 0v10c-5 4-9-4-14 0"/></svg></button></div>
         <details class="graph-options graph-search" id="graph-search">
           <summary aria-label="Search papers in graph" title="Search papers in graph"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></summary>
-          <div class="graph-search-panel settings-panel">
+          <div class="graph-search-panel">
+          <section class="settings-panel" aria-label="Quick graph search">
             <input id="graph-search-query" aria-label="Search papers" type="search" placeholder="Keywords, author, journal…" autocomplete="off">
             <p id="graph-search-count" role="status" aria-live="polite"></p>
             <button id="graph-search-clear" type="button">Clear search</button>
+          </section>
+          <section class="settings-panel keyword-filter" id="keyword-filter" aria-label="Rebuild graph by keywords">
+            <h2>Rebuild by keywords</h2>
+            <fieldset class="keyword-fields"><legend>Search in</legend>
+              <label><input type="checkbox" name="keyword-field" value="title" checked>Title</label>
+              <label><input type="checkbox" name="keyword-field" value="authors" checked>Authors</label>
+              <label><input type="checkbox" name="keyword-field" value="abstract">Abstract</label>
+            </fieldset>
+            <div class="keyword-entry"><input id="keyword-query" type="search" placeholder="Find or add a keyword…" aria-label="Find or add a keyword" autocomplete="off" maxlength="200"><button id="keyword-add" type="button" aria-label="Add keyword">+</button></div>
+            <div id="keyword-selected" class="keyword-selected" role="group" aria-label="Selected keywords"></div>
+            <div id="keyword-suggestions" class="keyword-suggestions" role="group" aria-label="Suggested keywords"></div>
+            <label for="keyword-mode">Match <select id="keyword-mode"><option value="any">Any selected keyword</option><option value="all">All selected keywords</option></select></label>
+            <p id="keyword-coverage"></p>
+            <p id="keyword-status" role="status" aria-live="polite"></p>
+            <button id="keyword-rebuild" type="button">Rebuild graph</button>
+            <button id="keyword-reset" type="button" hidden>Reset keyword filters</button>
+          </section>
           </div>
         </details>
         <details class="graph-options" id="graph-options">
@@ -111,8 +129,9 @@
 <script src="assets/sample.js?v=search-14" defer></script>
 <script src="assets/clusters.js?v=groups-40" defer></script>
 <script src="assets/graph.js?v=groups-40" defer></script>
-<script src="assets/openalex.js?v=groups-40" defer></script>
+<script src="assets/openalex.js?v=keywords-41" defer></script>
 <script src="assets/tweaks.js?v=seed-33" defer></script>
-<script src="assets/app.js?v=groups-40" defer></script>
+<script src="assets/keywords.js?v=keywords-41" defer></script>
+<script src="assets/app.js?v=keywords-41" defer></script>
 </body>
 </html>

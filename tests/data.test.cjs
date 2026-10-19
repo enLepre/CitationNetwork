@@ -13,6 +13,24 @@ const raw = (id, refs = []) => ({ id: 'https://openalex.org/' + id, display_name
   referenced_works: refs.map(r => 'https://openalex.org/' + r), publication_year: 2025 });
 const ok = data => ({ ok: true, status: 200, json: async () => data });
 
+test('keyword abstracts use bounded batches, cache results, and resolve unavailable abstracts', async () => {
+  let calls=0,active=0,peak=0;
+  const api=client(async url=>{
+    calls++; active++; peak=Math.max(peak,active);
+    const u=new URL(url); assert.equal(u.searchParams.get('select'),'id,abstract_inverted_index');
+    const ids=u.searchParams.get('filter').slice(12).split('|'); assert(ids.length<=50);
+    await new Promise(r=>setTimeout(r,5)); active--;
+    return ok({results:ids.map(id=>({id:'https://openalex.org/'+id,abstract_inverted_index:id==='W0'?null:{Quantum:[0],catalysis:[1]}}))});
+  });
+  const papers=Array.from({length:201},(_,i)=>api.toPaper(raw('W'+i)));
+  await api.abstractsFor(papers);
+  assert.equal(calls,5); assert(peak<=3); assert.equal(papers[1].abstract,'Quantum catalysis');
+  assert.equal(papers[0].abstract,'No abstract available from OpenAlex.');
+  await api.abstractsFor(papers); assert.equal(calls,5);
+  const controller=new AbortController(); controller.abort();
+  await assert.rejects(api.abstractsFor([{id:'Wnew',abstract:null}],{signal:controller.signal}),{name:'AbortError'});
+});
+
 test('search is lightweight; selecting a result still loads its references', async () => {
   const urls = [];
   const api = client(async url => {

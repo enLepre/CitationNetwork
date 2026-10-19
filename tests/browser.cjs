@@ -206,9 +206,10 @@ async function labelStats(page) {
     await page.waitForURL('**/graph.html?*');
     await page.waitForFunction(() => window.CG?.nodes.length && document.getElementById('loader').hidden);
     const direct = await page.evaluate(() => CG.nodes.map(n => ({ id:n.id, x:n.x, y:n.y })));
-    assert.equal(direct.length, 250); await settled(page);
+    // Home now defaults to adaptive loading: all 160 citing papers in this fixture.
+    assert.equal(direct.length, 1 + seedRefs.length + 160); await settled(page);
     const expanded = await page.evaluate(() => CG.nodes.map(n => ({ id:n.id,x:n.x,y:n.y })));
-    assert.equal(expanded.length, 262);
+    assert.equal(expanded.length, 1 + seedRefs.length + 160 + 12);
     for (const old of direct) { const node=expanded.find(n=>n.id===old.id);assert.equal(node.x,old.x);assert.equal(node.y,old.y); }
     report.checks.push('Home is centered Search only; selecting a result opens a distinct Graph document; progressive layout stays stable');
     assert.equal(await page.locator('main').count(), 1);
@@ -342,7 +343,7 @@ async function labelStats(page) {
     assert.equal(await page.locator('.topbar a:visible').count(),4);
     assert.equal(await page.locator('[data-view=search]').getAttribute('aria-current'),'page');
     await page.click('#share-btn');
-    assert.equal(new URL(await page.evaluate(()=>window.copiedGraphUrl)).searchParams.get('density'),'120');
+    assert.equal(new URL(await page.evaluate(()=>window.copiedGraphUrl)).searchParams.get('density'),'0');
     const timeOrigin=await page.evaluate(()=>performance.timeOrigin);
     await page.click('[data-view=search]');assert.equal(await page.evaluate(()=>performance.timeOrigin),timeOrigin);
     await page.reload();assert.equal(await page.locator('#view-search').count(),1);assert.equal(urls.length,beforeHome);

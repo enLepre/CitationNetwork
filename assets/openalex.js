@@ -357,6 +357,36 @@ window.OpenAlex = (function () {
   }
 
   // Lazily fetch a single paper's abstract (the field omitted from bulk fetches).
+  // Keyword rebuilds request only IDs and abstracts, in bounded bulk batches.
+  async function abstractsFor(papers, options = {}) {
+    abort(options.signal);
+    const missing = [];
+    for (const paper of papers) {
+      const cached = paperCache.get(paper.id);
+      if (paper.abstract == null && cached?.expires > Date.now() && cached.paper.abstract != null) paper.abstract = cached.paper.abstract;
+      if (paper.abstract == null) missing.push(paper);
+    }
+    let next = 0;
+    const chunks = [];
+    for (let i = 0; i < missing.length; i += 50) chunks.push(missing.slice(i,i+50));
+    await Promise.all(Array.from({length:Math.min(3,chunks.length)},async () => {
+      while (next < chunks.length) {
+        abort(options.signal);
+        const chunk = chunks[next++];
+        const data = await getJSON(API + '/works?filter=openalex_id:' + chunk.map(p=>p.id).join('|') + '&per-page=50&select=id,abstract_inverted_index',options);
+        abort(options.signal);
+        if (!Array.isArray(data.results)) throw new Error('Abstract response unavailable.');
+        const index = new Map(data.results.map(w=>[shortId(w.id),w]));
+        for (const paper of chunk) {
+          const record = index.get(paper.id);
+          paper.abstract = abstractFromInverted(record?.abstract_inverted_index) || 'No abstract available from OpenAlex.';
+          const cached = paperCache.get(paper.id);
+          if (cached) cached.paper.abstract = paper.abstract;
+        }
+      }
+    }));
+  }
+
   async function abstractFor(id) {
     if (!id) return "";
     const cached = paperCache.get(id);
@@ -557,5 +587,5 @@ window.OpenAlex = (function () {
     return decorate(network(papers, seed, citeRes, refPapers, linkedShown));
   }
 
-  return { initialBudget, rankExpansion, expandNetwork, citingPage, sortResults, cachedNetwork, saveNetwork, flushCache, search, searchPage, searchAuthors, resolveTop, byId, fetchByIds, abstractFor, citing, sourceImpact, buildNetwork, toPaper };
+  return { initialBudget, rankExpansion, expandNetwork, citingPage, sortResults, cachedNetwork, saveNetwork, flushCache, search, searchPage, searchAuthors, resolveTop, byId, fetchByIds, abstractFor, abstractsFor, citing, sourceImpact, buildNetwork, toPaper };
 })();

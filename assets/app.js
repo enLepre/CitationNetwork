@@ -10,6 +10,7 @@
   /* ---- current network state ---- */
   let CURRENT = { seedId: null, papers: [], byId: {}, edges: [], neighbors: {}, meta: {} };
   let graph = null;
+  let keywordController = null;
   let citeLimit = 0;
   let lastSeed = null;          // paper object used for retry
   let sortKey = "cites";
@@ -201,6 +202,7 @@
   // One owner for every load, including examples, retries, density and shared URLs.
   // Cancel network requests and worker jobs as soon as the user chooses a new seed.
   async function startLoad(resolveSeed, title, cacheId = null) {
+    keywordController?.cancel();
     cancelExpansion();
     if (loadController) loadController.abort();
     loadController = new AbortController();
@@ -261,7 +263,7 @@
       + (net.linkedShown ? ' · ' + net.linkedShown + ' co-cited' : '');
   }
 
-  async function applyNetwork(net, { seq = netSeq, signal, preserve = false } = {}) {
+  async function applyNetwork(net, { seq = netSeq, signal, preserve = false, rebuild = false } = {}) {
     CURRENT.seedId = net.seedId;
     CURRENT.papers = net.papers;
     CURRENT.edges = net.edges;
@@ -270,10 +272,12 @@
     CURRENT.meta = net;
 
     let view = null;
-    if (graph && !preserve) {
+    if (graph && !preserve && !rebuild) {
       try { const saved = JSON.parse(sessionStorage.getItem('citation-graph-view') || 'null'); if (saved?.seedId === net.seedId && saved.density === citeLimit && Array.isArray(saved.positions) && Number.isFinite(saved.scale) && saved.scale > 0) view = saved; } catch (_) {}
     }
-    const applied = graph ? await graph.setData(net.papers, net.edges, net.seedId, { preserve, view }) : true;
+    const displayed = keywordController ? await keywordController.source(net, {signal}) : net;
+    if (seq !== netSeq || signal?.aborted) return;
+    const applied = graph ? await graph.setData(displayed.papers, displayed.edges, net.seedId, { preserve, view }) : true;
     if (!applied || seq !== netSeq || (signal && signal.aborted)) return;
     populateTypeFilter();
 
@@ -483,7 +487,7 @@
   let citationSeed = null;
   function syncCitationFilter() {
     if (!graph || !$('citation-filter')) return;
-    const counts = graph.nodes.map(n => n.cites).filter(n => Number.isFinite(n) && n >= 0);
+    const counts = (keywordController?.applied.terms.length ? CURRENT.papers : graph.nodes).map(n => n.cites).filter(n => Number.isFinite(n) && n >= 0);
     const max = Math.max(0, ...counts);
     if (citationSeed !== CURRENT.seedId) {
       citationSeed = CURRENT.seedId;
@@ -529,7 +533,7 @@
     const visible = graph.nodes.filter(n => graph._visible(n)).length;
     if ($('graph-search-count')) $('graph-search-count').textContent = `${visible} of ${graph.nodes.length} papers shown`;
 
-    $('citation-filter-count').textContent = `${visible} shown · ${graph.nodes.length} loaded`;
+    $('citation-filter-count').textContent = `${visible} shown · ${CURRENT.papers.length} loaded`;
     if (CURRENT.meta.adaptive) $('citation-filter-count').textContent += ` · ${(CURRENT.meta.citingIds || []).length} of ${fmt(CURRENT.meta.citingTotal)} citing papers loaded`;
     const button = $('load-more-papers');
     if (button) {
@@ -576,6 +580,15 @@
     } finally { if (request === layoutRequest) syncLayoutControls(); }
   }
   function wireControls() {
+    if ($('keyword-filter')) keywordController = new CitationKeywords.Controller($('keyword-filter'), {
+      abstracts: (papers, options) => OpenAlex.abstractsFor(papers, options),
+      rebuild: async signal => {
+        if (loading || expanding) throw new Error('Wait for loading to finish.');
+        cancelExpansion();
+        await applyNetwork(CURRENT.meta, {signal, rebuild:true});
+        if (!signal.aborted) graph.fit(true);
+      }
+    });
     function setCitationBound(isUpper, value) {
       if (!graph || !Number.isFinite(value)) return;
       const max = Number($('citation-min').dataset.citationMax);
@@ -1133,7 +1146,8 @@
     } catch (_) {}
     clearTimeout(layoutTimer); layoutRequest++;
     resumeSearch = PAGE === 'search' && $('search-results').getAttribute('aria-busy') === 'true';
-    resumeLoad = loading;
+    resumeLoad = loading || Boolean(keywordController?.busy);
+    keywordController?.cancel();
     cancelExpansion(); loadController?.abort(); graph?.cancelLayout(); cancelSearch();
   });
   if (PAGE !== 'search') {

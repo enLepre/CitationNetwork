@@ -91,3 +91,13 @@ Groups merge only when their title-term cosine similarity is at least 0.7 and th
 Run `node --test tests/clusters.test.cjs` for grouping and label checks; `node tests/citation-filter.cjs` covers flag toggling, highlighting, and zoom stability alongside existing filters.
 
 Keyless OpenAlex cursor requests fail after page one. Adaptive loading therefore uses basic numbered pagination (up to 10,000 results per citation range); reaching that boundary asks the user to narrow the range. Failure of a later initial page retains downloaded papers with a warning rather than discarding the graph, and partial initial results are not persisted as a complete cache entry.
+
+### Keyword graph rebuilding
+
+The magnifying-glass search menu contains a separate **Rebuild by keywords** box. Choose Title, Authors and/or Abstract, select several suggested terms, or add a custom keyword or phrase with Enter or the + button. Suggestions show the number of loaded papers containing each term. Choose whether any or all keywords must match, then press **Rebuild graph** to recompute the layout using only matching papers and the links between them. The starting paper remains as an anchor even when it does not match. Citation, role and quick-search filters still apply.
+
+This searches the currently loaded network, not every paper in OpenAlex. The original network stays available: **Reset keyword filters** restores it. Applied choices survive reload and navigation within the session for the same seed, and also apply to subsequently loaded batches. Paper and List retain the complete network. Keyword choices are local to the session and are not included in shared URLs.
+
+Abstract search is opt-in. It fetches only IDs and abstract indexes, in batches of 50 with at most three concurrent requests, reuses cached abstracts, and shows coverage. Missing abstracts cannot match abstract-only terms. A failed abstract request leaves the existing graph intact and can be retried. Topic suggestions use the selected fields and do not require an AI service.
+
+Run `node --test tests/keywords.test.cjs tests/data.test.cjs` and `node tests/keywords.cjs` for matching, graph rebuilding, restoration, abstract failure/retry and mobile checks.
