@@ -1,3 +1,4 @@
+const { chooseOption } = require('./dropdown-helper.cjs');
 const { chromium } = require('playwright');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -141,9 +142,9 @@ async function labelStats(page) {
     assert(new Set(liveDrag.map(s=>s.x)).size>1,'graph moves while the slider is changing');
     await page.waitForTimeout(200);await page.waitForFunction(()=>!CG._cancelWorker&&!CG._relocation&&!CG._physicsRunning);
     await page.evaluate(()=>{CG.select('Wr2');CG.select('Wr3');});
-    await page.selectOption('#graph-links','selected');await frames(page);
+    await chooseOption(page, '#graph-links', 'selected');await frames(page);
     assert(await page.evaluate(()=>CG.edges.filter(e=>e.path.style.display!=='none'&&Number(e.path.style.opacity)>0).every(e=>CG.selectedIds.has(e.s)||CG.selectedIds.has(e.t))));
-    await page.selectOption('#graph-links','shared');await frames(page);
+    await chooseOption(page, '#graph-links', 'shared');await frames(page);
     assert(await page.evaluate(()=>CG.edges.some(e=>e.path.style.display!=='none'&&Number(e.path.style.opacity)>0)&&CG.edges.filter(e=>e.path.style.display!=='none'&&Number(e.path.style.opacity)>0).every(e=>e._shared)));
     const beforeLocal=await page.evaluate(()=>({center:CG.selected,points:CG.nodes.map(n=>({id:n.id,x:n.x,y:n.y})),near:[...CG.adj[CG.selected]]}));
     await page.click('#spread-nearby');await page.waitForFunction(()=>document.getElementById('graph-layout-status').textContent==='Spacing updated.'&&!CG._relocation&&!CG._cancelWorker);

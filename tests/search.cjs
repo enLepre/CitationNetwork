@@ -1,3 +1,4 @@
+const { chooseOption } = require('./dropdown-helper.cjs');
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -59,10 +60,10 @@ const paper=(id,title)=>({id:'https://openalex.org/'+id,display_name:title,publi
     fail=true;await page.fill('#big-input','failure');await page.click('#big-go');await page.waitForSelector('#search-retry:visible');assert.equal(await page.locator('.pt').first().textContent(),'fresh');
     fail=false;await page.click('#search-retry');await page.waitForFunction(()=>document.querySelector('.pt')?.textContent==='failure');
     await page.fill('#big-input','catalyssi');await page.click('#big-go');await page.waitForFunction(()=>document.querySelector('#search-status').textContent.includes('spelling alternatives'));assert.equal(await page.locator('.pt').first().textContent(),'Catalysis');
-    await page.fill('#big-input','Jane Researcher');await page.selectOption('#search-mode','authors');await page.waitForSelector('.author-result');
+    await page.fill('#big-input','Jane Researcher');await chooseOption(page, '#search-mode', 'authors');await page.waitForSelector('.author-result');
     assert((await page.locator('.author-result').textContent()).includes('University of Science'));
     await page.click('.author-result');await page.waitForFunction(()=>document.querySelector('.pt')?.textContent==='Selected author’s publication');
-    await page.selectOption('#search-sort','citations');
+    await chooseOption(page, '#search-sort', 'citations');
     await page.waitForFunction(()=>document.querySelector('#search-results').getAttribute('aria-busy')==='false');
     assert(urls.some(u=>(u.searchParams.get('filter')||'')==='authorships.author.id:A1'&&u.searchParams.get('sort')==='cited_by_count:desc'));
     await page.click('#author-back');await page.waitForSelector('.author-result');
@@ -73,9 +74,9 @@ const paper=(id,title)=>({id:'https://openalex.org/'+id,display_name:title,publi
     const anchor=await page.locator('#big-input').boundingBox();
     await page.fill('#big-input','');assert.equal(await page.locator('.presult').count(),0);
     assert.equal((await page.locator('#big-input').boundingBox()).y,anchor.y,'Clearing search retains its position');
-    await page.selectOption('#search-mode','papers');await page.fill('#big-input','sorting');await page.click('#big-go');
+    await chooseOption(page, '#search-mode', 'papers');await page.fill('#big-input','sorting');await page.click('#big-go');
     for(const [sort,id,api] of [['newest','Wnew','publication_date:desc'],['oldest','Wold','publication_date:asc'],['citations','Wold','cited_by_count:desc']]) {
-      await page.selectOption('#search-sort',sort);await page.waitForFunction(()=>document.querySelector('#search-results').getAttribute('aria-busy')==='false');
+      await chooseOption(page, '#search-sort', sort);await page.waitForFunction(()=>document.querySelector('#search-results').getAttribute('aria-busy')==='false');
       assert.equal(await page.locator('.presult').first().getAttribute('data-id'),id);
       assert(urls.some(u=>u.searchParams.get('sort')===api));
     }

@@ -1,3 +1,4 @@
+const { chooseOption } = require('./dropdown-helper.cjs');
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -32,12 +33,12 @@ const server = http.createServer((req, res) => {
       await input.fill(query); assert.deepEqual(await ids(), ['W1'], query);
     }
     await input.fill('alice'); assert.deepEqual(await ids(), ['W2','W3']);
-    await page.locator('#role-filter').selectOption('ref'); assert.deepEqual(await ids(), ['W2']);
-    await page.locator('#type-filter').selectOption('review'); assert.deepEqual(await ids(), []);
+    await chooseOption(page, '#role-filter', 'ref'); assert.deepEqual(await ids(), ['W2']);
+    await chooseOption(page, '#type-filter', 'review'); assert.deepEqual(await ids(), []);
     assert.match(await page.locator('#papers-body').innerText(), /No papers match/);
     assert(await page.locator('#export-bib').isDisabled());
-    await page.locator('#type-filter').selectOption('');
-    await page.locator('#role-filter').selectOption('');
+    await chooseOption(page, '#type-filter', '');
+    await chooseOption(page, '#role-filter', '');
     await page.locator('[data-sort=year]').click(); assert.deepEqual(await ids(), ['W2','W3']);
     assert.match(await page.locator('#list-seed').innerText(), /2 of 3 papers/);
     const downloadPromise = page.waitForEvent('download');

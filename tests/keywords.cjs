@@ -1,3 +1,4 @@
+const { chooseOption } = require('./dropdown-helper.cjs');
 const { chromium } = require('playwright');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -100,7 +101,7 @@ async function settled(page) {
   await page.fill('#keyword-query','protein folding'); await page.press('#keyword-query','Enter');
   await page.click('#keyword-rebuild'); await page.waitForFunction(()=>document.getElementById('keyword-filter').getAttribute('aria-busy')==='false');
   assert(await page.evaluate(()=>CG.nodes.length)>filtered.ids.length);
-  await page.selectOption('#keyword-mode','all'); await page.click('#keyword-rebuild');
+  await chooseOption(page, '#keyword-mode', 'all'); await page.click('#keyword-rebuild');
   await page.waitForFunction(()=>document.getElementById('keyword-status').textContent.startsWith('0 matching'));
   assert.equal(await page.evaluate(()=>CG.nodes.length),1);
   await page.click('#keyword-reset'); await page.waitForFunction(()=>document.getElementById('keyword-status').textContent.includes('restored'));
