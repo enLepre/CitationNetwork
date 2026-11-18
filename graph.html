@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Explore the references, citing papers and shared foundations around a paper.">
+<meta name="theme-color" content="#f5f2ec">
+<link rel="icon" href="assets/favicon.ico" sizes="16x16 32x32">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" sizes="any">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Citation Graph">
+<meta property="og:title" content="Citation Graph">
+<meta property="og:description" content="Explore the references, citing papers and shared foundations around a paper.">
+<meta property="og:image" content="https://enlepre.github.io/CitationNetwork/assets/citation-graph-preview.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Citation Graph — a central paper connected to references and citing papers.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Citation Graph">
+<meta name="twitter:description" content="Explore the references, citing papers and shared foundations around a paper.">
+<meta name="twitter:image" content="https://enlepre.github.io/CitationNetwork/assets/citation-graph-preview.png">
+<meta name="twitter:image:alt" content="Citation Graph — a central paper connected to references and citing papers.">
+<title>Graph — Citation Network</title>
+<script blocking="render" src="assets/navigation.js?v=search-14"></script>
+<link rel="stylesheet" href="assets/styles.css?v=svg-45">
+
+</head>
+<body data-page="graph">
+<div id="app">
+<header class="topbar">
+<nav id="notebook-menu" class="notebook-menu" aria-label="Citation Network navigation">
+<a class="menu-view" data-view="search" href="index.html">Search</a>
+<a class="menu-view" data-view="paper" href="paper.html">Paper</a>
+<a class="menu-view active" aria-current="page" data-view="graph" href="graph.html">Graph</a>
+<a class="menu-view" data-view="list" href="list.html">List</a>
+<button id="theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode" aria-pressed="false">
+          <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+          <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13.1A9 9 0 0 1 10.9 3.1a9 9 0 1 0 10 10Z"/></svg>
+        </button>
+<button id="share-btn" class="share-btn" aria-label="Share graph" title="Copy a link that reopens this exact graph">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
+          </button>
+</nav>
+</header>
+<div class="workspace-content">
+<main class="view" id="view-graph" aria-label="Citation graph"><div class="graph-viewport"><div class="stage-overlay" id="loader" hidden="">
+        <div class="loader-box">
+          <div class="spinner" id="loader-spin"></div>
+          <div class="loader-title" id="loader-title">Building citation graph…</div>
+          <div class="loader-sub" id="loader-sub">Querying OpenAlex for references and citing work</div>
+          <div class="loader-actions" id="loader-actions" hidden="">
+            <button class="btn" id="loader-retry">Try again</button>
+            <button class="btn" id="loader-sample">Explore sample graph</button>
+          </div>
+        </div>
+      </div><span id="status-counts" hidden aria-live="polite"></span><aside class="paper-stack" id="detail" aria-label="Selected papers" hidden></aside><svg id="graph-canvas" xmlns="http://www.w3.org/2000/svg" aria-label="Connected papers"></svg><div class="controls">
+<div class="group">
+          <button id="zoom-in" title="Zoom in">+</button>
+          <button id="zoom-out" title="Zoom out">−</button>
+        </div>
+        <div class="group">
+          <button id="zoom-fit" title="Fit to screen">⤢</button>
+        </div>
+        <div class="group"><button id="toggle-clusters" type="button" aria-label="Show research groups" aria-pressed="false" title="Show research groups"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 21V3m0 1c5-4 9 4 14 0v10c-5 4-9-4-14 0"/></svg></button></div>
+        <details class="graph-options graph-search" id="graph-search">
+          <summary aria-label="Search papers in graph" title="Search papers in graph"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></summary>
+          <div class="graph-search-panel">
+          <section class="settings-panel" aria-label="Quick graph search">
+            <input id="graph-search-query" aria-label="Search papers" type="search" placeholder="Keywords, author, journal…" autocomplete="off">
+            <p id="graph-search-count" role="status" aria-live="polite"></p>
+            <button id="graph-search-clear" type="button">Clear search</button>
+          </section>
+          <section class="settings-panel keyword-filter" id="keyword-filter" aria-label="Rebuild graph by keywords">
+            <h2>Rebuild by keywords</h2>
+            <fieldset class="keyword-fields"><legend>Search in</legend>
+              <label><input type="checkbox" name="keyword-field" value="title" checked>Title</label>
+              <label><input type="checkbox" name="keyword-field" value="authors" checked>Authors</label>
+              <label><input type="checkbox" name="keyword-field" value="abstract">Abstract</label>
+            </fieldset>
+            <div class="keyword-entry"><input id="keyword-query" type="search" placeholder="Find or add a keyword…" aria-label="Find or add a keyword" autocomplete="off" maxlength="200"><button id="keyword-add" type="button" aria-label="Add keyword">+</button></div>
+            <div id="keyword-selected" class="keyword-selected" role="group" aria-label="Selected keywords"></div>
+            <div id="keyword-suggestions" class="keyword-suggestions" role="group" aria-label="Suggested keywords"></div>
+            <label for="keyword-mode">Match <select id="keyword-mode"><option value="any">Any selected keyword</option><option value="all">All selected keywords</option></select></label>
+            <p id="keyword-coverage"></p>
+            <p id="keyword-status" role="status" aria-live="polite"></p>
+            <button id="keyword-rebuild" type="button">Rebuild graph</button>
+            <button id="keyword-reset" type="button" hidden>Reset keyword filters</button>
+          </section>
+          </div>
+        </details>
+        <details class="graph-options" id="graph-options">
+          <summary aria-label="Graph settings" title="Graph settings"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5" fill="var(--bg)"/><circle cx="15" cy="17" r="2.5" fill="var(--bg)"/></svg></summary>
+          <div class="graph-options-panel">
+<section class="settings-panel" aria-label="Force controls">
+            <div class="force-control"><label class="force-tooltip" for="graph-center"><span>Center force</span> <output id="center-value">100%</output></label>
+            <input id="graph-center" class="force-slider" aria-label="Center force" type="range" min="0" max="300" step="5" value="100" disabled></div>
+            <div class="force-control"><label class="force-tooltip" for="graph-spacing"><span>Repel force</span> <output id="spacing-value">100%</output></label>
+            <input id="graph-spacing" class="force-slider" aria-label="Repel force" type="range" min="0" max="300" step="5" value="100" disabled></div>
+            <div class="force-control"><label class="force-tooltip" for="graph-bonds"><span>Link force</span> <output id="bonds-value">100%</output></label>
+            <input id="graph-bonds" class="force-slider" aria-label="Link force" type="range" min="0" max="300" step="5" value="100" disabled></div>
+            <div class="force-control"><label class="force-tooltip" for="graph-distance"><span>Link distance</span> <output id="distance-value">145</output></label>
+            <input id="graph-distance" class="force-slider" aria-label="Link distance" type="range" min="40" max="300" step="5" value="145" disabled></div>
+            <button id="spread-nearby" type="button" disabled>Spread nearby</button>
+            <button id="reset-forces" type="button" disabled>Reset forces</button>
+            <p id="graph-layout-status" role="status" aria-live="polite"></p>
+            </section>
+<section class="citation-filter settings-panel" id="citation-filter" aria-label="Filter papers by citation count">
+
+        <svg id="citation-histogram" viewBox="0 0 280 64" role="img" aria-label="Distribution of citation counts among loaded papers"></svg>
+        <div class="citation-range" id="citation-range">
+          <div class="citation-range-track" aria-hidden="true"><div class="citation-range-selection"></div></div>
+          <input id="citation-min" type="range" min="0" max="1000" step="any" value="0" disabled aria-label="Minimum citations">
+          <input id="citation-upper" type="range" min="0" max="1000" step="any" value="1000" disabled aria-label="Maximum citations">
+          <output id="citation-min-value" class="citation-value" for="citation-min"></output>
+          <output id="citation-upper-value" class="citation-value" for="citation-upper"></output>
+        </div>
+        <div class="citation-axis" id="citation-axis"></div>
+        <p id="citation-filter-count" role="status"></p>
+        <button id="load-more-papers" type="button" hidden>Load more in this range</button>
+        <p id="citation-load-status" role="status"></p>
+      </section>
+<section class="settings-panel" aria-label="Paper groups and connections">
+            <div class="graph-legend" role="group" aria-label="Paper groups">
+              <button type="button" id="toggle-ref" aria-pressed="true"><span class="legend-dot ref" aria-hidden="true"></span>References</button>
+              <button type="button" id="toggle-cite" aria-pressed="true"><span class="legend-dot cite" aria-hidden="true"></span>Citing</button>
+              <button type="button" id="toggle-linked" aria-pressed="true"><span class="legend-dot linked" aria-hidden="true"></span>Co-cited</button>
+            </div>
+            <label for="graph-links">Connections</label>
+            <select id="graph-links"><option value="all">All connections</option><option value="selected">Selected papers</option><option value="shared">Shared connections</option></select>
+
+
+            </section>
+<section class="settings-panel recenter-panel" aria-label="Re-center graph"><button id="recenter-selected" type="button" disabled>Re-center graph</button></section>
+          </div>
+        </details>
+      </div><div class="gtooltip" id="gtooltip"><div class="tt"></div><div class="tm"></div></div></div></main>
+</div>
+</div>
+
+<div class="toast" id="toast" hidden="">
+  <span class="tmsg"></span>
+  <input class="tsub" id="toast-url" readonly="" hidden="">
+</div>
+<script src="assets/layout.js?v=performance-43" defer></script>
+<script src="assets/sample.js?v=search-14" defer></script>
+<script src="assets/clusters.js?v=performance-43" defer></script>
+<script src="assets/graph.js?v=svg-45" defer></script>
+<script src="assets/openalex.js?v=performance-43" defer></script>
+<script src="assets/tweaks.js?v=seed-33" defer></script>
+<script src="assets/keywords.js?v=performance-43" defer></script>
+<script src="assets/app.js?v=performance-43" defer></script>
+</body>
+</html>
