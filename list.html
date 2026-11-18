@@ -22,7 +22,7 @@
 <meta name="twitter:image:alt" content="Citation Graph — a central paper connected to references and citing papers.">
 <title>List — Citation Network</title>
 <script blocking="render" src="assets/navigation.js?v=aligned-15"></script>
-<link rel="stylesheet" href="assets/styles.css?v=list-menu-50">
+<link rel="stylesheet" href="assets/styles.css?v=list-search-51">
 
 <script src="assets/menu.js?v=aligned-20261118" defer></script>
 </head>
@@ -63,7 +63,7 @@
         <div>
           <span class="eyebrow">Citation neighborhood</span>
           <h1>Every paper in the graph</h1>
-          <div class="sub" id="list-seed"></div>
+          <div class="sub" id="list-seed" role="status" aria-live="polite" aria-atomic="true"></div>
         </div>
         <div class="list-tools">
           <label class="type-filter">
@@ -83,6 +83,13 @@
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="M7 10l5 5 5-5"></path><path d="M5 21h14"></path></svg>
             <span>Export .bib</span>
           </button>
+        </div>
+      </div>
+      <div class="list-search" role="search" aria-label="Search this list">
+        <label for="list-search">Search papers</label>
+        <div class="list-search-field">
+          <input id="list-search" type="search" placeholder="Title, author, venue, year, or DOI…" autocomplete="off" aria-controls="papers-body">
+          <button id="list-search-clear" type="button" hidden>Clear</button>
         </div>
       </div>
       <table class="papers">
@@ -128,6 +135,6 @@
 </div>
 <script src="assets/openalex.js?v=performance-43" defer></script>
 <script src="assets/tweaks.js?v=seed-33" defer></script>
-<script src="assets/app.js?v=performance-43" defer></script>
+<script src="assets/app.js?v=list-search-44" defer></script>
 </body>
 </html>

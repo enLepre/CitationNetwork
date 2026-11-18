@@ -574,3 +574,11 @@ body:not([data-page=graph]):not([data-page=list]) .paper-content { width: min(ca
   body:not([data-page=graph]):not([data-page=list]) .search-wrap,
   body:not([data-page=graph]):not([data-page=list]) .paper-content { width: calc(100% - 32px); }
 }
+
+/* Search within the currently loaded list, alongside type and role filters. */
+.list-search { margin: 0 0 28px; }
+.list-search label { display: block; margin-bottom: 8px; font-size: 15px; color: var(--ink-soft); }
+.list-search-field { display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--ink-faint); }
+.list-search-field:focus-within { border-color: var(--ink); }
+.list-search input { flex: 1; min-width: 0; width: 100%; padding: 12px 0; border: 0; background: transparent; font-size: 18px; }
+.list-search button { flex: none; min-height: 44px; padding: 8px 4px; border: 0; background: transparent; font-size: 15px; }

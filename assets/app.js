@@ -944,7 +944,14 @@
   }
 
   /* ---------------- list view ---------------- */
-  const matchesListFilters = p => (!typeFilter || p.type === typeFilter) && (!roleFilter || p.role === roleFilter);
+  let listSearchTerms = [];
+  const normalizeListSearch = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
+  const matchesListFilters = p => {
+    if ((typeFilter && p.type !== typeFilter) || (roleFilter && p.role !== roleFilter)) return false;
+    if (!listSearchTerms.length) return true;
+    const text = normalizeListSearch([p.title, p.authors, p.venue, p.year, p.doi, p.id].filter(value => value != null).join(' '));
+    return listSearchTerms.every(term => text.includes(term));
+  };
   function renderList() {
     const tb = $("papers-body");
     const exp = $("export-bib");
@@ -966,7 +973,7 @@
       .filter(matchesListFilters)
       .sort((a, b) => base(a, b) * dir);
     if (exp) exp.disabled = !rows.length;
-    if (roleFilter || typeFilter) $('list-seed').textContent = rows.length + ' of ' + CURRENT.papers.length + ' papers · ' + CURRENT.edges.length + ' links';
+    if (roleFilter || typeFilter || listSearchTerms.length) $('list-seed').textContent = rows.length + ' of ' + CURRENT.papers.length + ' papers · ' + CURRENT.edges.length + ' links';
     const existingRows = new Map([...tb.querySelectorAll('tr[data-id]')].map(row=>[row.dataset.id,row]));
     tb.querySelectorAll('tr:not([data-id])').forEach(row=>row.remove());
     const keep = new Set(rows.map(p=>p.id));
@@ -989,7 +996,7 @@
       row.classList.toggle('selected',p.id===selectedId);
       if(tb.children[index]!==row) tb.insertBefore(row,tb.children[index]||null);
     });
-    if (!rows.length) tb.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--ink-faint);font-family:var(--mono);font-size:13px">No papers match these filters.</td></tr>`;
+    if (!rows.length) tb.innerHTML = `<tr><td colspan="6" style="padding:40px;text-align:center;color:var(--ink-faint);font-family:var(--mono);font-size:13px">No papers match your search and filters.</td></tr>`;
     if(!tb._wired) {
       tb._wired=true;
       const select = event => {
@@ -1007,6 +1014,19 @@
       b.setAttribute("data-dir", active ? (sortDir === "asc" ? "↑" : "↓") : "");
     });
   }
+
+  function updateListSearch() {
+    const input = $('list-search');
+    listSearchTerms = normalizeListSearch(input.value).trim().split(/\s+/).filter(Boolean);
+    $('list-search-clear').hidden = !input.value;
+    renderList();
+  }
+  $('list-search')?.addEventListener('input', updateListSearch);
+  $('list-search-clear')?.addEventListener('click', () => {
+    $('list-search').value = '';
+    updateListSearch();
+    $('list-search').focus();
+  });
 
   $("role-filter")?.addEventListener("change", e => { roleFilter = e.target.value; renderList(); });
 
