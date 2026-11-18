@@ -6,6 +6,5 @@ exports.chooseOption = async (page, selector, value) => {
   const text = await select.evaluate((el, value) => [...el.options].find(option => option.value === value).textContent, value);
   await trigger.click();
   const panel = page.locator(selector + '-panel');
-  await panel.locator('.source-search').fill(text);
   await panel.getByRole('option', { name: text, exact: true }).click();
 };

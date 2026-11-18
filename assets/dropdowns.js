@@ -27,27 +27,17 @@
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-label', 'Choose ' + name.toLowerCase());
     panel.hidden = true;
-    const search = document.createElement('input');
-    search.type = 'text';
-    search.className = 'source-search';
-    search.placeholder = 'Search options…';
-    search.setAttribute('aria-label', search.placeholder.replace('…', ''));
-    search.setAttribute('role', 'combobox');
-    search.setAttribute('aria-autocomplete', 'list');
-    search.setAttribute('aria-expanded', 'true');
-    search.setAttribute('aria-controls', id + '-options');
-    search.autocomplete = 'off';
-    search.spellcheck = false;
     const list = document.createElement('div');
     list.id = id + '-options';
     list.className = 'source-options';
+    list.tabIndex = 0;
     list.setAttribute('role', 'listbox');
     list.setAttribute('aria-label', name);
     const empty = document.createElement('p');
     empty.className = 'source-empty';
     empty.setAttribute('role', 'status');
-    empty.textContent = 'No matching options.';
-    panel.append(search, list, empty);
+    empty.textContent = 'No available options.';
+    panel.append(list, empty);
     wrapper.append(trigger, panel);
     select.after(wrapper);
     select.hidden = true;
@@ -59,9 +49,9 @@
       [...list.children].forEach((option, i) => option.classList.toggle('is-active', i === index));
       const option = list.children[index];
       if (option) {
-        search.setAttribute('aria-activedescendant', option.id);
+        list.setAttribute('aria-activedescendant', option.id);
         option.scrollIntoView?.({ block: 'nearest' });
-      } else search.removeAttribute('aria-activedescendant');
+      } else list.removeAttribute('aria-activedescendant');
     }
     function close(focus = false) {
       if (panel.matches(':popover-open')) panel.hidePopover();
@@ -77,8 +67,7 @@
       sync();
     }
     function filter() {
-      const words = search.value.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
-      choices = [...select.options].filter(option => !option.disabled && words.every(word => option.textContent.toLocaleLowerCase().includes(word)));
+      choices = [...select.options].filter(option => !option.disabled);
       list.replaceChildren();
       choices.forEach((option, i) => {
         const row = document.createElement('div');
@@ -96,7 +85,6 @@
     }
     function open() {
       controls.forEach(control => control.close());
-      search.value = '';
       sync();
       if (select.disabled) return;
       panel.hidden = false;
@@ -104,7 +92,8 @@
       position();
       trigger.setAttribute('aria-expanded', 'true');
       filter();
-      search.focus();
+      list.focus();
+      position();
     }
     function position() {
       const rect = trigger.getBoundingClientRect();
@@ -130,12 +119,13 @@
     trigger.addEventListener('keydown', event => {
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); open(); }
     });
-    search.addEventListener('input', filter);
-    search.addEventListener('keydown', event => {
+    list.addEventListener('keydown', event => {
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault();
         if (choices.length) activate((active + (event.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length);
-      } else if (event.key === 'Enter') { event.preventDefault(); choose(active); }
+      } else if (event.key === 'Home' || event.key === 'End') {
+        event.preventDefault(); activate(event.key === 'Home' ? 0 : choices.length - 1);
+      } else if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); choose(active); }
       else if (event.key === 'Escape') { event.preventDefault(); close(true); }
     });
     wrapper.addEventListener('focusout', event => { if (!wrapper.contains(event.relatedTarget)) close(); });
