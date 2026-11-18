@@ -557,20 +557,20 @@ body.has-search .bigsearch { margin-top: 28px; }
 
 /* Shared header geometry and reading columns; graph and list retain wide workspaces. */
 html { overflow: hidden; scrollbar-gutter: stable both-edges; }
-html:has(body[data-page=graph]) { scrollbar-gutter: auto; }
-body:not([data-page=graph]) #app { padding-top: 84px; }
-body:not([data-page=graph]) .topbar { position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: min(calc(100% - 48px), 1120px); height: 92px; padding: 24px 0; }
-body:not([data-page=graph]) .workspace-content { width: 100%; }
-body:not([data-page=graph]) .search-wrap,
-body:not([data-page=graph]) .paper-content { width: min(calc(100% - 48px), 800px); margin-left: auto; margin-right: auto; }
+html:has(body[data-page=graph], body[data-page=list]) { scrollbar-gutter: auto; }
+body:not([data-page=graph]):not([data-page=list]) #app { padding-top: 84px; }
+body:not([data-page=graph]):not([data-page=list]) .topbar { position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: min(calc(100% - 48px), 1120px); height: 92px; padding: 24px 0; }
+body:not([data-page=graph]):not([data-page=list]) .workspace-content { width: 100%; }
+body:not([data-page=graph]):not([data-page=list]) .search-wrap,
+body:not([data-page=graph]):not([data-page=list]) .paper-content { width: min(calc(100% - 48px), 800px); margin-left: auto; margin-right: auto; }
 /* Avoid a second scrollbar gutter shifting the reading column off centre. */
 #view-search, #view-list { scrollbar-gutter: auto; }
 .paper-content .filterbar, .paper-content .statusbar,
 .paper-content .detail-head, .paper-content .detail-body,
 .paper-content .detail-foot { padding-left: 0; padding-right: 0; }
 @media (max-width: 700px) {
-  body:not([data-page=graph]) #app { padding-top: 72px; }
-  body:not([data-page=graph]) .topbar { width: calc(100% - 32px); height: 76px; padding: 16px 0; }
-  body:not([data-page=graph]) .search-wrap,
-  body:not([data-page=graph]) .paper-content { width: calc(100% - 32px); }
+  body:not([data-page=graph]):not([data-page=list]) #app { padding-top: 72px; }
+  body:not([data-page=graph]):not([data-page=list]) .topbar { width: calc(100% - 32px); height: 76px; padding: 16px 0; }
+  body:not([data-page=graph]):not([data-page=list]) .search-wrap,
+  body:not([data-page=graph]):not([data-page=list]) .paper-content { width: calc(100% - 32px); }
 }
