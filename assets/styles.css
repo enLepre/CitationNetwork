@@ -555,26 +555,22 @@ body.has-search .bigsearch { margin-top: 28px; }
 .menu-actions #theme-toggle svg, .menu-actions .share-btn svg { width: 22px; height: 22px; }
 @media(prefers-reduced-motion:reduce) { .menu-outline, .menu-outline rect, .menu.is-open .menu-outline rect, .menu nav, .menu.is-open nav { transition: none; } }
 
-/* Shared site geometry; only the graph occupies the full viewport. */
+/* Shared header geometry and reading columns; graph and list retain wide workspaces. */
 html { overflow: hidden; scrollbar-gutter: stable both-edges; }
 html:has(body[data-page=graph]) { scrollbar-gutter: auto; }
 body:not([data-page=graph]) #app { padding-top: 84px; }
 body:not([data-page=graph]) .topbar { position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: min(calc(100% - 48px), 1120px); height: 92px; padding: 24px 0; }
 body:not([data-page=graph]) .workspace-content { width: 100%; }
 body:not([data-page=graph]) .search-wrap,
-body:not([data-page=graph]) .paper-content,
-body:not([data-page=graph]) #view-list { width: min(calc(100% - 48px), 800px); margin-left: auto; margin-right: auto; }
+body:not([data-page=graph]) .paper-content { width: min(calc(100% - 48px), 800px); margin-left: auto; margin-right: auto; }
 /* Avoid a second scrollbar gutter shifting the reading column off centre. */
 #view-search, #view-list { scrollbar-gutter: auto; }
 .paper-content .filterbar, .paper-content .statusbar,
 .paper-content .detail-head, .paper-content .detail-body,
 .paper-content .detail-foot { padding-left: 0; padding-right: 0; }
-.list-content .list-wrap { width: 100%; }
-#view-list .detail { position: absolute; inset: 0 0 0 auto; width: min(420px, 100%); min-width: 0; }
 @media (max-width: 700px) {
   body:not([data-page=graph]) #app { padding-top: 72px; }
   body:not([data-page=graph]) .topbar { width: calc(100% - 32px); height: 76px; padding: 16px 0; }
   body:not([data-page=graph]) .search-wrap,
-  body:not([data-page=graph]) .paper-content,
-  body:not([data-page=graph]) #view-list { width: calc(100% - 32px); }
+  body:not([data-page=graph]) .paper-content { width: calc(100% - 32px); }
 }
