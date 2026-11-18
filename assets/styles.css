@@ -598,3 +598,10 @@ body[data-page=search] .bigsearch { width: 100%; margin-top: 28px; }
   body[data-page=search] .search-wrap .lede { font-size: 16px; }
   body[data-page=search] .bigsearch { margin-top: 22px; }
 }
+
+/* Keep the document canvas opaque throughout sequential page fades. */
+html{background:var(--bg)}
+:root{--ref:#8b795f;--cite:#536b82;--linked:#875f7b}
+:root[data-theme=dark]{--seed:#91aaa5;--ref:color-mix(in srgb,#8b795f,white 40%);--cite:color-mix(in srgb,#536b82,white 40%);--linked:#bea2b6}
+:root[data-theme-change]::view-transition-old(root){animation:soft-out 160ms ease both}
+:root[data-theme-change]::view-transition-new(root){animation:soft-in 160ms ease both}
