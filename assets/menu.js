@@ -5,6 +5,8 @@
   const nav = menu?.querySelector('nav');
   if (!menu || !toggle || !nav) return;
   const fitMenu = () => {
+    menu.style.removeProperty('--menu-width');
+    menu.style.removeProperty('--menu-height');
     const { width, height } = nav.getBoundingClientRect();
     if (!width || !height) return;
     menu.style.setProperty('--menu-width', width + 'px');
@@ -33,5 +35,11 @@
   document.addEventListener('pointerdown', event => {
     if (!menu.contains(event.target)) setOpen(false);
   });
+  // Capture a closed rhombus, rather than an expanded panel, during page transitions.
+  window.addEventListener('pageswap', () => {
+    setOpen(false);
+    menu.getAnimations({ subtree: true }).forEach(animation => animation.finish());
+  });
+  window.addEventListener('pageshow', () => setOpen(false));
   nav.addEventListener('click', event => { if (event.target.closest('a')) { toggle.focus(); setOpen(false); } });
 })();
